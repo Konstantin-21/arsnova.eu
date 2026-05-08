@@ -11,6 +11,7 @@ vi.mock('../db', () => ({
 }));
 
 import {
+  incrementCompletedSessionsTotal,
   updateDailyMaxParticipants,
   updateCompletedSessionsTotal,
   updateMaxParticipantsSingleSession,
@@ -54,6 +55,18 @@ describe('platformStatistic', () => {
 
   it('führt Update des completedCounters bei gültiger Zahl aus', async () => {
     await updateCompletedSessionsTotal(42);
+    expect(prismaExecuteRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('führt kein Inkrement des completedCounters bei ungültiger Zahl aus', async () => {
+    await incrementCompletedSessionsTotal(0);
+    await incrementCompletedSessionsTotal(-1);
+    await incrementCompletedSessionsTotal(Number.NaN);
+    expect(prismaExecuteRaw).not.toHaveBeenCalled();
+  });
+
+  it('führt Inkrement des completedCounters bei gültiger Zahl aus', async () => {
+    await incrementCompletedSessionsTotal(3);
     expect(prismaExecuteRaw).toHaveBeenCalledTimes(1);
   });
 

@@ -1,21 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { prismaMock, hostAuthMocks, readingReadyMocks } = vi.hoisted(() => ({
-  prismaMock: {
-    session: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
+const { prismaMock, hostAuthMocks, readingReadyMocks, platformStatisticMocks, loadSignalMocks } =
+  vi.hoisted(() => ({
+    prismaMock: {
+      session: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
     },
-  },
-  hostAuthMocks: {
-    extractHostTokenMock: vi.fn(),
-    extractHostTokenFromConnectionParamsMock: vi.fn(() => null as string | null),
-    isHostSessionTokenValidMock: vi.fn(),
-  },
-  readingReadyMocks: {
-    clearReadingReady: vi.fn(),
-  },
-}));
+    hostAuthMocks: {
+      extractHostTokenMock: vi.fn(),
+      extractHostTokenFromConnectionParamsMock: vi.fn(() => null as string | null),
+      isHostSessionTokenValidMock: vi.fn(),
+    },
+    readingReadyMocks: {
+      clearReadingReady: vi.fn(),
+    },
+    platformStatisticMocks: {
+      incrementCompletedSessionsTotal: vi.fn(),
+    },
+    loadSignalMocks: {
+      recordSessionTransitionActivity: vi.fn(),
+      markCountdownSessionActive: vi.fn(),
+    },
+  }));
 
 vi.mock('../db', () => ({
   prisma: prismaMock,
@@ -32,6 +40,17 @@ vi.mock('../lib/hostAuth', async () => {
 
 vi.mock('../lib/readingReady', () => ({
   clearReadingReady: readingReadyMocks.clearReadingReady,
+}));
+
+vi.mock('../lib/platformStatistic', () => ({
+  incrementCompletedSessionsTotal: platformStatisticMocks.incrementCompletedSessionsTotal,
+  updateDailyMaxParticipants: vi.fn(),
+  updateMaxParticipantsSingleSession: vi.fn(),
+}));
+
+vi.mock('../lib/loadSignal', () => ({
+  recordSessionTransitionActivity: loadSignalMocks.recordSessionTransitionActivity,
+  markCountdownSessionActive: loadSignalMocks.markCountdownSessionActive,
 }));
 
 import { sessionRouter } from '../routers/session';
@@ -186,6 +205,7 @@ describe('session.nextQuestion (Story 2.3)', () => {
         data: expect.objectContaining({ status: 'FINISHED', currentQuestion: null }),
       }),
     );
+    expect(platformStatisticMocks.incrementCompletedSessionsTotal).toHaveBeenCalledWith();
   });
 
   it('wirft NOT_FOUND wenn Session fehlt', async () => {

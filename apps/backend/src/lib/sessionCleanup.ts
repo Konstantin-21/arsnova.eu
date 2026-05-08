@@ -5,6 +5,7 @@
  */
 import { prisma } from '../db';
 import { logger } from './logger';
+import { incrementCompletedSessionsTotal } from './platformStatistic';
 
 const STALE_SESSION_HOURS = 24;
 const FINISHED_SESSION_RETENTION_HOURS = 24;
@@ -41,7 +42,10 @@ export async function cleanupStaleSessions(): Promise<number> {
   });
 
   if (result.count > 0) {
-    logger.info(`Session-Cleanup: ${result.count} verwaiste Session(s) nach ${STALE_SESSION_HOURS}h beendet.`);
+    await incrementCompletedSessionsTotal(result.count);
+    logger.info(
+      `Session-Cleanup: ${result.count} verwaiste Session(s) nach ${STALE_SESSION_HOURS}h beendet.`,
+    );
   }
 
   return result.count;
@@ -55,7 +59,9 @@ export async function cleanupExpiredBonusTokens(): Promise<number> {
   });
 
   if (result.count > 0) {
-    logger.info(`BonusToken-Cleanup: ${result.count} Token(s) älter als ${BONUS_TOKEN_RETENTION_DAYS} Tage gelöscht.`);
+    logger.info(
+      `BonusToken-Cleanup: ${result.count} Token(s) älter als ${BONUS_TOKEN_RETENTION_DAYS} Tage gelöscht.`,
+    );
   }
 
   return result.count;
@@ -69,10 +75,7 @@ export async function cleanupExpiredFinishedSessions(): Promise<number> {
     where: {
       status: 'FINISHED',
       endedAt: { not: null, lt: cutoff },
-      OR: [
-        { legalHoldUntil: null },
-        { legalHoldUntil: { lte: now } },
-      ],
+      OR: [{ legalHoldUntil: null }, { legalHoldUntil: { lte: now } }],
     },
     select: {
       id: true,
@@ -85,11 +88,13 @@ export async function cleanupExpiredFinishedSessions(): Promise<number> {
   }
 
   const sessionIds = sessionsToPurge.map((entry) => entry.id);
-  const quizIds = [...new Set(
-    sessionsToPurge
-      .map((entry) => entry.quizId)
-      .filter((id): id is string => typeof id === 'string'),
-  )];
+  const quizIds = [
+    ...new Set(
+      sessionsToPurge
+        .map((entry) => entry.quizId)
+        .filter((id): id is string => typeof id === 'string'),
+    ),
+  ];
 
   const deletedSessions = await prisma.session.deleteMany({
     where: { id: { in: sessionIds } },
@@ -113,8 +118,8 @@ export async function cleanupExpiredFinishedSessions(): Promise<number> {
 
   if (deletedSessions.count > 0) {
     logger.info(
-      `Session-Purge: ${deletedSessions.count} beendete Session(s) älter als `
-      + `${FINISHED_SESSION_RETENTION_HOURS}h gelöscht (ohne aktiven Legal Hold).`,
+      `Session-Purge: ${deletedSessions.count} beendete Session(s) älter als ` +
+        `${FINISHED_SESSION_RETENTION_HOURS}h gelöscht (ohne aktiven Legal Hold).`,
     );
   }
 

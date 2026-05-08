@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { prismaMock, hostAuthMocks, loadSignalMocks } = vi.hoisted(() => ({
+const { prismaMock, hostAuthMocks, loadSignalMocks, platformStatisticMocks } = vi.hoisted(() => ({
   prismaMock: {
     session: {
       findUnique: vi.fn(),
@@ -22,6 +22,9 @@ const { prismaMock, hostAuthMocks, loadSignalMocks } = vi.hoisted(() => ({
     recordSessionTransitionActivity: vi.fn(),
     markCountdownSessionActive: vi.fn(),
   },
+  platformStatisticMocks: {
+    incrementCompletedSessionsTotal: vi.fn(),
+  },
 }));
 
 vi.mock('../db', () => ({
@@ -31,6 +34,12 @@ vi.mock('../db', () => ({
 vi.mock('../lib/loadSignal', () => ({
   recordSessionTransitionActivity: loadSignalMocks.recordSessionTransitionActivity,
   markCountdownSessionActive: loadSignalMocks.markCountdownSessionActive,
+}));
+
+vi.mock('../lib/platformStatistic', () => ({
+  incrementCompletedSessionsTotal: platformStatisticMocks.incrementCompletedSessionsTotal,
+  updateDailyMaxParticipants: vi.fn(),
+  updateMaxParticipantsSingleSession: vi.fn(),
 }));
 
 vi.mock('../lib/hostAuth', async () => {
@@ -77,6 +86,7 @@ describe('session.end', () => {
 
     await caller.end({ code: 'ABC123' });
 
+    expect(platformStatisticMocks.incrementCompletedSessionsTotal).toHaveBeenCalledWith();
     expect(prismaMock.bonusToken.createMany).not.toHaveBeenCalled();
   });
 
@@ -100,6 +110,7 @@ describe('session.end', () => {
 
     await caller.end({ code: 'ABC123' });
 
+    expect(platformStatisticMocks.incrementCompletedSessionsTotal).toHaveBeenCalledWith();
     expect(prismaMock.bonusToken.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [

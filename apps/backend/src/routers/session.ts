@@ -86,6 +86,7 @@ import {
 } from '../lib/quizScoring';
 import {
   updateDailyMaxParticipants,
+  incrementCompletedSessionsTotal,
   updateMaxParticipantsSingleSession,
 } from '../lib/platformStatistic';
 import { getActiveParticipantIdsForSession, touchParticipantPresence } from '../lib/presence';
@@ -2213,6 +2214,7 @@ export const sessionRouter = router({
         if (currentQuestionId) {
           await clearReadingReady(session.id, currentQuestionId);
         }
+        await incrementCompletedSessionsTotal();
         void recordSessionTransitionActivity();
         await generateBonusTokens(session);
         return { status: 'FINISHED' as const, currentQuestion: null, currentRound: 1 };
@@ -3290,6 +3292,7 @@ export const sessionRouter = router({
           endedAt: now,
         },
       });
+      await incrementCompletedSessionsTotal();
       void recordSessionTransitionActivity();
 
       await generateBonusTokens(session);

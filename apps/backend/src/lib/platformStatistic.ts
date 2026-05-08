@@ -104,3 +104,23 @@ export async function updateCompletedSessionsTotal(completedSessions: number): P
     logger.warn('PlatformStatistic: completedSessionsTotal konnte nicht aktualisiert werden', e);
   }
 }
+
+/**
+ * Erhöht die monotone Gesamtzahl beendeter Sessions atomar um `delta`.
+ * Fehler werden geloggt und geschluckt – das Beenden einer Session darf daran nicht scheitern.
+ */
+export async function incrementCompletedSessionsTotal(delta: number = 1): Promise<void> {
+  if (!Number.isFinite(delta) || delta < 1) return;
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "completedSessionsTotal", "updatedAt")
+      VALUES (${PLATFORM_STATISTIC_ID}, 0, ${delta}, NOW())
+      ON CONFLICT ("id") DO UPDATE
+      SET
+        "completedSessionsTotal" = "PlatformStatistic"."completedSessionsTotal" + EXCLUDED."completedSessionsTotal",
+        "updatedAt" = "PlatformStatistic"."updatedAt"
+    `;
+  } catch (e) {
+    logger.warn('PlatformStatistic: completedSessionsTotal konnte nicht inkrementiert werden', e);
+  }
+}
