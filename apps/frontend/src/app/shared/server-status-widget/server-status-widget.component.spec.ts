@@ -2,14 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerStatusWidgetComponent } from './server-status-widget.component';
 
-function buildDailyHighscores() {
-  return Array.from({ length: 30 }, (_, index) => ({
-    date: `2026-04-${String(index + 1).padStart(2, '0')}`,
-    count: index + 1,
-    updatedAt: `2026-04-${String(index + 1).padStart(2, '0')}T12:00:00.000Z`,
-  }));
-}
-
 describe('ServerStatusWidgetComponent', () => {
   it('emits openRequested when the footer status button is clicked', () => {
     TestBed.configureTestingModule({
@@ -45,18 +37,6 @@ describe('ServerStatusWidgetComponent', () => {
     fixture.componentInstance.connectionOk = true;
     fixture.componentInstance.loading = false;
     fixture.componentInstance.stats = {
-      openSessions: 6,
-      activeSessions: 4,
-      totalParticipants: 32,
-      votesLastMinute: 12,
-      sessionTransitionsLastMinute: 3,
-      activeCountdownSessions: 2,
-      completedSessions: 18,
-      usedSessions: 22,
-      activeBlitzRounds: 1,
-      maxParticipantsSingleSession: 120,
-      dailyHighscores: buildDailyHighscores(),
-      maxParticipantsStatisticUpdatedAt: '2026-04-05T10:15:00.000Z',
       serviceStatus: 'stable',
       loadStatus: 'healthy',
     };
@@ -89,18 +69,6 @@ describe('ServerStatusWidgetComponent', () => {
     fixture.componentInstance.connectionOk = true;
     fixture.componentInstance.loading = false;
     fixture.componentInstance.stats = {
-      openSessions: 121,
-      activeSessions: 120,
-      totalParticipants: 870,
-      votesLastMinute: 260,
-      sessionTransitionsLastMinute: 44,
-      activeCountdownSessions: 28,
-      completedSessions: 18,
-      usedSessions: 27,
-      activeBlitzRounds: 3,
-      maxParticipantsSingleSession: 120,
-      dailyHighscores: buildDailyHighscores(),
-      maxParticipantsStatisticUpdatedAt: '2026-04-05T10:15:00.000Z',
       serviceStatus: 'limited',
       loadStatus: 'busy',
     };
@@ -119,18 +87,6 @@ describe('ServerStatusWidgetComponent', () => {
     fixture.componentInstance.connectionOk = true;
     fixture.componentInstance.loading = false;
     fixture.componentInstance.stats = {
-      openSessions: 255,
-      activeSessions: 250,
-      totalParticipants: 1600,
-      votesLastMinute: 720,
-      sessionTransitionsLastMinute: 91,
-      activeCountdownSessions: 64,
-      completedSessions: 18,
-      usedSessions: 31,
-      activeBlitzRounds: 4,
-      maxParticipantsSingleSession: 120,
-      dailyHighscores: buildDailyHighscores(),
-      maxParticipantsStatisticUpdatedAt: '2026-04-05T10:15:00.000Z',
       serviceStatus: 'critical',
       loadStatus: 'overloaded',
     };

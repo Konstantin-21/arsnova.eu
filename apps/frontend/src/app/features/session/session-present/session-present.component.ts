@@ -51,11 +51,24 @@ import { MarkdownImageLightboxDirective } from '../../../shared/markdown-image-l
   styleUrl: './session-present.component.scss',
 })
 export class SessionPresentComponent implements OnInit, OnDestroy {
+  private static readonly META_POLL_MS = 10_000;
+  private static readonly LIVE_POLL_MS = 2_000;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private metaPollTimer: ReturnType<typeof setInterval> | null = null;
+  private livePollTimer: ReturnType<typeof setInterval> | null = null;
   private readonly code = this.route.parent?.snapshot.paramMap.get('code') ?? '';
+  private readonly onVisibilityChange = () => {
+    if (typeof document === 'undefined') return;
+    if (document.hidden) {
+      this.stopPolling();
+      return;
+    }
+    this.startPolling();
+    void this.refreshSessionMeta();
+    void this.refreshPresenterLiveData();
+  };
   readonly localizedPath = localizePath;
 
   readonly session = signal<SessionInfoDTO | null>(null);
@@ -133,6 +146,9 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
   });
 
   async ngOnInit(): Promise<void> {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
     if (this.code.length !== 6) {
       this.showHomeCta.set(true);
       this.presenterInfo.set($localize`Ungültiger Session-Code.`);
@@ -140,22 +156,53 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
     }
 
     await this.refreshSessionMeta();
-    await this.refreshLiveFreetext();
-    await this.refreshQaQuestions();
-    await this.refreshQuickFeedbackResult();
-    this.pollTimer = setInterval(() => {
-      void this.refreshSessionMeta();
-      void this.refreshLiveFreetext();
-      void this.refreshQaQuestions();
-      void this.refreshQuickFeedbackResult();
-    }, 2000);
+    await this.refreshPresenterLiveData();
+    this.startPolling();
   }
 
   ngOnDestroy(): void {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
     }
+    this.stopPolling();
+  }
+
+  private startPolling(): void {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
+    if (!this.metaPollTimer) {
+      this.metaPollTimer = setInterval(
+        () => void this.refreshSessionMeta(),
+        SessionPresentComponent.META_POLL_MS,
+      );
+    }
+    if (!this.livePollTimer) {
+      this.livePollTimer = setInterval(
+        () => void this.refreshPresenterLiveData(),
+        SessionPresentComponent.LIVE_POLL_MS,
+      );
+    }
+  }
+
+  private stopPolling(): void {
+    if (this.metaPollTimer) {
+      clearInterval(this.metaPollTimer);
+      this.metaPollTimer = null;
+    }
+    if (this.livePollTimer) {
+      clearInterval(this.livePollTimer);
+      this.livePollTimer = null;
+    }
+  }
+
+  private async refreshPresenterLiveData(): Promise<void> {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
+    await this.refreshLiveFreetext();
+    await this.refreshQaQuestions();
+    await this.refreshQuickFeedbackResult();
   }
 
   teamScoreBarWidth(totalScore: number): string {

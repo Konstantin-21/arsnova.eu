@@ -1020,10 +1020,20 @@ export const ServerStatsDTOSchema = z.object({
 
 export type ServerStatsDTO = z.infer<typeof ServerStatsDTOSchema>;
 
+/** Schlanke Footer-Antwort für den grünen Punkt im App-Footer. */
+export const FooterStatusDTOSchema = z.object({
+  /** Betriebsstatus (SLO-nah) für den Footer. */
+  serviceStatus: z.enum(['stable', 'limited', 'critical']),
+  /** Lastindikator für die Einfärbung bzw. Diagnose. */
+  loadStatus: z.enum(['healthy', 'busy', 'overloaded']),
+});
+
+export type FooterStatusDTO = z.infer<typeof FooterStatusDTOSchema>;
+
 /** Ein HTTP-Roundtrip für App-Footer: Check + Stats parallel auf dem Server (kürzere kritische Netzwerk-Kette). */
 export const HealthFooterBundleSchema = z.object({
   check: HealthCheckResponseSchema,
-  stats: ServerStatsDTOSchema,
+  stats: FooterStatusDTOSchema,
 });
 export type HealthFooterBundle = z.infer<typeof HealthFooterBundleSchema>;
 

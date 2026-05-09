@@ -4,30 +4,35 @@ const SESSION_ID = '6a8edced-5f8f-4cfa-9176-454fac9570ad';
 const PARTICIPANT_ID = '11111111-1111-4111-8111-111111111111';
 const TEAM_ID = '22222222-2222-4222-8222-222222222222';
 
-const { prismaMock, rateLimitMocks, statsMocks, presenceMocks } = vi.hoisted(() => ({
-  prismaMock: {
-    session: {
-      findUnique: vi.fn(),
+const { prismaMock, rateLimitMocks, statsMocks, presenceMocks, joinAdmissionMocks } = vi.hoisted(
+  () => ({
+    prismaMock: {
+      session: {
+        findUnique: vi.fn(),
+      },
+      participant: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        count: vi.fn(),
+      },
     },
-    participant: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      count: vi.fn(),
+    rateLimitMocks: {
+      checkSessionCreateRate: vi.fn(),
+      isSessionCodeLockedOut: vi.fn(),
+      recordFailedSessionCodeAttempt: vi.fn(),
     },
-  },
-  rateLimitMocks: {
-    checkSessionCreateRate: vi.fn(),
-    isSessionCodeLockedOut: vi.fn(),
-    recordFailedSessionCodeAttempt: vi.fn(),
-  },
-  statsMocks: {
-    updateMaxParticipantsSingleSession: vi.fn(),
-    updateDailyMaxParticipants: vi.fn(),
-  },
-  presenceMocks: {
-    touchParticipantPresence: vi.fn(),
-  },
-}));
+    statsMocks: {
+      updateMaxParticipantsSingleSession: vi.fn(),
+      updateDailyMaxParticipants: vi.fn(),
+    },
+    presenceMocks: {
+      touchParticipantPresence: vi.fn(),
+    },
+    joinAdmissionMocks: {
+      awaitJoinAdmissionSlot: vi.fn(),
+    },
+  }),
+);
 
 vi.mock('../db', () => ({
   prisma: prismaMock,
@@ -46,6 +51,10 @@ vi.mock('../lib/platformStatistic', () => ({
 
 vi.mock('../lib/presence', () => ({
   touchParticipantPresence: presenceMocks.touchParticipantPresence,
+}));
+
+vi.mock('../lib/joinAdmission', () => ({
+  awaitJoinAdmissionSlot: joinAdmissionMocks.awaitJoinAdmissionSlot,
 }));
 
 import { sessionRouter } from '../routers/session';
@@ -93,6 +102,7 @@ describe('session.join', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     rateLimitMocks.isSessionCodeLockedOut.mockResolvedValue({ locked: false });
+    joinAdmissionMocks.awaitJoinAdmissionSlot.mockResolvedValue({ delayedMs: 0, attempts: 1 });
     prismaMock.session.findUnique.mockResolvedValue(buildSession());
     prismaMock.participant.count.mockResolvedValue(3);
   });
@@ -126,6 +136,7 @@ describe('session.join', () => {
       },
     });
     expect(prismaMock.participant.create).not.toHaveBeenCalled();
+    expect(joinAdmissionMocks.awaitJoinAdmissionSlot).not.toHaveBeenCalled();
     expect(result.participantId).toBe(PARTICIPANT_ID);
     expect(result.rejoinToken).toBe(PARTICIPANT_ID);
     expect(result.teamId).toBe(TEAM_ID);
@@ -152,6 +163,7 @@ describe('session.join', () => {
         teamId: undefined,
       },
     });
+    expect(joinAdmissionMocks.awaitJoinAdmissionSlot).toHaveBeenCalledWith(SESSION_ID);
     expect(result.participantId).toBe(PARTICIPANT_ID);
     expect(result.rejoinToken).toBe(PARTICIPANT_ID);
     expect(result.participantCount).toBe(4);

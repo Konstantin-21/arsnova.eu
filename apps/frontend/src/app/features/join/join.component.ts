@@ -38,6 +38,8 @@ import {
 const PARTICIPANT_STORAGE_KEY = 'arsnova-participant';
 const NICKNAME_STORAGE_KEY = 'arsnova-nickname';
 const SESSION_POLL_MS = 3000;
+const SESSION_POLL_JITTER_MS = 600;
+const PARTICIPANT_NICKNAME_REFRESH_MS = 12000;
 
 /**
  * Teilnehmer-Einstieg (QR/Link). Code validieren → Lobby (Story 3.1). Nickname (3.2) → session/:code/vote.
@@ -84,6 +86,17 @@ export class JoinComponent implements OnInit, OnDestroy {
   readonly joining = signal(false);
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private pollStartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private lastParticipantsRefreshAt = 0;
+  private readonly onVisibilityChange = () => {
+    if (typeof document === 'undefined') return;
+    if (document.hidden) {
+      this.stopSessionPoll();
+      return;
+    }
+    void this.refreshSession({ forceParticipantRefresh: true });
+    this.startSessionPoll(true);
+  };
 
   sessionCodeDisplayAria(code: string): string {
     return i18nSessionCodeAria(code);
@@ -235,6 +248,9 @@ export class JoinComponent implements OnInit, OnDestroy {
   playfulTeamReadySuffix = () => $localize`:@@join.teamReadySuffixPlayful:wartet schon auf dich.`;
 
   ngOnInit(): void {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
     if (this.code.length !== 6) {
       this.errorSessionFinished.set(false);
       this.error.set($localize`Ungültiger Session-Code.`);
@@ -245,9 +261,16 @@ export class JoinComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
+    }
+    if (this.pollStartTimeout) {
+      clearTimeout(this.pollStartTimeout);
+      this.pollStartTimeout = null;
     }
   }
 
@@ -285,20 +308,36 @@ export class JoinComponent implements OnInit, OnDestroy {
   }
 
   /** Session-Info und Teilnehmer periodisch nachziehen, damit Änderungen des Hosts (z. B. Namensliste) beim Client ankommen. */
-  private startSessionPoll(): void {
-    if (this.pollTimer) return;
-    this.pollTimer = setInterval(() => void this.refreshSession(), SESSION_POLL_MS);
+  private startSessionPoll(immediate = false): void {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (this.pollTimer || this.pollStartTimeout) return;
+    const start = () => {
+      this.pollStartTimeout = null;
+      if (this.pollTimer || (typeof document !== 'undefined' && document.hidden)) return;
+      this.pollTimer = setInterval(() => void this.refreshSession(), SESSION_POLL_MS);
+    };
+    if (immediate) {
+      start();
+      return;
+    }
+    const jitterMs = Math.floor(Math.random() * SESSION_POLL_JITTER_MS);
+    this.pollStartTimeout = setTimeout(start, jitterMs);
   }
 
   private stopSessionPoll(): void {
+    if (this.pollStartTimeout) {
+      clearTimeout(this.pollStartTimeout);
+      this.pollStartTimeout = null;
+    }
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
   }
 
-  private async refreshSession(): Promise<void> {
+  private async refreshSession(options?: { forceParticipantRefresh?: boolean }): Promise<void> {
     if (this.joining() || this.loading()) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       const session = await trpc.session.getInfo.query({ code: this.code });
       recordServerTimeIso(session.serverTime);
@@ -323,7 +362,10 @@ export class JoinComponent implements OnInit, OnDestroy {
       if (this.selectedTeamId().trim() && !teamIds.has(this.selectedTeamId().trim())) {
         this.selectedTeamId.set('');
       }
-      if (!session.anonymousMode) {
+      if (
+        !session.anonymousMode &&
+        this.shouldRefreshParticipants(options?.forceParticipantRefresh)
+      ) {
         await this.loadParticipants();
       }
     } catch {
@@ -351,9 +393,17 @@ export class JoinComponent implements OnInit, OnDestroy {
       const payload = await trpc.session.getParticipantNicknames.query({ code: this.code });
       const set = new Set(payload.nicknames.map((nickname) => nickname.trim().toLowerCase()));
       this.takenNicknames.set(set);
+      this.lastParticipantsRefreshAt = Date.now();
     } catch {
       this.takenNicknames.set(new Set());
     }
+  }
+
+  private shouldRefreshParticipants(force = false): boolean {
+    if (force || this.lastParticipantsRefreshAt === 0) {
+      return true;
+    }
+    return Date.now() - this.lastParticipantsRefreshAt >= PARTICIPANT_NICKNAME_REFRESH_MS;
   }
 
   isTaken(nickname: string): boolean {

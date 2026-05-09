@@ -51,13 +51,14 @@ import { countActiveParticipantsForSessions } from '../lib/presence';
 import { getActiveParticipantCountsForSessions } from '../lib/presence';
 import { readLoadSignals } from '../lib/loadSignal';
 import { readSloSignals } from '../lib/sloTelemetry';
-import { healthRouter, heartbeatGenerator } from '../routers/health';
+import { healthRouter, heartbeatGenerator, resetHealthStatsCacheForTests } from '../routers/health';
 
 const caller = healthRouter.createCaller({ req: undefined });
 
 describe('health.check', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetHealthStatsCacheForTests();
     vi.mocked(prisma.session.findMany).mockResolvedValue([]);
     vi.mocked(prisma.dailyStatistic.findMany).mockResolvedValue([]);
     vi.mocked(countActiveParticipantsForSessions).mockResolvedValue(0);
@@ -99,6 +100,7 @@ describe('health.check', () => {
 describe('health.footerBundle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetHealthStatsCacheForTests();
     vi.mocked(prisma.session.findMany).mockResolvedValue([]);
     vi.mocked(prisma.dailyStatistic.findMany).mockResolvedValue([]);
     vi.mocked(countActiveParticipantsForSessions).mockResolvedValue(0);
@@ -131,23 +133,32 @@ describe('health.footerBundle', () => {
 
     expect(result.check.status).toBe('ok');
     expect(result.check.redis).toBe('ok');
-    expect(result.stats.openSessions).toBe(0);
-    expect(result.stats.activeSessions).toBe(0);
-    expect(result.stats.votesLastMinute).toBe(0);
-    expect(result.stats.sessionTransitionsLastMinute).toBe(0);
-    expect(result.stats.activeCountdownSessions).toBe(0);
-    expect(result.stats.usedSessions).toBe(0);
-    expect(result.stats.maxParticipantsSingleSession).toBe(42);
-    expect(result.stats.dailyHighscores).toHaveLength(30);
-    expect(result.stats.maxParticipantsStatisticUpdatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(result.stats.serviceStatus).toBe('stable');
     expect(result.stats.loadStatus).toBe('healthy');
+  });
+
+  it('nutzt fuer wiederholte Footer-Abfragen den Serverstats-Cache', async () => {
+    vi.mocked(pingRedis).mockResolvedValue(true);
+    vi.mocked(prisma.session.count).mockResolvedValue(0);
+    vi.mocked(prisma.platformStatistic.findUnique).mockResolvedValue({
+      id: 'default',
+      updatedAt: new Date(),
+      maxParticipantsSingleSession: 42,
+      completedSessionsTotal: 0,
+      usedSessionsTotal: 0,
+    } as never);
+
+    await caller.footerBundle(undefined);
+    await caller.footerBundle(undefined);
+
+    expect(prisma.session.count).toHaveBeenCalledTimes(3);
   });
 });
 
 describe('health.stats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetHealthStatsCacheForTests();
     vi.mocked(prisma.session.findMany).mockResolvedValue([]);
     vi.mocked(prisma.dailyStatistic.findMany).mockResolvedValue([]);
     vi.mocked(countActiveParticipantsForSessions).mockResolvedValue(0);

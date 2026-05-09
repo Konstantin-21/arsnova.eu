@@ -5,6 +5,7 @@ const {
   isSessionCodeLockedOutMock,
   recordFailedSessionCodeAttemptMock,
   hostAuthMocks,
+  joinAdmissionMocks,
 } = vi.hoisted(() => ({
   prismaMock: {
     session: {
@@ -31,6 +32,9 @@ const {
     extractHostTokenFromConnectionParamsMock: vi.fn(() => null as string | null),
     isHostSessionTokenValidMock: vi.fn(),
   },
+  joinAdmissionMocks: {
+    awaitJoinAdmissionSlot: vi.fn(),
+  },
 }));
 
 vi.mock('../db', () => ({
@@ -52,6 +56,10 @@ vi.mock('../lib/hostAuth', async () => {
   });
 });
 
+vi.mock('../lib/joinAdmission', () => ({
+  awaitJoinAdmissionSlot: joinAdmissionMocks.awaitJoinAdmissionSlot,
+}));
+
 import { sessionRouter } from '../routers/session';
 
 const caller = sessionRouter.createCaller({ req: undefined });
@@ -66,6 +74,7 @@ describe('session team mode (Story 7.1)', () => {
     vi.resetAllMocks();
     isSessionCodeLockedOutMock.mockResolvedValue({ locked: false, retryAfterSeconds: 0 });
     recordFailedSessionCodeAttemptMock.mockResolvedValue({ locked: false, retryAfterSeconds: 0 });
+    joinAdmissionMocks.awaitJoinAdmissionSlot.mockResolvedValue({ delayedMs: 0, attempts: 1 });
     hostAuthMocks.extractHostTokenMock.mockReturnValue('host-token-123');
     hostAuthMocks.extractHostTokenFromConnectionParamsMock.mockReturnValue(null);
     hostAuthMocks.isHostSessionTokenValidMock.mockResolvedValue(true);
@@ -155,6 +164,7 @@ describe('session team mode (Story 7.1)', () => {
         teamId: TEAM_A_ID,
       },
     });
+    expect(joinAdmissionMocks.awaitJoinAdmissionSlot).toHaveBeenCalledWith(SESSION_ID);
     expect(result.teamId).toBe(TEAM_A_ID);
     expect(result.teamName).toBe('Team A');
   });
@@ -195,6 +205,7 @@ describe('session team mode (Story 7.1)', () => {
         teamId: TEAM_A_ID,
       },
     });
+    expect(joinAdmissionMocks.awaitJoinAdmissionSlot).toHaveBeenCalledWith(SESSION_ID);
     expect(result.teamId).toBe(TEAM_A_ID);
     expect(result.teamName).toBe('Team A');
   });

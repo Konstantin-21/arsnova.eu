@@ -122,7 +122,8 @@ const ANSWER_SHAPES = [
   '\u2B20',
   '\u2BC6',
 ];
-const HOST_FALLBACK_POLL_MS = 3000;
+const HOST_AUX_POLL_MS = 3000;
+const HOST_CLOCK_POLL_MS = 15000;
 const FOYER_MAX_ACTIVE_CHIPS = 6;
 const FOYER_CHIP_LIFETIME_MS = 1100;
 const FOYER_CHIP_DEV_LIFETIME_MS = 3500;
@@ -341,6 +342,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   private statusSub: Unsubscribable | null = null;
   private qaSub: Unsubscribable | null = null;
   private qaSubscriptionSessionId: string | null = null;
+  private hostRealtimeFallbackActive = false;
   private participantBaselineReady = false;
   private knownParticipantIds = new Set<string>();
   private foyerArrivalSequence = 0;
@@ -368,7 +370,8 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly quizStore = inject(QuizStoreService);
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private auxPollTimer: ReturnType<typeof setInterval> | null = null;
+  private clockPollTimer: ReturnType<typeof setInterval> | null = null;
   readonly code = this.route.parent?.snapshot.paramMap.get('code') ?? '';
   private readonly requestedInitialTab = this.route.snapshot?.queryParamMap?.get('tab') ?? null;
   /** Nach einmaligem Anwenden von `?tab=` nicht erneut erzwingen (sonst kein Kanalwechsel möglich). */
@@ -388,6 +391,20 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   readonly teamLeaderboard = signal<TeamLeaderboardEntryDTO[]>([]);
   readonly lobbyTeams = signal<TeamDTO[]>([]);
   readonly leaderboardLoading = signal(false);
+  private readonly onVisibilityChange = () => {
+    if (typeof document === 'undefined') return;
+    if (document.hidden) {
+      this.stopHostPolling();
+      return;
+    }
+    this.ensureParticipantSubscription();
+    this.ensureStatusSubscription();
+    this.startHostPolling();
+    this.runAuxiliaryPollCycle();
+    if (this.hostRealtimeFallbackActive) {
+      this.runRealtimeFallbackCycle();
+    }
+  };
   readonly feedbackSummary = signal<SessionFeedbackSummary | null>(null);
   /** Aktuelle Frage für Host (Text + Antwortoptionen), null wenn keine Frage aktiv. */
   readonly currentQuestionForHost = signal<HostCurrentQuestionDTO | null>(null);
@@ -1126,6 +1143,9 @@ export class SessionHostComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     if (this.code.length !== 6) return;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
     // Preset "Seriös/Business" startet standardmäßig ohne Musik.
     this.musicMuted.set(this.themePreset.preset() === 'serious');
     try {
@@ -1142,46 +1162,12 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     await this.refreshLiveFreetext();
     await this.refreshCurrentQuestionForHost();
     this.syncMusic();
-    this.pollTimer = setInterval(() => {
-      void this.refreshServerClockSkew();
-      void this.refreshParticipantsPayload();
-      void this.refreshLiveFreetext();
-      void this.refreshCurrentQuestionForHost();
-      void this.refreshQaQuestions();
-      void this.refreshEmojiReactions();
-      void this.refreshLobbyTeams();
-      void this.refreshQuickFeedbackResult();
-      this.syncMusic();
-    }, HOST_FALLBACK_POLL_MS);
+    this.startHostPolling();
     this.syncMusic();
 
     if (this.code.length === 6) {
-      this.participantSub = trpc.session.onParticipantJoined.subscribe(
-        { code: this.code.toUpperCase() },
-        {
-          onData: (data) => {
-            this.updateParticipantsPayload(data);
-            void this.refreshLobbyTeams();
-          },
-          onError: () => this.burstHostFallbackAfterWsGap(),
-        },
-      );
-      this.statusSub = trpc.session.onStatusChanged.subscribe(
-        { code: this.code.toUpperCase() },
-        {
-          onData: (data) => {
-            if (data.serverTime) {
-              recordServerTimeIso(data.serverTime);
-            }
-            this.statusUpdate.set({
-              status: data.status as SessionStatusUpdate['status'],
-              currentQuestion: data.currentQuestion,
-              activeAt: data.activeAt,
-            });
-          },
-          onError: () => this.burstHostFallbackAfterWsGap(),
-        },
-      );
+      this.ensureParticipantSubscription();
+      this.ensureStatusSubscription();
 
       this.document.addEventListener('click', this.unlockListener, { once: true });
       this.document.addEventListener('keydown', this.unlockListener, { once: true });
@@ -1202,6 +1188,150 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     return session;
   }
 
+  private ensureParticipantSubscription(): void {
+    if (!this.code || this.participantSub) {
+      return;
+    }
+    this.participantSub = trpc.session.onParticipantJoined.subscribe(
+      { code: this.code.toUpperCase() },
+      {
+        onData: (data) => {
+          this.hostRealtimeFallbackActive = false;
+          this.updateParticipantsPayload(data);
+          void this.refreshLobbyTeams();
+        },
+        onError: () => {
+          this.participantSub?.unsubscribe();
+          this.participantSub = null;
+          this.burstHostFallbackAfterWsGap();
+        },
+      },
+    );
+  }
+
+  private ensureStatusSubscription(): void {
+    if (!this.code || this.statusSub) {
+      return;
+    }
+    this.statusSub = trpc.session.onStatusChanged.subscribe(
+      { code: this.code.toUpperCase() },
+      {
+        onData: (data) => {
+          this.hostRealtimeFallbackActive = false;
+          if (data.serverTime) {
+            recordServerTimeIso(data.serverTime);
+          }
+          this.statusUpdate.set({
+            status: data.status as SessionStatusUpdate['status'],
+            currentQuestion: data.currentQuestion,
+            activeAt: data.activeAt,
+          });
+        },
+        onError: () => {
+          this.statusSub?.unsubscribe();
+          this.statusSub = null;
+          this.burstHostFallbackAfterWsGap();
+        },
+      },
+    );
+  }
+
+  private startHostPolling(): void {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
+    if (!this.auxPollTimer) {
+      this.auxPollTimer = setInterval(() => {
+        this.runAuxiliaryPollCycle();
+        if (this.hostRealtimeFallbackActive) {
+          this.runRealtimeFallbackCycle();
+        }
+      }, HOST_AUX_POLL_MS);
+    }
+    if (!this.clockPollTimer) {
+      this.clockPollTimer = setInterval(() => {
+        void this.refreshServerClockSkew();
+      }, HOST_CLOCK_POLL_MS);
+    }
+  }
+
+  private stopHostPolling(): void {
+    if (this.auxPollTimer) {
+      clearInterval(this.auxPollTimer);
+      this.auxPollTimer = null;
+    }
+    if (this.clockPollTimer) {
+      clearInterval(this.clockPollTimer);
+      this.clockPollTimer = null;
+    }
+  }
+
+  private runAuxiliaryPollCycle(): void {
+    void this.refreshAuxiliaryHostData();
+    this.syncMusic();
+  }
+
+  private runRealtimeFallbackCycle(): void {
+    void this.refreshRealtimeHostFallback();
+  }
+
+  private async refreshAuxiliaryHostData(): Promise<void> {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
+    if (this.shouldPollLiveFreetext()) {
+      await this.refreshLiveFreetext();
+    }
+    if (this.shouldPollQaQuestions()) {
+      await this.refreshQaQuestions();
+    }
+    if (this.shouldPollQuickFeedback()) {
+      await this.refreshQuickFeedbackResult();
+    }
+    if (this.shouldPollEmojiReactions()) {
+      await this.refreshEmojiReactions();
+    }
+  }
+
+  private async refreshRealtimeHostFallback(): Promise<void> {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
+    try {
+      await this.reloadSessionInfo();
+    } catch {
+      /* best effort */
+    }
+    await this.refreshParticipantsPayload();
+    await this.refreshCurrentQuestionForHost();
+    if (this.session()?.teamMode && this.effectiveStatus() === 'LOBBY') {
+      await this.refreshLobbyTeams();
+    }
+  }
+
+  private shouldPollLiveFreetext(): boolean {
+    if (this.activeChannel() !== 'quiz') {
+      return false;
+    }
+    return this.currentQuestionForHost()?.type === 'FREETEXT' || this.wordCloudExpanded();
+  }
+
+  private shouldPollQaQuestions(): boolean {
+    return this.activeChannel() === 'qa' && this.channels().qa;
+  }
+
+  private shouldPollQuickFeedback(): boolean {
+    return this.channels().quickFeedback && this.activeChannel() === 'quickFeedback';
+  }
+
+  private shouldPollEmojiReactions(): boolean {
+    return (
+      this.activeChannel() === 'quiz' &&
+      this.session()?.enableEmojiReactions === true &&
+      (this.effectiveStatus() === 'ACTIVE' || this.effectiveStatus() === 'RESULTS')
+    );
+  }
+
   private unlockListener = (): void => {
     this.sound.unlock();
     this.document.removeEventListener('click', this.unlockListener);
@@ -1210,15 +1340,11 @@ export class SessionHostComponent implements OnInit, OnDestroy {
 
   /** Ein Poll-Zyklus ohne auf das Intervall zu warten (z. B. nach WS-Subscription-Fehler beim Deploy). */
   private burstHostFallbackAfterWsGap(): void {
-    void this.refreshServerClockSkew();
-    void this.refreshParticipantsPayload();
-    void this.refreshLiveFreetext();
-    void this.refreshCurrentQuestionForHost();
-    void this.refreshQaQuestions();
-    void this.refreshEmojiReactions();
-    void this.refreshLobbyTeams();
-    void this.refreshQuickFeedbackResult();
-    this.syncMusic();
+    this.hostRealtimeFallbackActive = true;
+    this.ensureParticipantSubscription();
+    this.ensureStatusSubscription();
+    this.runRealtimeFallbackCycle();
+    this.runAuxiliaryPollCycle();
   }
 
   /** Periodische Kalibrierung gegen die Serverzeit (Health), falls keine Status-Events kommen. */
@@ -1232,6 +1358,9 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.suppressJoinMenuAutopen = true;
     this.hostDisplayMode.setHostSessionActive(false);
     this.participantSub?.unsubscribe();
@@ -1241,10 +1370,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     this.qaSub?.unsubscribe();
     this.qaSub = null;
     this.qaSubscriptionSessionId = null;
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
+    this.stopHostPolling();
     this.clearFoyerArrivalState();
     this.stopCountdown();
     this.sound.stopAll();

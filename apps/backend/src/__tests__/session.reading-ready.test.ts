@@ -9,6 +9,10 @@ const { prismaMock, hostAuthMocks, presenceMocks, readingReadyMocks } = vi.hoist
     participant: {
       findFirst: vi.fn(),
     },
+    vote: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+    },
   },
   hostAuthMocks: {
     extractHostTokenMock: vi.fn(),
@@ -50,7 +54,12 @@ vi.mock('../lib/hostAuth', async () => {
   });
 });
 
-import { sessionRouter } from '../routers/session';
+import {
+  invalidateCurrentQuestionCachesForCode,
+  resetSessionReadCachesForTests,
+  resetVoteAggregationCachesForTests,
+  sessionRouter,
+} from '../routers/session';
 
 const caller = sessionRouter.createCaller({ req: undefined });
 const hostCaller = sessionRouter.createCaller({ req: {} as never });
@@ -63,12 +72,16 @@ const QUESTION_ID_2 = '44444444-4444-4444-8444-444444444444';
 describe('session reading-ready flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSessionReadCachesForTests();
+    resetVoteAggregationCachesForTests();
     hostAuthMocks.extractHostTokenMock.mockReturnValue('host-token-123');
     hostAuthMocks.extractHostTokenFromConnectionParamsMock.mockReturnValue(null);
     hostAuthMocks.isHostSessionTokenValidMock.mockResolvedValue(true);
     presenceMocks.getActiveParticipantIdsForSession.mockResolvedValue(new Set());
     readingReadyMocks.getReadingReadyParticipantIds.mockResolvedValue(new Set());
     prismaMock.session.update.mockResolvedValue(undefined);
+    prismaMock.vote.count.mockResolvedValue(0);
+    prismaMock.vote.findMany.mockResolvedValue([]);
   });
 
   it('bestätigt Bereitschaft idempotent in QUESTION_OPEN und liefert Fortschritt zurück', async () => {
@@ -232,5 +245,159 @@ describe('session reading-ready flow', () => {
       currentQuestion: 1,
       currentRound: 1,
     });
+  });
+
+  it('nutzt bei ACTIVE kurzfristig einen Cache fuer wiederholte Current-Question-Abfragen', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      status: 'ACTIVE',
+      currentQuestion: 0,
+      currentRound: 1,
+      answerDisplayOrder: null,
+      statusChangedAt: new Date('2026-04-28T10:00:00.000Z'),
+      quiz: {
+        defaultTimer: 30,
+        timerScaleByDifficulty: true,
+        preset: 'SERIOUS',
+        questions: [
+          {
+            id: QUESTION_ID,
+            text: 'Was ist 2 + 2?',
+            type: 'SINGLE_CHOICE',
+            difficulty: 'MEDIUM',
+            order: 0,
+            timer: 30,
+            ratingMin: null,
+            ratingMax: null,
+            ratingLabelMin: null,
+            ratingLabelMax: null,
+            answers: [
+              {
+                id: '55555555-5555-4555-8555-555555555555',
+                text: '4',
+                isCorrect: true,
+              },
+            ],
+          },
+        ],
+      },
+      _count: { participants: 2 },
+    });
+    prismaMock.participant.findFirst.mockResolvedValue({ id: PARTICIPANT_ID });
+    const voteCountMock = vi.fn().mockResolvedValue(1);
+    prismaMock.vote.count = voteCountMock;
+
+    const first = await caller.getCurrentQuestionForStudent({
+      code: 'ABC123',
+      participantId: PARTICIPANT_ID,
+    });
+    const second = await caller.getCurrentQuestionForStudent({
+      code: 'ABC123',
+      participantId: PARTICIPANT_ID,
+    });
+
+    expect(first).toMatchObject({ id: QUESTION_ID, totalVotes: 1 });
+    expect(second).toMatchObject({ id: QUESTION_ID, totalVotes: 1 });
+    expect(voteCountMock).toHaveBeenCalledTimes(1);
+    expect(prismaMock.participant.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it('haelt den Vote-Count nach Current-Question-Invalidierung im eigenen Cache', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      status: 'ACTIVE',
+      currentQuestion: 0,
+      currentRound: 1,
+      answerDisplayOrder: null,
+      statusChangedAt: new Date('2026-04-28T10:00:00.000Z'),
+      quiz: {
+        defaultTimer: 30,
+        timerScaleByDifficulty: true,
+        preset: 'SERIOUS',
+        questions: [
+          {
+            id: QUESTION_ID,
+            text: 'Was ist 2 + 2?',
+            type: 'SINGLE_CHOICE',
+            difficulty: 'MEDIUM',
+            order: 0,
+            timer: 30,
+            ratingMin: null,
+            ratingMax: null,
+            ratingLabelMin: null,
+            ratingLabelMax: null,
+            answers: [{ id: '55555555-5555-4555-8555-555555555555', text: '4', isCorrect: true }],
+          },
+        ],
+      },
+      _count: { participants: 2 },
+    });
+    prismaMock.participant.findFirst.mockResolvedValue({ id: PARTICIPANT_ID });
+    const voteCountMock = vi.fn().mockResolvedValue(3);
+    prismaMock.vote.count = voteCountMock;
+
+    const first = await caller.getCurrentQuestionForStudent({
+      code: 'ABC123',
+      participantId: PARTICIPANT_ID,
+    });
+    invalidateCurrentQuestionCachesForCode('ABC123');
+    const second = await caller.getCurrentQuestionForStudent({
+      code: 'ABC123',
+      participantId: PARTICIPANT_ID,
+    });
+
+    expect(first).toMatchObject({ id: QUESTION_ID, totalVotes: 3 });
+    expect(second).toMatchObject({ id: QUESTION_ID, totalVotes: 3 });
+    expect(voteCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('haelt die Ergebnisaggregation nach Current-Question-Invalidierung im eigenen Cache', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      status: 'RESULTS',
+      currentQuestion: 0,
+      currentRound: 1,
+      answerDisplayOrder: null,
+      statusChangedAt: new Date('2026-04-28T10:00:00.000Z'),
+      quiz: {
+        defaultTimer: 30,
+        timerScaleByDifficulty: true,
+        preset: 'SERIOUS',
+        questions: [
+          {
+            id: QUESTION_ID,
+            text: 'Was ist 2 + 2?',
+            type: 'SINGLE_CHOICE',
+            difficulty: 'MEDIUM',
+            order: 0,
+            timer: 30,
+            ratingMin: null,
+            ratingMax: null,
+            ratingLabelMin: null,
+            ratingLabelMax: null,
+            answers: [
+              { id: '55555555-5555-4555-8555-555555555555', text: '4', isCorrect: true },
+              { id: '66666666-6666-4666-8666-666666666666', text: '5', isCorrect: false },
+            ],
+          },
+        ],
+      },
+      _count: { participants: 2 },
+    });
+    const findManyMock = vi
+      .fn()
+      .mockResolvedValue([
+        { selectedAnswers: [{ answerOptionId: '55555555-5555-4555-8555-555555555555' }] },
+        { selectedAnswers: [{ answerOptionId: '66666666-6666-4666-8666-666666666666' }] },
+      ]);
+    prismaMock.vote.findMany = findManyMock;
+
+    const first = await caller.getCurrentQuestionForStudent({ code: 'ABC123' });
+    invalidateCurrentQuestionCachesForCode('ABC123');
+    const second = await caller.getCurrentQuestionForStudent({ code: 'ABC123' });
+
+    expect(first).toMatchObject({ id: QUESTION_ID, totalVotes: 2 });
+    expect(second).toMatchObject({ id: QUESTION_ID, totalVotes: 2 });
+    expect(findManyMock).toHaveBeenCalledTimes(1);
   });
 });

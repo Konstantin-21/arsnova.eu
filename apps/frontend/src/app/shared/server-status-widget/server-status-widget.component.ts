@@ -5,7 +5,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import type { ServerStatsDTO } from '@arsnova/shared-types';
+import type { FooterStatusDTO } from '@arsnova/shared-types';
 
 @Component({
   selector: 'app-server-status-widget',
@@ -19,7 +19,7 @@ export class ServerStatusWidgetComponent {
   /** true, solange die erste Footer-Health-Abfrage noch läuft. */
   @Input() loading = false;
   /** Aktuelle Kennzahlen aus dem App-Shell-State. */
-  @Input() stats: ServerStatsDTO | null = null;
+  @Input() stats: FooterStatusDTO | null = null;
   @Output() openRequested = new EventEmitter<void>();
 
   openDialog(): void {

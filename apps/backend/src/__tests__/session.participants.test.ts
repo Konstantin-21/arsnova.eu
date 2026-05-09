@@ -29,7 +29,12 @@ vi.mock('../lib/hostAuth', async () => {
   });
 });
 
-import { sessionRouter } from '../routers/session';
+import {
+  invalidateJoinCachesForCode,
+  resetParticipantNicknameCacheForTests,
+  resetSessionReadCachesForTests,
+  sessionRouter,
+} from '../routers/session';
 
 const caller = sessionRouter.createCaller({ req: undefined });
 const hostCaller = sessionRouter.createCaller({ req: {} as never });
@@ -38,6 +43,8 @@ const SESSION_ID = '6a8edced-5f8f-4cfa-9176-454fac9570ad';
 describe('session participant access (Story 2.2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetParticipantNicknameCacheForTests();
+    resetSessionReadCachesForTests();
     hostAuthMocks.extractHostTokenMock.mockReturnValue('host-token-123');
     hostAuthMocks.extractHostTokenFromConnectionParamsMock.mockReturnValue(null);
     hostAuthMocks.isHostSessionTokenValidMock.mockResolvedValue(true);
@@ -135,6 +142,20 @@ describe('session participant access (Story 2.2)', () => {
     });
   });
 
+  it('nutzt kurzzeitig einen Cache für die öffentliche Nickname-Liste', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      code: 'ABC123',
+      participants: [{ nickname: 'Marie Curie' }, { nickname: 'Ada Lovelace' }],
+    });
+
+    const first = await caller.getParticipantNicknames({ code: 'ABC123' });
+    const second = await caller.getParticipantNicknames({ code: 'ABC123' });
+
+    expect(first).toEqual(second);
+    expect(prismaMock.session.findUnique).toHaveBeenCalledTimes(1);
+  });
+
   it('liefert öffentlich nur den eigenen Teilnehmerdatensatz', async () => {
     const participantId = '11111111-1111-4111-8111-111111111111';
     prismaMock.session.findUnique.mockResolvedValue({ id: SESSION_ID });
@@ -205,6 +226,90 @@ describe('session participant access (Story 2.2)', () => {
         },
       ],
     });
+
+    await iterator.return?.(undefined);
+  });
+
+  it('pusht in der Teilnehmer-Subscription nach Join-Signal ohne Polling-Schleife ein neues Payload', async () => {
+    const p1Id = '11111111-1111-4111-8111-111111111111';
+    const p2Id = '22222222-2222-4222-8222-222222222222';
+    prismaMock.session.findUnique
+      .mockResolvedValueOnce({
+        id: SESSION_ID,
+        code: 'ABC123',
+        status: 'LOBBY',
+        currentQuestion: null,
+        quiz: { questions: [] },
+        participants: [
+          {
+            id: p1Id,
+            nickname: 'Marie Curie',
+            teamId: null,
+            team: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        id: SESSION_ID,
+        code: 'ABC123',
+        status: 'LOBBY',
+        currentQuestion: null,
+        quiz: { questions: [] },
+        participants: [
+          {
+            id: p1Id,
+            nickname: 'Marie Curie',
+            teamId: null,
+            team: null,
+          },
+          {
+            id: p2Id,
+            nickname: 'Albert Einstein',
+            teamId: null,
+            team: null,
+          },
+        ],
+      });
+
+    const stream = await hostCaller.onParticipantJoined({ code: 'ABC123' });
+    const iterator = stream[Symbol.asyncIterator]();
+
+    const first = await iterator.next();
+    expect(first.value).toEqual({
+      participantCount: 1,
+      participants: [
+        {
+          id: p1Id,
+          nickname: 'Marie Curie',
+          teamId: null,
+          teamName: null,
+        },
+      ],
+    });
+
+    const secondPromise = iterator.next();
+    await Promise.resolve();
+    invalidateJoinCachesForCode('ABC123');
+    const second = await secondPromise;
+
+    expect(second.value).toEqual({
+      participantCount: 2,
+      participants: [
+        {
+          id: p1Id,
+          nickname: 'Marie Curie',
+          teamId: null,
+          teamName: null,
+        },
+        {
+          id: p2Id,
+          nickname: 'Albert Einstein',
+          teamId: null,
+          teamName: null,
+        },
+      ],
+    });
+    expect(prismaMock.session.findUnique).toHaveBeenCalledTimes(2);
 
     await iterator.return?.(undefined);
   });

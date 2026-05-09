@@ -69,6 +69,7 @@ const PARTICIPANT_STORAGE_KEY = 'arsnova-participant';
 const NICKNAME_STORAGE_KEY = 'arsnova-nickname';
 const VOTE_RESPONSE_STORAGE_KEY = 'arsnova-vote-response';
 const VOTE_FALLBACK_POLL_MS = 2000;
+const VOTE_FALLBACK_POLL_JITTER_MS = 800;
 const VOTE_ANCHOR_TOP = 'vote-top';
 const VOTE_ANCHOR_QUESTION = 'vote-question-anchor';
 const VOTE_ANCHOR_OPTIONS_START = 'vote-options-start';
@@ -283,6 +284,8 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
   private statusSub: Unsubscribable | null = null;
   private qaSub: Unsubscribable | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private pollStartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private sessionFallbackActive = false;
   private lastSessionInfoRetryAt = 0;
   private lastAnswerToggleAt = 0;
   private lastVoteSubmitAt = 0;
@@ -330,6 +333,19 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
   private fingerHideTimeout: ReturnType<typeof setTimeout> | null = null;
   private lobbyArrivalTimeout: ReturnType<typeof setTimeout> | null = null;
   private pendingJoinArrival = false;
+  private readonly onVisibilityChange = () => {
+    if (typeof document === 'undefined') return;
+    if (document.hidden) {
+      this.stopFallbackPolling();
+      return;
+    }
+    this.ensureStatusSubscription();
+    this.lastSessionInfoRetryAt = 0;
+    void this.refreshSessionInfoFallback();
+    void this.refreshQuestion();
+    void this.refreshQuickFeedbackResult();
+    this.startFallbackPolling(true);
+  };
 
   readonly currentRound = signal(1);
   readonly personalRank = signal<number | null>(null);
@@ -1269,6 +1285,9 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     if (!this.code) return;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.pendingJoinArrival = hasParticipantJoinArrival(this.code);
     const confirmedTeam = peekConfirmedParticipantTeam(this.code);
 
@@ -1294,84 +1313,16 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     }
 
     await this.generateQrCode();
-    await this.loadSessionInfo();
+    const initialSessionLoaded = await this.loadSessionInfo();
+    if (!initialSessionLoaded) {
+      this.activateSessionFallback();
+    }
 
-    this.statusSub = trpc.session.onStatusChanged.subscribe(
-      { code: this.code },
-      {
-        onError: () => {
-          /* Nach Deploy/Netz: sofortiger HTTP-Resync, nicht nur 2s-Polling */
-          this.lastSessionInfoRetryAt = 0;
-          void this.refreshSessionInfoFallback();
-          void this.refreshQuestion();
-        },
-        onData: (data: {
-          status: string;
-          currentQuestion: number | null;
-          activeAt?: string;
-          timer?: number | null;
-          preset?: string;
-          currentRound?: number;
-          serverTime?: string;
-        }) => {
-          if (data.serverTime) {
-            recordServerTimeIso(data.serverTime);
-          }
-          const prevRound = this.currentRound();
-          const newRound = data.currentRound ?? 1;
-          this.status.set(data.status as SessionStatus);
-          if (data.status === 'FINISHED') {
-            this.redirectToHomeIfSessionFinished();
-            return;
-          }
-          this.currentRound.set(newRound);
-          if (newRound !== prevRound) {
-            this.emojiSent.set(false);
-            this.emojiSentEmoji.set('');
-          }
-          if (data.preset === 'PLAYFUL' || data.preset === 'SERIOUS') {
-            this.themePreset.setPreset(data.preset === 'PLAYFUL' ? 'spielerisch' : 'serious', {
-              silent: true,
-            });
-          }
-          if (data.status === 'ACTIVE' && newRound === 2 && prevRound === 1) {
-            this.voteSent.set(false);
-            this.selectedAnswerIds.set(new Set());
-            this.voteError.set(null);
-            this.freeTextValue.set('');
-            this.ratingValue.set(null);
-            this.motivationMessage.set(null);
-            this.timeoutMessage.set(null);
-          }
-          if (data.status === 'ACTIVE' && data.activeAt && data.timer && data.timer > 0) {
-            const deadline = new Date(data.activeAt).getTime() + data.timer * 1000;
-            this.startCountdownFromDeadline(deadline);
-          } else if (data.status === 'ACTIVE') {
-            this.stopCountdown();
-            this.countdownSeconds.set(null);
-          } else if (data.status !== 'ACTIVE') {
-            this.stopCountdown();
-            this.countdownSeconds.set(null);
-          }
-          if (this.sessionSettings().teamMode) {
-            if (data.status === 'RESULTS') {
-              void this.loadTeamRewardState();
-            } else {
-              this.teamLeaderboard.set([]);
-            }
-          }
-          void this.refreshQuestion();
-        },
-      },
-    );
+    this.ensureStatusSubscription();
 
     this.ensureQaSubscription();
 
-    this.pollTimer = setInterval(() => {
-      void this.refreshSessionInfoFallback();
-      void this.refreshQuestion();
-      void this.refreshQuickFeedbackResult();
-    }, VOTE_FALLBACK_POLL_MS);
+    this.startFallbackPolling();
   }
   private async loadSessionInfo(): Promise<boolean> {
     try {
@@ -1385,6 +1336,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
         this.applyPendingLobbyArrivalIfNeeded();
         return true;
       }
+      this.ensureStatusSubscription();
       this.ensureQaSubscription();
       await this.refreshQaQuestions();
       if (session.preset === 'PLAYFUL' || session.preset === 'SERIOUS') {
@@ -1436,7 +1388,97 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     );
   }
 
+  private ensureStatusSubscription(): void {
+    if (!this.code || this.statusSub) {
+      return;
+    }
+
+    this.statusSub = trpc.session.onStatusChanged.subscribe(
+      { code: this.code },
+      {
+        onError: () => {
+          this.statusSub?.unsubscribe();
+          this.statusSub = null;
+          this.activateSessionFallback();
+          this.lastSessionInfoRetryAt = 0;
+          void this.refreshSessionInfoFallback();
+          void this.refreshQuestion();
+        },
+        onData: (data: {
+          status: string;
+          currentQuestion: number | null;
+          activeAt?: string;
+          timer?: number | null;
+          preset?: string;
+          currentRound?: number;
+          serverTime?: string;
+        }) => {
+          this.deactivateSessionFallback();
+          if (data.serverTime) {
+            recordServerTimeIso(data.serverTime);
+          }
+          const prevRound = this.currentRound();
+          const newRound = data.currentRound ?? 1;
+          this.status.set(data.status as SessionStatus);
+          if (data.status === 'FINISHED') {
+            this.redirectToHomeIfSessionFinished();
+            return;
+          }
+          this.currentRound.set(newRound);
+          if (newRound !== prevRound) {
+            this.emojiSent.set(false);
+            this.emojiSentEmoji.set('');
+          }
+          if (data.preset === 'PLAYFUL' || data.preset === 'SERIOUS') {
+            this.themePreset.setPreset(data.preset === 'PLAYFUL' ? 'spielerisch' : 'serious', {
+              silent: true,
+            });
+          }
+          if (data.status === 'ACTIVE' && newRound === 2 && prevRound === 1) {
+            this.voteSent.set(false);
+            this.selectedAnswerIds.set(new Set());
+            this.voteError.set(null);
+            this.freeTextValue.set('');
+            this.ratingValue.set(null);
+            this.motivationMessage.set(null);
+            this.timeoutMessage.set(null);
+          }
+          if (data.status === 'ACTIVE' && data.activeAt && data.timer && data.timer > 0) {
+            const deadline = new Date(data.activeAt).getTime() + data.timer * 1000;
+            this.startCountdownFromDeadline(deadline);
+          } else if (data.status === 'ACTIVE') {
+            this.stopCountdown();
+            this.countdownSeconds.set(null);
+          } else if (data.status !== 'ACTIVE') {
+            this.stopCountdown();
+            this.countdownSeconds.set(null);
+          }
+          if (this.sessionSettings().teamMode) {
+            if (data.status === 'RESULTS') {
+              void this.loadTeamRewardState();
+            } else {
+              this.teamLeaderboard.set([]);
+            }
+          }
+          void this.refreshQuestion();
+        },
+      },
+    );
+  }
+
+  private activateSessionFallback(): void {
+    this.sessionFallbackActive = true;
+    this.startFallbackPolling(true);
+  }
+
+  private deactivateSessionFallback(): void {
+    this.sessionFallbackActive = false;
+  }
+
   private async refreshSessionInfoFallback(): Promise<void> {
+    if (!this.sessionFallbackActive) {
+      return;
+    }
     const now = Date.now();
     if (now - this.lastSessionInfoRetryAt < 3000) {
       return;
@@ -1455,6 +1497,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
         this.redirectToHomeIfSessionFinished();
         return;
       }
+      this.ensureStatusSubscription();
       this.ensureQaSubscription();
       if (session.teamMode && !previousTeamMode) {
         await Promise.all([this.loadParticipantTeam(), this.loadSessionTeams()]);
@@ -1481,19 +1524,54 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.statusSub?.unsubscribe();
     this.statusSub = null;
     this.qaSub?.unsubscribe();
     this.qaSub = null;
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
+    this.stopFallbackPolling();
     if (this.lobbyArrivalTimeout) {
       clearTimeout(this.lobbyArrivalTimeout);
       this.lobbyArrivalTimeout = null;
     }
     this.stopCountdown();
+  }
+
+  private startFallbackPolling(immediate = false): void {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (this.pollTimer || this.pollStartTimeout) return;
+    const start = () => {
+      this.pollStartTimeout = null;
+      if (this.pollTimer || (typeof document !== 'undefined' && document.hidden)) return;
+      this.pollTimer = setInterval(() => {
+        if (this.sessionFallbackActive) {
+          void this.refreshSessionInfoFallback();
+          void this.refreshQuestion();
+        }
+        if (this.activeChannel() === 'quickFeedback') {
+          void this.refreshQuickFeedbackResult();
+        }
+      }, VOTE_FALLBACK_POLL_MS);
+    };
+    if (immediate) {
+      start();
+      return;
+    }
+    const jitterMs = Math.floor(Math.random() * VOTE_FALLBACK_POLL_JITTER_MS);
+    this.pollStartTimeout = setTimeout(start, jitterMs);
+  }
+
+  private stopFallbackPolling(): void {
+    if (this.pollStartTimeout) {
+      clearTimeout(this.pollStartTimeout);
+      this.pollStartTimeout = null;
+    }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   private triggerLobbyArrivalMoment(): void {

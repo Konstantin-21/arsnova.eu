@@ -16,6 +16,7 @@ import { checkVoteRate } from '../lib/rateLimit';
 import { calculateVoteScore, getStreakMultiplier, questionAffectsStreak } from '../lib/quizScoring';
 import { touchParticipantPresence } from '../lib/presence';
 import { recordVoteActivity } from '../lib/loadSignal';
+import { invalidateCurrentQuestionCachesForCode, recordVoteCachesForCode } from './session';
 
 export const voteRouter = router({
   submit: publicProcedure
@@ -251,6 +252,13 @@ export const voteRouter = router({
             : undefined,
         },
       });
+      if (participant.session.code) {
+        recordVoteCachesForCode(participant.session.code, input.questionId, round, {
+          answerIds,
+          freeText,
+        });
+        invalidateCurrentQuestionCachesForCode(participant.session.code);
+      }
       return { voteId: vote.id };
     }),
 });

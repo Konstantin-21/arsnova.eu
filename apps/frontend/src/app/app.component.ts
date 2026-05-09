@@ -27,7 +27,7 @@ import { PresetSnackbarFocusService } from './core/preset-snackbar-focus.service
 import { Subscription } from 'rxjs';
 import { TopToolbarComponent } from './shared/top-toolbar/top-toolbar.component';
 import { trpc } from './core/trpc.client';
-import type { ServerStatsDTO } from '@arsnova/shared-types';
+import type { FooterStatusDTO, ServerStatsDTO } from '@arsnova/shared-types';
 import { ServerStatusWidgetComponent } from './shared/server-status-widget/server-status-widget.component';
 import { localizePath } from './core/locale-router';
 import { HostDisplayModeService } from './core/host-display-mode.service';
@@ -42,7 +42,8 @@ const PWA_INSTALL_DISMISSED_DAYS = 7;
 const PWA_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Wenn `serviceWorker.ready` nicht zeitnah auflöst (selten), Polling trotzdem starten. */
 const PWA_UPDATE_READY_FALLBACK_MS = 8_000;
-const FOOTER_STATS_POLL_INTERVAL_MS = 30_000;
+const FOOTER_STATUS_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const FOOTER_STATS_DIALOG_REFRESH_MS = 30_000;
 
 /** Browser-Event für „App installieren“ (PWA). */
 interface BeforeInstallPromptEvent extends Event {
@@ -91,8 +92,11 @@ export class AppComponent implements OnInit, OnDestroy {
    * Solange false (SSR/Prerender + kurz beim Laden): kein „Keine Verbindung“ im HTML — sonst wirkt die Seite für Crawler/KI offline.
    */
   footerHealthCheckDone = signal(false);
-  /** Erste Server-Stats aus health.footerBundle (kein zweiter sofortiger stats-Request im Widget). */
+  /** Schlanker Footer-Status für den grünen Punkt. */
+  footerStatus = signal<FooterStatusDTO | null>(null);
+  /** Detaillierte Server-Stats nur für den Hilfedialog. */
   footerStats = signal<ServerStatsDTO | null>(null);
+  footerStatsLoading = signal(false);
   apiRetrying = signal(false);
   presetSnackbarVisible = signal(false);
   presetToastVisible = signal(false);
@@ -133,7 +137,8 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Browser: `setInterval` / `setTimeout` liefern `number` (nicht Node-`Timeout`). */
   private pwaUpdateIntervalId: number | null = null;
   private pwaUpdateReadyFallbackId: number | null = null;
-  private footerStatsIntervalId: number | null = null;
+  private footerStatusIntervalId: number | null = null;
+  private footerStatsLoadedAt = 0;
   private pwaUpdatePollingArmed = false;
   private _appFooterRef?: ElementRef<HTMLElement>;
   private footerResizeObserver: ResizeObserver | null = null;
@@ -151,6 +156,10 @@ export class AppComponent implements OnInit, OnDestroy {
   );
   isPreviewRoute = signal(
     typeof window !== 'undefined' && this.matchesPreviewRoute(window.location.pathname),
+  );
+  footerStatusPollingSuppressedRoute = signal(
+    typeof window !== 'undefined' &&
+      this.matchesFooterStatusPollingSuppressedRoute(window.location.pathname),
   );
   private lastScrollY = 0;
   private static readonly HIDE_SCROLL_THRESHOLD_PX = 80;
@@ -177,6 +186,9 @@ export class AppComponent implements OnInit, OnDestroy {
   footerShowApiOffline = computed(() => this.footerHealthCheckDone() && !this.apiStatus());
   isImmersiveHostView = computed(() => this.hostDisplayMode.immersiveHostActive());
   footerVisible = computed(() => !this.isFeedbackRoute() && !this.isImmersiveHostView());
+  serverStatusWidgetVisible = computed(
+    () => this.footerVisible() && !this.footerStatusPollingSuppressedRoute(),
+  );
   footerVisibleOffset = signal(0);
 
   /** Footer: Badge mit ungelesenen Archiv-Meldungen (max. „99+“), wie Toolbar-Megafon. */
@@ -209,6 +221,7 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         this.toolbarHidden.set(false);
         this.updateRouteFlags();
+        this.refreshFooterStatusPollingState({ immediate: true });
         queueMicrotask(() => this.syncFooterOffsetObserver());
         /* Nur bei Folge-Navigationen: #main-content scrollen (nicht window). Erstes Event überspringen — vermeidet sichtbares „Zucken“. */
         if (this.pendingInitialNavigationEnd) {
@@ -221,12 +234,14 @@ export class AppComponent implements OnInit, OnDestroy {
       void this.resetDevServiceWorkerState();
       this.updateRouteFlags();
       this.isOnline.set(navigator.onLine);
-      this.startFooterStatsPolling();
+      document.addEventListener(
+        'visibilitychange',
+        this.onDocumentVisibilityForFooterStatusPolling,
+      );
+      this.refreshFooterStatusPollingState({ immediate: true });
       if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => void this.checkApiConnection(), { timeout: 2000 });
         requestIdleCallback(() => void this.loadConnectionBanner(), { timeout: 2500 });
       } else {
-        setTimeout(() => void this.checkApiConnection(), 0);
         setTimeout(() => void this.loadConnectionBanner(), 0);
       }
       this.checkForUpdates();
@@ -305,6 +320,10 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.snackbarTimer) clearTimeout(this.snackbarTimer);
     if (isPlatformBrowser(this.platformId)) {
       document.removeEventListener('visibilitychange', this.onDocumentVisibilityForPwaUpdate);
+      document.removeEventListener(
+        'visibilitychange',
+        this.onDocumentVisibilityForFooterStatusPolling,
+      );
       if (this.pwaUpdateIntervalId !== null) {
         clearInterval(this.pwaUpdateIntervalId);
         this.pwaUpdateIntervalId = null;
@@ -313,10 +332,7 @@ export class AppComponent implements OnInit, OnDestroy {
         clearTimeout(this.pwaUpdateReadyFallbackId);
         this.pwaUpdateReadyFallbackId = null;
       }
-      if (this.footerStatsIntervalId !== null) {
-        clearInterval(this.footerStatsIntervalId);
-        this.footerStatsIntervalId = null;
-      }
+      this.stopFooterStatusPolling();
       this.disconnectFooterOffsetObserver();
       window.removeEventListener('beforeinstallprompt', this.beforeInstallPromptListener);
       window.removeEventListener('appinstalled', this.appInstalledListener);
@@ -497,22 +513,24 @@ export class AppComponent implements OnInit, OnDestroy {
   onOnline(): void {
     this.isOnline.set(true);
     this.requestPwaUpdateCheck();
-    void this.checkApiConnection();
+    this.refreshFooterStatusPollingState({ immediate: true });
   }
 
   @HostListener('window:offline')
   onOffline(): void {
     this.isOnline.set(false);
     this.apiStatus.set(null);
+    this.footerStatus.set(null);
     this.footerStats.set(null);
     this.footerHealthCheckDone.set(true);
+    this.stopFooterStatusPolling();
   }
 
   retryOnline(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     if (navigator.onLine) {
       this.isOnline.set(true);
-      void this.checkApiConnection();
+      this.refreshFooterStatusPollingState({ immediate: true });
     } else {
       window.location.reload();
     }
@@ -522,21 +540,74 @@ export class AppComponent implements OnInit, OnDestroy {
     try {
       const bundle = await trpc.health.footerBundle.query();
       this.apiStatus.set(bundle.check.status);
-      this.footerStats.set(bundle.stats);
+      this.footerStatus.set(bundle.stats);
     } catch {
       this.apiStatus.set(null);
-      this.footerStats.set(null);
+      this.footerStatus.set(null);
     } finally {
       this.footerHealthCheckDone.set(true);
     }
   }
 
-  private startFooterStatsPolling(): void {
-    if (this.footerStatsIntervalId !== null) return;
-    this.footerStatsIntervalId = window.setInterval(
+  private startFooterStatusPolling(): void {
+    if (this.footerStatusIntervalId !== null) return;
+    this.footerStatusIntervalId = window.setInterval(
       () => void this.checkApiConnection(),
-      FOOTER_STATS_POLL_INTERVAL_MS,
+      FOOTER_STATUS_POLL_INTERVAL_MS,
     );
+  }
+
+  private stopFooterStatusPolling(): void {
+    if (this.footerStatusIntervalId !== null) {
+      clearInterval(this.footerStatusIntervalId);
+      this.footerStatusIntervalId = null;
+    }
+  }
+
+  private canPollFooterStatus(): boolean {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    if (!this.serverStatusWidgetVisible()) return false;
+    if (!navigator.onLine) return false;
+    return document.visibilityState === 'visible';
+  }
+
+  private refreshFooterStatusPollingState(options?: { immediate?: boolean }): void {
+    if (!this.canPollFooterStatus()) {
+      this.stopFooterStatusPolling();
+      return;
+    }
+    this.startFooterStatusPolling();
+    if (options?.immediate) {
+      void this.checkApiConnection();
+    }
+  }
+
+  private readonly onDocumentVisibilityForFooterStatusPolling = (): void => {
+    this.refreshFooterStatusPollingState({ immediate: document.visibilityState === 'visible' });
+  };
+
+  private async loadFooterStats(options?: { forceFresh?: boolean }): Promise<void> {
+    if (this.footerStatsLoading()) return;
+
+    const forceFresh = options?.forceFresh === true;
+    if (
+      !forceFresh &&
+      this.footerStats() &&
+      Date.now() - this.footerStatsLoadedAt < FOOTER_STATS_DIALOG_REFRESH_MS
+    ) {
+      return;
+    }
+
+    this.footerStatsLoading.set(true);
+    try {
+      const stats = await trpc.health.stats.query();
+      this.footerStats.set(stats);
+      this.footerStatsLoadedAt = Date.now();
+    } catch {
+      this.footerStats.set(null);
+    } finally {
+      this.footerStatsLoading.set(false);
+    }
   }
 
   async retryApiConnection(): Promise<void> {
@@ -555,12 +626,13 @@ export class AppComponent implements OnInit, OnDestroy {
       autoFocus: false,
       data: {
         connectionOk: this.footerConnectionOk,
-        loading: computed(() => !this.footerHealthCheckDone()),
+        loading: computed(() => this.footerStatsLoading()),
         stats: this.footerStats,
       },
       width: 'min(54rem, calc(100vw - 2rem))',
       maxWidth: '100vw',
     });
+    void this.loadFooterStats({ forceFresh: true });
   }
 
   onPresetChanged(): void {
@@ -654,6 +726,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.isFeedbackRoute.set(
       fromRouter.startsWith('/feedback/') || fromWindow.startsWith('/feedback/'),
     );
+    this.footerStatusPollingSuppressedRoute.set(
+      this.matchesFooterStatusPollingSuppressedRoute(routerPath) ||
+        this.matchesFooterStatusPollingSuppressedRoute(windowPath),
+    );
     this.isPreviewRoute.set(
       this.matchesPreviewRoute(routerPath) || this.matchesPreviewRoute(windowPath),
     );
@@ -705,5 +781,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private matchesPreviewRoute(pathname: string): boolean {
     return /\/quiz\/[^/]+\/preview\/?$/.test(pathname.replace(/^\/(?:de|en|fr|it|es)(?=\/|$)/, ''));
+  }
+
+  private matchesFooterStatusPollingSuppressedRoute(pathname: string): boolean {
+    const normalized = pathname.replace(/^\/(?:de|en|fr|it|es)(?=\/|$)/, '') || '/';
+    return (
+      normalized.startsWith('/join/') ||
+      normalized.startsWith('/feedback/') ||
+      /^\/session\/[^/]+(?:\/(?:host|present|vote))?\/?$/.test(normalized)
+    );
   }
 }

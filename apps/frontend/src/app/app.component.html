@@ -162,13 +162,15 @@
               <mat-icon class="app-footer__icon">privacy_tip</mat-icon>
               <span class="app-footer__link-text" i18n>Datenschutz</span>
             </a>
-            <app-server-status-widget
-              class="app-footer__status-widget"
-              [connectionOk]="footerConnectionOk()"
-              [loading]="!footerHealthCheckDone()"
-              [stats]="footerStats()"
-              (openRequested)="openServerStatusHelp()"
-            />
+            @if (serverStatusWidgetVisible()) {
+              <app-server-status-widget
+                class="app-footer__status-widget"
+                [connectionOk]="footerConnectionOk()"
+                [loading]="!footerHealthCheckDone()"
+                [stats]="footerStatus()"
+                (openRequested)="openServerStatusHelp()"
+              />
+            }
             @if (footerShowApiOffline()) {
               <button
                 matButton

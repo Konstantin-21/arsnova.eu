@@ -23,13 +23,14 @@ vi.mock('../lib/rateLimit', () => ({
   recordFailedSessionCodeAttempt: vi.fn(),
 }));
 
-import { sessionRouter } from '../routers/session';
+import { sessionRouter, resetSessionReadCachesForTests } from '../routers/session';
 
 const caller = sessionRouter.createCaller({ req: undefined });
 
 describe('session.getInfo (ADR-0009)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSessionReadCachesForTests();
   });
 
   it('liefert Kanalinformationen für eine Quiz-Session mit Q&A und Blitz-Feedback', async () => {
@@ -199,5 +200,52 @@ describe('session.getInfo (ADR-0009)', () => {
     expect(result.title).toBe('Offene Fragerunde');
     expect(result.allowCustomNicknames).toBe(true);
     expect(result.teamMode).toBe(false);
+  });
+
+  it('nutzt kurzzeitig einen Cache fuer wiederholte getInfo-Abfragen derselben Session', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
+      code: 'ABC123',
+      type: 'QUIZ',
+      status: 'LOBBY',
+      title: null,
+      quizId: QUIZ_ID,
+      qaEnabled: false,
+      qaOpen: false,
+      qaTitle: null,
+      qaModerationMode: true,
+      quickFeedbackEnabled: false,
+      quickFeedbackOpen: false,
+      _count: { participants: 12 },
+    });
+    prismaMock.quiz.findUnique.mockResolvedValue({
+      name: 'Demo Quiz',
+      nicknameTheme: 'NOBEL_LAUREATES',
+      allowCustomNicknames: true,
+      anonymousMode: false,
+      showLeaderboard: true,
+      enableSoundEffects: true,
+      enableRewardEffects: true,
+      enableMotivationMessages: true,
+      enableEmojiReactions: true,
+      readingPhaseEnabled: true,
+      defaultTimer: 30,
+      backgroundMusic: null,
+      teamMode: false,
+      teamCount: null,
+      teamAssignment: null,
+      bonusTokenCount: null,
+      preset: 'PLAYFUL',
+      motifImageUrl: null,
+      teamNames: [],
+    });
+
+    const first = await caller.getInfo({ code: 'ABC123' });
+    const second = await caller.getInfo({ code: 'ABC123' });
+
+    expect(first.code).toBe('ABC123');
+    expect(second.code).toBe('ABC123');
+    expect(prismaMock.session.findUnique).toHaveBeenCalledTimes(1);
+    expect(prismaMock.quiz.findUnique).toHaveBeenCalledTimes(1);
   });
 });

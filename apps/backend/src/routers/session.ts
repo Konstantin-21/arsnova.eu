@@ -1,6 +1,7 @@
 /**
  * Session-Router (Story 2.1a, 3.1, 4.1, 4.2, 4.6, 4.7, 0.5).
  */
+import { EventEmitter } from 'node:events';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { Prisma } from '@prisma/client';
@@ -91,6 +92,7 @@ import {
 } from '../lib/platformStatistic';
 import { getActiveParticipantIdsForSession, touchParticipantPresence } from '../lib/presence';
 import { markCountdownSessionActive, recordSessionTransitionActivity } from '../lib/loadSignal';
+import { awaitJoinAdmissionSlot } from '../lib/joinAdmission';
 import {
   clearReadingReady,
   getReadingReadyParticipantIds,
@@ -103,10 +105,41 @@ import {
  * Flüchtig – kein Redis/DB nötig.
  */
 const emojiStore = new Map<string, Map<string, string>>();
+const PARTICIPANT_NICKNAMES_CACHE_TTL_MS = 5_000;
+const participantNicknameCache = new Map<
+  string,
+  { expiresAt: number; payload: { nicknames: string[]; participantCount: number } }
+>();
 
 function getEmojiKey(sessionId: string, questionId: string, round: number): string {
   const r = round >= 1 && round <= 2 ? round : 1;
   return `${sessionId}:${questionId}:r${r}`;
+}
+
+function getCachedParticipantNicknames(
+  code: string,
+): { nicknames: string[]; participantCount: number } | null {
+  const cached = participantNicknameCache.get(code);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    participantNicknameCache.delete(code);
+    return null;
+  }
+  return cached.payload;
+}
+
+function setCachedParticipantNicknames(
+  code: string,
+  payload: { nicknames: string[]; participantCount: number },
+): void {
+  participantNicknameCache.set(code, {
+    expiresAt: Date.now() + PARTICIPANT_NICKNAMES_CACHE_TTL_MS,
+    payload,
+  });
+}
+
+export function resetParticipantNicknameCacheForTests(): void {
+  participantNicknameCache.clear();
 }
 import { publicProcedure, router, getClientIp, hostProcedure } from '../trpc';
 import { prisma } from '../db';
@@ -124,9 +157,17 @@ import {
 } from '../lib/answerDisplayOrder';
 
 const QUESTION_TEXT_SHORT_MAX = 100;
-const PARTICIPANT_SUBSCRIPTION_POLL_MS = 2000;
-const STATUS_SUBSCRIPTION_FAST_POLL_MS = 1000;
-const STATUS_SUBSCRIPTION_SLOW_POLL_MS = 2000;
+const SESSION_INFO_CACHE_TTL_MS = 1_000;
+const STATUS_SNAPSHOT_CACHE_TTL_MS = 400;
+const PARTICIPANTS_SNAPSHOT_CACHE_TTL_MS = 400;
+const CURRENT_QUESTION_CACHE_TTL_MS = 500;
+const PARTICIPANT_MEMBERSHIP_CACHE_TTL_MS = 30_000;
+const VOTE_COUNT_CACHE_TTL_MS = 15 * 60_000;
+const VOTE_SUMMARY_CACHE_TTL_MS = 15 * 60_000;
+const STATUS_EVENT_WAIT_ACTIVE_MS = 10_000;
+const STATUS_EVENT_WAIT_IDLE_MS = 30_000;
+const PARTICIPANT_EVENT_WAIT_ACTIVE_MS = 10_000;
+const PARTICIPANT_EVENT_WAIT_IDLE_MS = 30_000;
 const FAST_STATUS_POLL_SET = new Set(['ACTIVE', 'QUESTION_OPEN', 'DISCUSSION']);
 const TEAM_COLORS = [
   '#1E88E5',
@@ -138,6 +179,549 @@ const TEAM_COLORS = [
   '#6D4C41',
   '#5E35B1',
 ] as const;
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+type StatusSnapshotPayload = {
+  status: string;
+  currentQuestion: number | null;
+  activeAt?: string;
+  timer?: number | null;
+  preset?: string;
+  currentRound?: number;
+};
+
+type VoteSummary = {
+  totalVotes: number;
+  answerVoteCounts: Record<string, number>;
+  freeTextResponses: string[];
+};
+
+const sessionInfoCache = new Map<
+  string,
+  CacheEntry<Omit<z.infer<typeof SessionInfoDTOSchema>, 'serverTime'>>
+>();
+const statusSnapshotCache = new Map<string, CacheEntry<StatusSnapshotPayload>>();
+const participantsSnapshotCache = new Map<
+  string,
+  CacheEntry<z.infer<typeof SessionParticipantsPayloadSchema>>
+>();
+const currentQuestionCache = new Map<string, CacheEntry<unknown>>();
+const participantMembershipCache = new Map<string, CacheEntry<boolean>>();
+const voteCountCache = new Map<string, CacheEntry<number>>();
+const voteSummaryCache = new Map<string, CacheEntry<VoteSummary>>();
+const sessionInfoInFlight = new Map<
+  string,
+  Promise<Omit<z.infer<typeof SessionInfoDTOSchema>, 'serverTime'>>
+>();
+const statusSnapshotInFlight = new Map<string, Promise<StatusSnapshotPayload>>();
+const participantsSnapshotInFlight = new Map<
+  string,
+  Promise<z.infer<typeof SessionParticipantsPayloadSchema>>
+>();
+const currentQuestionInFlight = new Map<string, Promise<unknown>>();
+const participantMembershipInFlight = new Map<string, Promise<boolean>>();
+const voteCountInFlight = new Map<string, Promise<number>>();
+const voteSummaryInFlight = new Map<string, Promise<VoteSummary>>();
+const sessionStatusEvents = new EventEmitter();
+const sessionStatusVersions = new Map<string, number>();
+const sessionParticipantEvents = new EventEmitter();
+const sessionParticipantVersions = new Map<string, number>();
+sessionStatusEvents.setMaxListeners(0);
+sessionParticipantEvents.setMaxListeners(0);
+
+function getCachedValue<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedValue<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  ttlMs: number,
+): T {
+  cache.set(key, {
+    expiresAt: Date.now() + ttlMs,
+    value,
+  });
+  return value;
+}
+
+async function getOrComputeCached<T>(
+  cache: Map<string, CacheEntry<T>>,
+  inFlight: Map<string, Promise<T>>,
+  key: string,
+  ttlMs: number,
+  compute: () => Promise<T>,
+): Promise<T> {
+  const cached = getCachedValue(cache, key);
+  if (cached !== null) {
+    return cached;
+  }
+  const existingPromise = inFlight.get(key);
+  if (existingPromise) {
+    return existingPromise;
+  }
+  const promise = compute()
+    .then((value) => setCachedValue(cache, key, value, ttlMs))
+    .finally(() => {
+      inFlight.delete(key);
+    });
+  inFlight.set(key, promise);
+  return promise;
+}
+
+function clearSessionReadCaches(code?: string): void {
+  if (!code) {
+    sessionInfoCache.clear();
+    statusSnapshotCache.clear();
+    participantsSnapshotCache.clear();
+    currentQuestionCache.clear();
+    participantNicknameCache.clear();
+    participantMembershipCache.clear();
+    voteCountCache.clear();
+    voteSummaryCache.clear();
+    sessionInfoInFlight.clear();
+    statusSnapshotInFlight.clear();
+    participantsSnapshotInFlight.clear();
+    currentQuestionInFlight.clear();
+    participantMembershipInFlight.clear();
+    voteCountInFlight.clear();
+    voteSummaryInFlight.clear();
+    return;
+  }
+  sessionInfoCache.delete(code);
+  statusSnapshotCache.delete(code);
+  participantsSnapshotCache.delete(code);
+  currentQuestionCache.delete(code);
+  participantNicknameCache.delete(code);
+  clearVoteCaches(code);
+  for (const key of participantMembershipCache.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      participantMembershipCache.delete(key);
+    }
+  }
+  sessionInfoInFlight.delete(code);
+  statusSnapshotInFlight.delete(code);
+  participantsSnapshotInFlight.delete(code);
+  currentQuestionInFlight.delete(code);
+  for (const key of participantMembershipInFlight.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      participantMembershipInFlight.delete(key);
+    }
+  }
+}
+
+export function resetSessionReadCachesForTests(): void {
+  clearSessionReadCaches();
+  sessionStatusVersions.clear();
+  sessionParticipantVersions.clear();
+  sessionStatusEvents.removeAllListeners();
+  sessionParticipantEvents.removeAllListeners();
+}
+
+function clearSessionInfoCache(code: string): void {
+  sessionInfoCache.delete(code);
+  sessionInfoInFlight.delete(code);
+}
+
+function clearStatusSnapshotCache(code: string): void {
+  statusSnapshotCache.delete(code);
+  statusSnapshotInFlight.delete(code);
+}
+
+function clearParticipantsSnapshotCache(code: string): void {
+  participantsSnapshotCache.delete(code);
+  participantsSnapshotInFlight.delete(code);
+}
+
+function clearCurrentQuestionCache(code: string): void {
+  currentQuestionCache.delete(code);
+  currentQuestionInFlight.delete(code);
+}
+
+function clearVoteCaches(code: string): void {
+  for (const key of voteCountCache.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      voteCountCache.delete(key);
+    }
+  }
+  for (const key of voteCountInFlight.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      voteCountInFlight.delete(key);
+    }
+  }
+  for (const key of voteSummaryCache.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      voteSummaryCache.delete(key);
+    }
+  }
+  for (const key of voteSummaryInFlight.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      voteSummaryInFlight.delete(key);
+    }
+  }
+}
+
+function clearParticipantNicknameCache(code: string): void {
+  participantNicknameCache.delete(code);
+}
+
+function clearParticipantMembershipCache(code: string): void {
+  for (const key of participantMembershipCache.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      participantMembershipCache.delete(key);
+    }
+  }
+  for (const key of participantMembershipInFlight.keys()) {
+    if (key.startsWith(`${code}:`)) {
+      participantMembershipInFlight.delete(key);
+    }
+  }
+}
+
+function sessionStatusEventName(code: string): string {
+  return `status:${code}`;
+}
+
+function sessionParticipantEventName(code: string): string {
+  return `participants:${code}`;
+}
+
+function emitSessionStatusSignal(code: string): void {
+  const normalizedCode = code.toUpperCase();
+  const nextVersion = (sessionStatusVersions.get(normalizedCode) ?? 0) + 1;
+  sessionStatusVersions.set(normalizedCode, nextVersion);
+  sessionStatusEvents.emit(sessionStatusEventName(normalizedCode), nextVersion);
+}
+
+function emitSessionParticipantSignal(code: string): void {
+  const normalizedCode = code.toUpperCase();
+  const nextVersion = (sessionParticipantVersions.get(normalizedCode) ?? 0) + 1;
+  sessionParticipantVersions.set(normalizedCode, nextVersion);
+  sessionParticipantEvents.emit(sessionParticipantEventName(normalizedCode), nextVersion);
+}
+
+function getSessionStatusSignalVersion(code: string): number {
+  return sessionStatusVersions.get(code.toUpperCase()) ?? 0;
+}
+
+function getSessionParticipantSignalVersion(code: string): number {
+  return sessionParticipantVersions.get(code.toUpperCase()) ?? 0;
+}
+
+async function waitForSessionStatusSignal(
+  code: string,
+  currentVersion: number,
+  timeoutMs: number,
+): Promise<void> {
+  const normalizedCode = code.toUpperCase();
+  if (getSessionStatusSignalVersion(normalizedCode) !== currentVersion) {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const eventName = sessionStatusEventName(normalizedCode);
+    let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      sessionStatusEvents.off(eventName, onSignal);
+      timer = null;
+      resolve();
+    }, timeoutMs);
+
+    const onSignal = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      sessionStatusEvents.off(eventName, onSignal);
+      resolve();
+    };
+
+    sessionStatusEvents.on(eventName, onSignal);
+  });
+}
+
+async function waitForSessionParticipantSignal(
+  code: string,
+  currentVersion: number,
+  timeoutMs: number,
+): Promise<void> {
+  const normalizedCode = code.toUpperCase();
+  if (getSessionParticipantSignalVersion(normalizedCode) !== currentVersion) {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const eventName = sessionParticipantEventName(normalizedCode);
+    let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      sessionParticipantEvents.off(eventName, onSignal);
+      timer = null;
+      resolve();
+    }, timeoutMs);
+
+    const onSignal = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      sessionParticipantEvents.off(eventName, onSignal);
+      resolve();
+    };
+
+    sessionParticipantEvents.on(eventName, onSignal);
+  });
+}
+
+async function fetchStatusSnapshot(code: string): Promise<StatusSnapshotPayload> {
+  return getOrComputeCached(
+    statusSnapshotCache,
+    statusSnapshotInFlight,
+    code,
+    STATUS_SNAPSHOT_CACHE_TTL_MS,
+    async () => {
+      const session = await prisma.session.findUnique({
+        where: { code },
+        select: {
+          status: true,
+          currentQuestion: true,
+          currentRound: true,
+          statusChangedAt: true,
+          quiz: {
+            select: {
+              preset: true,
+              defaultTimer: true,
+              timerScaleByDifficulty: true,
+              questions: {
+                orderBy: { order: 'asc' },
+                select: { timer: true, difficulty: true },
+              },
+            },
+          },
+        },
+      });
+      if (!session) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
+      }
+      const isActive = session.status === 'ACTIVE';
+      const currentTimer =
+        isActive && session.currentQuestion !== null && session.currentRound !== 2
+          ? resolveEffectiveQuestionTimer(
+              session.quiz?.questions[session.currentQuestion]?.timer,
+              session.quiz?.defaultTimer,
+              session.quiz?.questions[session.currentQuestion]?.difficulty ?? 'MEDIUM',
+              session.quiz?.timerScaleByDifficulty ?? true,
+            )
+          : null;
+      return {
+        status: session.status,
+        currentQuestion: session.currentQuestion,
+        currentRound: session.currentRound,
+        preset: (session.quiz?.preset as 'PLAYFUL' | 'SERIOUS') || undefined,
+        ...(isActive && {
+          activeAt: session.statusChangedAt.toISOString(),
+          timer: currentTimer,
+        }),
+      };
+    },
+  );
+}
+
+async function fetchParticipantsSnapshot(
+  code: string,
+): Promise<z.infer<typeof SessionParticipantsPayloadSchema>> {
+  return getOrComputeCached(
+    participantsSnapshotCache,
+    participantsSnapshotInFlight,
+    code,
+    PARTICIPANTS_SNAPSHOT_CACHE_TTL_MS,
+    async () => {
+      const session = await prisma.session.findUnique({
+        where: { code },
+        select: sessionParticipantsQuerySelect,
+      });
+      if (!session) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
+      }
+      return buildSessionParticipantsPayload(session);
+    },
+  );
+}
+
+export function invalidateSessionCachesForCode(code: string): void {
+  clearSessionReadCaches(code.toUpperCase());
+}
+
+export function invalidateSessionMetadataCachesForCode(code: string): void {
+  const normalizedCode = code.toUpperCase();
+  clearSessionInfoCache(normalizedCode);
+}
+
+export function invalidateSessionStatusCachesForCode(code: string): void {
+  const normalizedCode = code.toUpperCase();
+  clearSessionInfoCache(normalizedCode);
+  clearStatusSnapshotCache(normalizedCode);
+  clearParticipantsSnapshotCache(normalizedCode);
+  clearCurrentQuestionCache(normalizedCode);
+  emitSessionStatusSignal(normalizedCode);
+  emitSessionParticipantSignal(normalizedCode);
+}
+
+export function invalidateJoinCachesForCode(code: string): void {
+  const normalizedCode = code.toUpperCase();
+  clearSessionInfoCache(normalizedCode);
+  clearParticipantsSnapshotCache(normalizedCode);
+  clearParticipantNicknameCache(normalizedCode);
+  clearParticipantMembershipCache(normalizedCode);
+  emitSessionParticipantSignal(normalizedCode);
+}
+
+export function invalidateCurrentQuestionCachesForCode(code: string): void {
+  clearCurrentQuestionCache(code.toUpperCase());
+}
+
+export function resetVoteAggregationCachesForTests(): void {
+  voteCountCache.clear();
+  voteSummaryCache.clear();
+  voteCountInFlight.clear();
+  voteSummaryInFlight.clear();
+}
+
+function voteCacheKey(code: string, questionId: string, round: number): string {
+  return `${code}:${questionId}:${round}`;
+}
+
+async function getVoteCountCached(
+  code: string,
+  sessionId: string,
+  questionId: string,
+  round: number,
+): Promise<number> {
+  const key = voteCacheKey(code, questionId, round);
+  return getOrComputeCached(voteCountCache, voteCountInFlight, key, VOTE_COUNT_CACHE_TTL_MS, () =>
+    prisma.vote.count({
+      where: {
+        sessionId,
+        questionId,
+        round,
+      },
+    }),
+  );
+}
+
+async function getVoteSummaryCached(
+  code: string,
+  sessionId: string,
+  questionId: string,
+  round: number,
+  questionType: QuestionType,
+): Promise<VoteSummary> {
+  const key = voteCacheKey(code, questionId, round);
+  return getOrComputeCached(
+    voteSummaryCache,
+    voteSummaryInFlight,
+    key,
+    VOTE_SUMMARY_CACHE_TTL_MS,
+    async () => {
+      if (questionType === 'FREETEXT') {
+        const votes = await prisma.vote.findMany({
+          where: { sessionId, questionId, round },
+          select: { freeText: true },
+        });
+        return {
+          totalVotes: votes.length,
+          answerVoteCounts: {},
+          freeTextResponses: votes
+            .map((vote) => vote.freeText?.trim())
+            .filter((value): value is string => !!value),
+        };
+      }
+
+      const votes = await prisma.vote.findMany({
+        where: { sessionId, questionId, round },
+        select: { selectedAnswers: { select: { answerOptionId: true } } },
+      });
+      const answerVoteCounts: Record<string, number> = {};
+      for (const vote of votes) {
+        for (const selectedAnswer of vote.selectedAnswers) {
+          answerVoteCounts[selectedAnswer.answerOptionId] =
+            (answerVoteCounts[selectedAnswer.answerOptionId] ?? 0) + 1;
+        }
+      }
+      return {
+        totalVotes: votes.length,
+        answerVoteCounts,
+        freeTextResponses: [],
+      };
+    },
+  );
+}
+
+export function recordVoteCachesForCode(
+  code: string,
+  questionId: string,
+  round: number,
+  payload: { answerIds: string[]; freeText: string | null },
+): void {
+  const normalizedCode = code.toUpperCase();
+  const key = voteCacheKey(normalizedCode, questionId, round);
+  const cachedCount = getCachedValue(voteCountCache, key);
+  if (cachedCount !== null) {
+    setCachedValue(voteCountCache, key, cachedCount + 1, VOTE_COUNT_CACHE_TTL_MS);
+  }
+
+  const cachedSummary = getCachedValue(voteSummaryCache, key);
+  if (cachedSummary !== null) {
+    const nextSummary: VoteSummary = {
+      totalVotes: cachedSummary.totalVotes + 1,
+      answerVoteCounts: { ...cachedSummary.answerVoteCounts },
+      freeTextResponses: [...cachedSummary.freeTextResponses],
+    };
+    for (const answerId of payload.answerIds) {
+      nextSummary.answerVoteCounts[answerId] = (nextSummary.answerVoteCounts[answerId] ?? 0) + 1;
+    }
+    const trimmedFreeText = payload.freeText?.trim();
+    if (trimmedFreeText) {
+      nextSummary.freeTextResponses.push(trimmedFreeText);
+    }
+    setCachedValue(voteSummaryCache, key, nextSummary, VOTE_SUMMARY_CACHE_TTL_MS);
+  }
+}
+
+function participantMembershipCacheKey(code: string, participantId: string): string {
+  return `${code}:${participantId}`;
+}
+
+async function getParticipantBelongsToSessionCached(
+  code: string,
+  sessionId: string,
+  participantId: string | undefined,
+): Promise<boolean> {
+  if (!participantId) return false;
+  const key = participantMembershipCacheKey(code, participantId);
+  return getOrComputeCached(
+    participantMembershipCache,
+    participantMembershipInFlight,
+    key,
+    PARTICIPANT_MEMBERSHIP_CACHE_TTL_MS,
+    async () => {
+      const participant = await prisma.participant.findFirst({
+        where: {
+          id: participantId,
+          sessionId,
+        },
+        select: { id: true },
+      });
+      return !!participant;
+    },
+  );
+}
 
 function normalizeTeamLeaderboardScore(rawTotalScore: number, memberCount: number): number {
   if (!Number.isFinite(rawTotalScore) || memberCount <= 0) {
@@ -1220,8 +1804,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: { id: true, status: true, type: true, quizId: true, qaEnabled: true, qaOpen: true },
       });
       if (!session) {
@@ -1255,6 +1840,7 @@ export const sessionRouter = router({
         where: { id: session.id },
         data: { status: 'ACTIVE', statusChangedAt: now },
       });
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
 
       return {
@@ -1269,8 +1855,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1310,6 +1897,7 @@ export const sessionRouter = router({
             quickFeedbackOpen: true,
           },
         });
+        invalidateSessionMetadataCachesForCode(code);
         return buildSessionChannels(updated);
       }
 
@@ -1320,8 +1908,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1357,6 +1946,7 @@ export const sessionRouter = router({
             quickFeedbackOpen: true,
           },
         });
+        invalidateSessionMetadataCachesForCode(code);
         return buildSessionChannels(updated);
       }
 
@@ -1367,8 +1957,9 @@ export const sessionRouter = router({
     .input(AttachQuizToSessionInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1515,6 +2106,7 @@ export const sessionRouter = router({
         }
       }
 
+      invalidateSessionStatusCachesForCode(code);
       return buildSessionChannels(updated);
     }),
 
@@ -1522,8 +2114,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1567,6 +2160,7 @@ export const sessionRouter = router({
           quickFeedbackOpen: true,
         },
       });
+      invalidateSessionMetadataCachesForCode(code);
       return buildSessionChannels(updated);
     }),
 
@@ -1574,8 +2168,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1619,6 +2214,7 @@ export const sessionRouter = router({
           quickFeedbackOpen: true,
         },
       });
+      invalidateSessionMetadataCachesForCode(code);
       return buildSessionChannels(updated);
     }),
 
@@ -1626,8 +2222,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1673,6 +2270,7 @@ export const sessionRouter = router({
           quickFeedbackOpen: true,
         },
       });
+      invalidateSessionMetadataCachesForCode(code);
       return buildSessionChannels(updated);
     }),
 
@@ -1680,8 +2278,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(UpdateSessionChannelsOutputSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           type: true,
@@ -1727,6 +2326,7 @@ export const sessionRouter = router({
           quickFeedbackOpen: true,
         },
       });
+      invalidateSessionMetadataCachesForCode(code);
       return buildSessionChannels(updated);
     }),
 
@@ -1735,76 +2335,87 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionInfoDTOSchema)
     .query(async ({ input }) => {
-      const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
-        include: {
-          _count: { select: { participants: true } },
+      const code = input.code.toUpperCase();
+      const payload = await getOrComputeCached(
+        sessionInfoCache,
+        sessionInfoInFlight,
+        code,
+        SESSION_INFO_CACHE_TTL_MS,
+        async () => {
+          const session = await prisma.session.findUnique({
+            where: { code },
+            include: {
+              _count: { select: { participants: true } },
+            },
+          });
+          if (!session) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
+          }
+          const q =
+            session.quizId !== null
+              ? await prisma.quiz.findUnique({
+                  where: { id: session.quizId },
+                  select: {
+                    name: true,
+                    nicknameTheme: true,
+                    allowCustomNicknames: true,
+                    anonymousMode: true,
+                    showLeaderboard: true,
+                    enableSoundEffects: true,
+                    enableRewardEffects: true,
+                    enableMotivationMessages: true,
+                    enableEmojiReactions: true,
+                    readingPhaseEnabled: true,
+                    defaultTimer: true,
+                    timerScaleByDifficulty: true,
+                    backgroundMusic: true,
+                    teamMode: true,
+                    teamCount: true,
+                    teamAssignment: true,
+                    bonusTokenCount: true,
+                    preset: true,
+                    motifImageUrl: true,
+                    teamNames: true,
+                  },
+                })
+              : null;
+          const onboardingProfile = resolveSessionOnboardingProfile(session, q);
+          return {
+            id: session.id,
+            code: session.code,
+            type: session.type,
+            status: session.status,
+            quizName: q?.name ?? null,
+            quizMotifImageUrl: q?.motifImageUrl ?? null,
+            title: session.title ?? null,
+            channels: buildSessionChannels(session),
+            participantCount: session._count.participants,
+            nicknameTheme: onboardingProfile.nicknameTheme,
+            allowCustomNicknames: onboardingProfile.allowCustomNicknames,
+            anonymousMode: onboardingProfile.anonymousMode,
+            teamMode: onboardingProfile.teamMode,
+            teamCount: onboardingProfile.teamCount,
+            teamAssignment: onboardingProfile.teamMode ? onboardingProfile.teamAssignment : null,
+            teamNames: onboardingProfile.teamMode ? buildEffectiveTeamNames(onboardingProfile) : [],
+            ...(q && {
+              showLeaderboard: q.showLeaderboard,
+              enableSoundEffects: q.enableSoundEffects,
+              enableRewardEffects: q.enableRewardEffects,
+              enableMotivationMessages: q.enableMotivationMessages,
+              enableEmojiReactions: q.enableEmojiReactions,
+              readingPhaseEnabled: q.readingPhaseEnabled,
+              defaultTimer: q.defaultTimer,
+              timerScaleByDifficulty: q.timerScaleByDifficulty,
+              backgroundMusic: q.backgroundMusic,
+              bonusTokenCount: q.bonusTokenCount,
+              preset: q.preset as 'PLAYFUL' | 'SERIOUS',
+            }),
+          };
         },
-      });
-      if (!session) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
-      }
-      const q =
-        session.quizId !== null
-          ? await prisma.quiz.findUnique({
-              where: { id: session.quizId },
-              select: {
-                name: true,
-                nicknameTheme: true,
-                allowCustomNicknames: true,
-                anonymousMode: true,
-                showLeaderboard: true,
-                enableSoundEffects: true,
-                enableRewardEffects: true,
-                enableMotivationMessages: true,
-                enableEmojiReactions: true,
-                readingPhaseEnabled: true,
-                defaultTimer: true,
-                timerScaleByDifficulty: true,
-                backgroundMusic: true,
-                teamMode: true,
-                teamCount: true,
-                teamAssignment: true,
-                bonusTokenCount: true,
-                preset: true,
-                motifImageUrl: true,
-                teamNames: true,
-              },
-            })
-          : null;
-      const onboardingProfile = resolveSessionOnboardingProfile(session, q);
-      const serverTime = new Date().toISOString();
+      );
       return {
-        id: session.id,
-        code: session.code,
-        type: session.type,
-        status: session.status,
-        serverTime,
-        quizName: q?.name ?? null,
-        quizMotifImageUrl: q?.motifImageUrl ?? null,
-        title: session.title ?? null,
-        channels: buildSessionChannels(session),
-        participantCount: session._count.participants,
-        nicknameTheme: onboardingProfile.nicknameTheme,
-        allowCustomNicknames: onboardingProfile.allowCustomNicknames,
-        anonymousMode: onboardingProfile.anonymousMode,
-        teamMode: onboardingProfile.teamMode,
-        teamCount: onboardingProfile.teamCount,
-        teamAssignment: onboardingProfile.teamMode ? onboardingProfile.teamAssignment : null,
-        teamNames: onboardingProfile.teamMode ? buildEffectiveTeamNames(onboardingProfile) : [],
-        ...(q && {
-          showLeaderboard: q.showLeaderboard,
-          enableSoundEffects: q.enableSoundEffects,
-          enableRewardEffects: q.enableRewardEffects,
-          enableMotivationMessages: q.enableMotivationMessages,
-          enableEmojiReactions: q.enableEmojiReactions,
-          readingPhaseEnabled: q.readingPhaseEnabled,
-          defaultTimer: q.defaultTimer,
-          timerScaleByDifficulty: q.timerScaleByDifficulty,
-          backgroundMusic: q.backgroundMusic,
-          bonusTokenCount: q.bonusTokenCount,
-          preset: q.preset as 'PLAYFUL' | 'SERIOUS',
-        }),
+        ...payload,
+        serverTime: new Date().toISOString(),
       };
     }),
 
@@ -1828,8 +2439,13 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionParticipantNicknamesPayloadSchema)
     .query(async ({ input }) => {
+      const code = input.code.toUpperCase();
+      const cached = getCachedParticipantNicknames(code);
+      if (cached) {
+        return cached;
+      }
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         include: {
           participants: {
             orderBy: { joinedAt: 'asc' },
@@ -1840,10 +2456,12 @@ export const sessionRouter = router({
       if (!session) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
       }
-      return {
+      const payload = {
         nicknames: session.participants.map((participant) => participant.nickname),
         participantCount: session.participants.length,
       };
+      setCachedParticipantNicknames(code, payload);
+      return payload;
     }),
 
   /** Öffentliche Self-Info für Teilnehmende ohne komplette Teilnehmerliste preiszugeben. */
@@ -1948,6 +2566,7 @@ export const sessionRouter = router({
 
       await markParticipantReadingReady(session.id, currentQuestionId, input.participantId);
       void touchParticipantPresence(session.id, input.participantId);
+      emitSessionParticipantSignal(input.code);
 
       const readingReady = await buildReadingReadyStatus(
         session,
@@ -2009,34 +2628,32 @@ export const sessionRouter = router({
       };
     }),
 
-  /** Subscription: Lobby-Teilnehmerliste (Story 2.2). Pollt alle 2s und pusht bei Änderung. */
+  /** Subscription: Lobby-Teilnehmerliste (Story 2.2). Wartet primär auf Signalereignisse und nutzt nur einen seltenen Timeout-Fallback. */
   onParticipantJoined: hostProcedure
     .input(GetSessionInfoInputSchema)
     .subscription(async function* ({ input }) {
       const code = input.code.toUpperCase();
       let lastJson = '';
       while (true) {
-        const session = await prisma.session.findUnique({
-          where: { code },
-          select: sessionParticipantsQuerySelect,
-        });
-        if (!session) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
-        }
-        const payload = await buildSessionParticipantsPayload(session);
+        const payload = await fetchParticipantsSnapshot(code);
         const json = JSON.stringify(payload);
         if (json !== lastJson) {
           lastJson = json;
           yield payload;
         }
-        await new Promise((r) => setTimeout(r, PARTICIPANT_SUBSCRIPTION_POLL_MS));
+        const waitMs = payload.readingReady
+          ? PARTICIPANT_EVENT_WAIT_ACTIVE_MS
+          : PARTICIPANT_EVENT_WAIT_IDLE_MS;
+        const currentVersion = getSessionParticipantSignalVersion(code);
+        await waitForSessionParticipantSignal(code, currentVersion, waitMs);
       }
     }),
 
   /** Subscription: Status-Wechsel (Story 2.3). Pollt alle 2s und pusht bei Änderung. */
   updatePreset: hostProcedure.input(UpdateSessionPresetInputSchema).mutation(async ({ input }) => {
+    const code = input.code.toUpperCase();
     const session = await prisma.session.findUnique({
-      where: { code: input.code.toUpperCase() },
+      where: { code },
       select: { id: true, quizId: true },
     });
     if (!session || !session.quizId) {
@@ -2046,6 +2663,7 @@ export const sessionRouter = router({
       where: { id: session.quizId },
       data: { preset: input.preset },
     });
+    invalidateSessionMetadataCachesForCode(code);
     return { preset: input.preset };
   }),
 
@@ -2077,6 +2695,7 @@ export const sessionRouter = router({
         data,
         select: { qaTitle: true, title: true },
       });
+      invalidateSessionMetadataCachesForCode(code);
       return {
         qaTitle: updated.qaTitle,
         title: updated.title,
@@ -2089,62 +2708,17 @@ export const sessionRouter = router({
     const code = input.code.toUpperCase();
     let lastJson = '';
     while (true) {
-      const session = await prisma.session.findUnique({
-        where: { code },
-        select: {
-          status: true,
-          currentQuestion: true,
-          currentRound: true,
-          statusChangedAt: true,
-          quiz: {
-            select: {
-              preset: true,
-              defaultTimer: true,
-              timerScaleByDifficulty: true,
-              questions: { orderBy: { order: 'asc' }, select: { timer: true, difficulty: true } },
-            },
-          },
-        },
-      });
-      if (!session) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session nicht gefunden.' });
-      }
-      const isActive = session.status === 'ACTIVE';
-      const currentTimer =
-        isActive && session.currentQuestion !== null && session.currentRound !== 2
-          ? resolveEffectiveQuestionTimer(
-              session.quiz?.questions[session.currentQuestion]?.timer,
-              session.quiz?.defaultTimer,
-              session.quiz?.questions[session.currentQuestion]?.difficulty ?? 'MEDIUM',
-              session.quiz?.timerScaleByDifficulty ?? true,
-            )
-          : null;
-      const payloadBase: {
-        status: string;
-        currentQuestion: number | null;
-        activeAt?: string;
-        timer?: number | null;
-        preset?: string;
-        currentRound?: number;
-      } = {
-        status: session.status,
-        currentQuestion: session.currentQuestion,
-        currentRound: session.currentRound,
-        preset: (session.quiz?.preset as 'PLAYFUL' | 'SERIOUS') || undefined,
-        ...(isActive && {
-          activeAt: session.statusChangedAt.toISOString(),
-          timer: currentTimer,
-        }),
-      };
+      const payloadBase = await fetchStatusSnapshot(code);
       const json = JSON.stringify(payloadBase);
       if (json !== lastJson) {
         lastJson = json;
         yield { ...payloadBase, serverTime: new Date().toISOString() };
       }
-      const pollMs = FAST_STATUS_POLL_SET.has(session.status)
-        ? STATUS_SUBSCRIPTION_FAST_POLL_MS
-        : STATUS_SUBSCRIPTION_SLOW_POLL_MS;
-      await new Promise((r) => setTimeout(r, pollMs));
+      const waitMs = FAST_STATUS_POLL_SET.has(payloadBase.status)
+        ? STATUS_EVENT_WAIT_ACTIVE_MS
+        : STATUS_EVENT_WAIT_IDLE_MS;
+      const currentVersion = getSessionStatusSignalVersion(code);
+      await waitForSessionStatusSignal(code, currentVersion, waitMs);
     }
   }),
 
@@ -2154,8 +2728,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         include: {
           quiz: {
             select: {
@@ -2214,6 +2789,7 @@ export const sessionRouter = router({
         if (currentQuestionId) {
           await clearReadingReady(session.id, currentQuestionId);
         }
+        invalidateSessionStatusCachesForCode(code);
         await incrementCompletedSessionsTotal();
         void recordSessionTransitionActivity();
         await generateBonusTokens(session);
@@ -2250,6 +2826,7 @@ export const sessionRouter = router({
       if (currentQuestionId) {
         await clearReadingReady(session.id, currentQuestionId);
       }
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
       void markCountdownSessionActive(session.id);
       return {
@@ -2265,8 +2842,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           status: true,
@@ -2303,6 +2881,7 @@ export const sessionRouter = router({
       if (questionId) {
         await clearReadingReady(session.id, questionId);
       }
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
       void markCountdownSessionActive(session.id);
       return {
@@ -2318,8 +2897,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: { id: true, status: true, currentQuestion: true, currentRound: true },
       });
       if (!session) {
@@ -2335,6 +2915,7 @@ export const sessionRouter = router({
         where: { id: session.id },
         data: { status: 'RESULTS', statusChangedAt: new Date() },
       });
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
       return {
         status: 'RESULTS' as const,
@@ -2348,8 +2929,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: { id: true, status: true, currentQuestion: true, currentRound: true },
       });
       if (!session) {
@@ -2368,6 +2950,7 @@ export const sessionRouter = router({
         where: { id: session.id },
         data: { status: 'DISCUSSION', statusChangedAt: new Date() },
       });
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
       return {
         status: 'DISCUSSION' as const,
@@ -2381,8 +2964,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: { id: true, status: true, currentQuestion: true },
       });
       if (!session) {
@@ -2399,6 +2983,7 @@ export const sessionRouter = router({
         where: { id: session.id },
         data: { status: 'ACTIVE', currentRound: 2, statusChangedAt: now },
       });
+      invalidateSessionStatusCachesForCode(code);
       void recordSessionTransitionActivity();
       void markCountdownSessionActive(session.id);
       return {
@@ -2607,8 +3192,9 @@ export const sessionRouter = router({
   getCurrentQuestionForStudent: publicProcedure
     .input(GetCurrentQuestionForStudentInputSchema)
     .query(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         include: {
           quiz: {
             select: {
@@ -2625,22 +3211,20 @@ export const sessionRouter = router({
         },
       });
       if (!session?.quiz) return null;
+      const quiz = session.quiz;
       const idx = session.currentQuestion;
       if (idx === null || idx === undefined) return null;
-      const question = session.quiz.questions[idx];
+      const question = quiz.questions[idx];
       if (!question) return null;
 
       const participantId = input.participantId;
       let participantBelongsToSession = false;
       if (participantId) {
-        const participant = await prisma.participant.findFirst({
-          where: {
-            id: participantId,
-            sessionId: session.id,
-          },
-          select: { id: true },
-        });
-        participantBelongsToSession = !!participant;
+        participantBelongsToSession = await getParticipantBelongsToSessionCached(
+          code,
+          session.id,
+          participantId,
+        );
         if (participantBelongsToSession) {
           void touchParticipantPresence(session.id, participantId);
         }
@@ -2652,7 +3236,7 @@ export const sessionRouter = router({
         session.answerDisplayOrder,
       );
 
-      const totalQuestions = session.quiz.questions.length;
+      const totalQuestions = quiz.questions.length;
 
       if (session.status === 'QUESTION_OPEN') {
         const participantReady =
@@ -2690,86 +3274,88 @@ export const sessionRouter = router({
       }
 
       if (session.status === 'ACTIVE') {
-        const voteCount = await prisma.vote.count({
-          where: { sessionId: session.id, questionId: question.id, round: session.currentRound },
-        });
-        const participantCount = session._count.participants;
-        return QuestionStudentDTOSchema.parse({
-          id: question.id,
-          text: question.text,
-          type: question.type,
-          timer:
-            session.currentRound === 2
-              ? null
-              : resolveEffectiveQuestionTimer(
-                  question.timer,
-                  session.quiz.defaultTimer,
-                  question.difficulty,
-                  session.quiz.timerScaleByDifficulty ?? true,
-                ),
-          difficulty: question.difficulty,
-          order: question.order,
-          totalQuestions,
-          answers: answersOrdered.map((a) => ({ id: a.id, text: a.text })),
-          activeAt: session.statusChangedAt.toISOString(),
-          ratingMin: question.ratingMin ?? null,
-          ratingMax: question.ratingMax ?? null,
-          ratingLabelMin: question.ratingLabelMin ?? null,
-          ratingLabelMax: question.ratingLabelMax ?? null,
-          participantCount,
-          totalVotes: voteCount,
-          currentRound: session.currentRound,
-        });
+        const totalVotes = await getVoteCountCached(
+          code,
+          session.id,
+          question.id,
+          session.currentRound,
+        );
+        return (await getOrComputeCached(
+          currentQuestionCache,
+          currentQuestionInFlight,
+          `${code}:active:${session.currentQuestion}:${session.currentRound}`,
+          CURRENT_QUESTION_CACHE_TTL_MS,
+          async () =>
+            QuestionStudentDTOSchema.parse({
+              id: question.id,
+              text: question.text,
+              type: question.type,
+              timer:
+                session.currentRound === 2
+                  ? null
+                  : resolveEffectiveQuestionTimer(
+                      question.timer,
+                      quiz.defaultTimer,
+                      question.difficulty,
+                      quiz.timerScaleByDifficulty ?? true,
+                    ),
+              difficulty: question.difficulty,
+              order: question.order,
+              totalQuestions,
+              answers: answersOrdered.map((a) => ({ id: a.id, text: a.text })),
+              activeAt: session.statusChangedAt.toISOString(),
+              ratingMin: question.ratingMin ?? null,
+              ratingMax: question.ratingMax ?? null,
+              ratingLabelMin: question.ratingLabelMin ?? null,
+              ratingLabelMax: question.ratingLabelMax ?? null,
+              participantCount: session._count.participants,
+              totalVotes,
+              currentRound: session.currentRound,
+            }),
+        )) as z.infer<typeof QuestionStudentDTOSchema>;
       }
 
       if (session.status === 'RESULTS') {
-        const voteWhere = { sessionId: session.id, questionId: question.id };
-        let totalVotes = 0;
-        const answerVoteCounts = new Map<string, number>();
-        let freeTextResponses: string[] | undefined;
-
-        if (question.type === 'FREETEXT') {
-          const votes = await prisma.vote.findMany({
-            where: voteWhere,
-            select: { freeText: true },
-          });
-          totalVotes = votes.length;
-          freeTextResponses = votes.map((v) => v.freeText?.trim()).filter((t): t is string => !!t);
-        } else {
-          const votes = await prisma.vote.findMany({
-            where: voteWhere,
-            select: { selectedAnswers: { select: { answerOptionId: true } } },
-          });
-          totalVotes = votes.length;
-          for (const v of votes) {
-            for (const sa of v.selectedAnswers) {
-              answerVoteCounts.set(
-                sa.answerOptionId,
-                (answerVoteCounts.get(sa.answerOptionId) ?? 0) + 1,
-              );
-            }
-          }
-        }
-        return QuestionRevealedDTOSchema.parse({
-          id: question.id,
-          text: question.text,
-          type: question.type,
-          difficulty: question.difficulty,
-          order: question.order,
-          totalQuestions,
-          answers: answersOrdered.map((a) => ({
-            id: a.id,
-            text: a.text,
-            isCorrect: a.isCorrect,
-            voteCount: answerVoteCounts.get(a.id) ?? 0,
-            votePercentage:
-              totalVotes > 0
-                ? Math.round(((answerVoteCounts.get(a.id) ?? 0) / totalVotes) * 100)
-                : 0,
-          })),
-          freeTextResponses,
-          totalVotes,
-        });
+        return (await getOrComputeCached(
+          currentQuestionCache,
+          currentQuestionInFlight,
+          `${code}:results:${session.currentQuestion}:${session.currentRound}`,
+          CURRENT_QUESTION_CACHE_TTL_MS,
+          async () => {
+            const voteSummary = await getVoteSummaryCached(
+              code,
+              session.id,
+              question.id,
+              session.currentRound,
+              question.type as QuestionType,
+            );
+            return QuestionRevealedDTOSchema.parse({
+              id: question.id,
+              text: question.text,
+              type: question.type,
+              difficulty: question.difficulty,
+              order: question.order,
+              totalQuestions,
+              answers: answersOrdered.map((a) => ({
+                id: a.id,
+                text: a.text,
+                isCorrect: a.isCorrect,
+                voteCount: voteSummary.answerVoteCounts[a.id] ?? 0,
+                votePercentage:
+                  voteSummary.totalVotes > 0
+                    ? Math.round(
+                        ((voteSummary.answerVoteCounts[a.id] ?? 0) / voteSummary.totalVotes) * 100,
+                      )
+                    : 0,
+              })),
+              freeTextResponses:
+                voteSummary.freeTextResponses.length > 0
+                  ? voteSummary.freeTextResponses
+                  : undefined,
+              totalVotes: voteSummary.totalVotes,
+            });
+          },
+        )) as z.infer<typeof QuestionRevealedDTOSchema>;
       }
 
       return null;
@@ -2970,6 +3556,7 @@ export const sessionRouter = router({
     .input(JoinSessionInputSchema)
     .output(JoinSessionOutputSchema)
     .mutation(async ({ ctx, input }) => {
+      const code = input.code.toUpperCase();
       const ip = getClientIp(ctx);
       const lockout = await isSessionCodeLockedOut(ip);
       if (lockout.locked) {
@@ -2980,7 +3567,7 @@ export const sessionRouter = router({
         });
       }
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         include: {
           quiz: {
             select: {
@@ -3077,6 +3664,7 @@ export const sessionRouter = router({
       }
 
       if (!participantId) {
+        await awaitJoinAdmissionSlot(session.id);
         const participant = await prisma.participant
           .create({
             data: {
@@ -3104,6 +3692,7 @@ export const sessionRouter = router({
       const newParticipantCount = await prisma.participant.count({
         where: { sessionId: session.id },
       });
+      invalidateJoinCachesForCode(code);
       void updateMaxParticipantsSingleSession(newParticipantCount);
       void updateDailyMaxParticipants(newParticipantCount);
       void touchParticipantPresence(session.id, participantId);
@@ -3257,8 +3846,9 @@ export const sessionRouter = router({
     .input(GetSessionInfoInputSchema)
     .output(SessionStatusUpdateSchema)
     .mutation(async ({ input }) => {
+      const code = input.code.toUpperCase();
       const session = await prisma.session.findUnique({
-        where: { code: input.code.toUpperCase() },
+        where: { code },
         select: {
           id: true,
           status: true,
@@ -3292,6 +3882,7 @@ export const sessionRouter = router({
           endedAt: now,
         },
       });
+      invalidateSessionStatusCachesForCode(code);
       await incrementCompletedSessionsTotal();
       void recordSessionTransitionActivity();
 

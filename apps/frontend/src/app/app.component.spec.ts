@@ -5,16 +5,22 @@ import { SwUpdate } from '@angular/service-worker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppComponent } from './app.component';
 
-const { footerBundleQueryMock, swVersionUpdatesSubscribeMock } = vi.hoisted(() => ({
-  footerBundleQueryMock: vi.fn(),
-  swVersionUpdatesSubscribeMock: vi.fn(),
-}));
+const { footerBundleQueryMock, healthStatsQueryMock, swVersionUpdatesSubscribeMock } = vi.hoisted(
+  () => ({
+    footerBundleQueryMock: vi.fn(),
+    healthStatsQueryMock: vi.fn(),
+    swVersionUpdatesSubscribeMock: vi.fn(),
+  }),
+);
 
 vi.mock('./core/trpc.client', () => ({
   trpc: {
     health: {
       footerBundle: {
         query: footerBundleQueryMock,
+      },
+      stats: {
+        query: healthStatsQueryMock,
       },
     },
   },
@@ -25,7 +31,27 @@ describe('AppComponent', () => {
     vi.clearAllMocks();
     footerBundleQueryMock.mockResolvedValue({
       check: { status: 'ok' },
-      stats: null,
+      stats: { serviceStatus: 'stable', loadStatus: 'healthy' },
+    });
+    healthStatsQueryMock.mockResolvedValue({
+      openSessions: 1,
+      activeSessions: 1,
+      totalParticipants: 5,
+      votesLastMinute: 0,
+      sessionTransitionsLastMinute: 0,
+      activeCountdownSessions: 0,
+      completedSessions: 2,
+      usedSessions: 2,
+      activeBlitzRounds: 0,
+      maxParticipantsSingleSession: 5,
+      dailyHighscores: Array.from({ length: 30 }, (_, index) => ({
+        date: `2026-05-${String(index + 1).padStart(2, '0')}`,
+        count: 0,
+        updatedAt: null,
+      })),
+      maxParticipantsStatisticUpdatedAt: null,
+      serviceStatus: 'stable',
+      loadStatus: 'healthy',
     });
     vi.stubGlobal('requestIdleCallback', vi.fn());
     vi.stubGlobal('cancelIdleCallback', vi.fn());
@@ -116,5 +142,37 @@ describe('AppComponent', () => {
     expect(banner?.textContent).toContain('Neue Version bereit');
 
     fixture.destroy();
+  });
+
+  it('unterdrueckt Footer-Status-Polling auf Join- und Session-Live-Routen', async () => {
+    window.history.pushState({}, '', '/de/join/ABC123');
+    TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([]),
+        { provide: MatDialog, useValue: { open: vi.fn() } },
+        {
+          provide: SwUpdate,
+          useValue: {
+            isEnabled: false,
+            versionUpdates: { subscribe: swVersionUpdatesSubscribeMock },
+            checkForUpdate: vi.fn().mockResolvedValue(false),
+            activateUpdate: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(footerBundleQueryMock).not.toHaveBeenCalled();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('app-server-status-widget'),
+    ).toBeNull();
+
+    fixture.destroy();
+    window.history.pushState({}, '', '/');
   });
 });

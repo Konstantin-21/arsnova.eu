@@ -24,9 +24,11 @@ import {
 } from '../lib/presence';
 import { readLoadSignals } from '../lib/loadSignal';
 import { readSloSignals, type SloSignals } from '../lib/sloTelemetry';
+import type { ServerStatsDTO, FooterStatusDTO } from '@arsnova/shared-types';
 
 const ACTIVE_SESSION_MIN_PARTICIPANTS = 5;
 const DAILY_HIGHSCORE_DAYS = 30;
+const SERVER_STATS_CACHE_TTL_MS = 30_000;
 const USED_SESSION_WHERE = {
   OR: [{ status: { not: 'LOBBY' as const } }, { participants: { some: {} } }],
 };
@@ -48,6 +50,9 @@ type LoadStatusInputs = {
   sessionTransitionsLastMinute: number;
   activeCountdownSessions: number;
 };
+
+let cachedServerStats: { value: ServerStatsDTO; expiresAt: number } | null = null;
+let serverStatsInFlight: Promise<ServerStatsDTO> | null = null;
 
 function addUtcDays(base: Date, days: number): Date {
   const next = new Date(base);
@@ -194,7 +199,7 @@ async function fetchHealthCheck() {
 }
 
 /** Server-Statistik für Startseite (Story 0.4). Bei nicht erreichbarer DB: Fallback (0 Werte), keine Prisma-Fehler. */
-async function fetchServerStats() {
+async function computeServerStats(): Promise<ServerStatsDTO> {
   const activeSessionWhere = {
     status: { not: 'FINISHED' as const },
   };
@@ -395,6 +400,49 @@ async function fetchServerStats() {
   }
 }
 
+async function fetchServerStats(options?: { forceFresh?: boolean }): Promise<ServerStatsDTO> {
+  const forceFresh = options?.forceFresh === true;
+  const now = Date.now();
+
+  if (!forceFresh && cachedServerStats && cachedServerStats.expiresAt > now) {
+    return cachedServerStats.value;
+  }
+
+  if (!forceFresh && serverStatsInFlight) {
+    return serverStatsInFlight;
+  }
+
+  const request = computeServerStats().then((stats) => {
+    cachedServerStats = {
+      value: stats,
+      expiresAt: Date.now() + SERVER_STATS_CACHE_TTL_MS,
+    };
+    return stats;
+  });
+
+  serverStatsInFlight = request;
+  try {
+    return await request;
+  } finally {
+    if (serverStatsInFlight === request) {
+      serverStatsInFlight = null;
+    }
+  }
+}
+
+async function fetchFooterStatus(): Promise<FooterStatusDTO> {
+  const stats = await fetchServerStats();
+  return {
+    serviceStatus: stats.serviceStatus,
+    loadStatus: stats.loadStatus,
+  };
+}
+
+export function resetHealthStatsCacheForTests(): void {
+  cachedServerStats = null;
+  serverStatsInFlight = null;
+}
+
 export const healthRouter = router({
   check: publicProcedure.output(HealthCheckResponseSchema).query(() => fetchHealthCheck()),
 
@@ -405,7 +453,7 @@ export const healthRouter = router({
    * Server führt Check und Stats parallel aus.
    */
   footerBundle: publicProcedure.output(HealthFooterBundleSchema).query(async () => {
-    const [check, stats] = await Promise.all([fetchHealthCheck(), fetchServerStats()]);
+    const [check, stats] = await Promise.all([fetchHealthCheck(), fetchFooterStatus()]);
     return { check, stats };
   }),
 

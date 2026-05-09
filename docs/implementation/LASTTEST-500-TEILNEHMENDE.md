@@ -27,6 +27,344 @@ arsnova.eu nutzt:
 
 Der aktuelle Entwicklungsstand enthaelt erste Lasttest-Skripte, aber noch keine abgeschlossene, durchgaengige Absicherung fuer 500 gleichzeitige Teilnehmende in einem realitaetsnahen Live-Szenario.
 
+## Bereits umgesetzte Performance-Entschaerfungen
+
+Stand 2026-05-09 wurden bereits mehrere risikoarme oder strukturelle Massnahmen umgesetzt, die vor einem 500er-Lasttest beruecksichtigt werden muessen.
+
+### Entkoppelung der Footer- und Betriebsstatus-Nebenlast
+
+Umgesetzt:
+
+- kein Footer-Polling mehr auf eigentlichen Live-Routen
+- Polling nur noch bei sichtbarem Tab
+- Pollingfrequenz deutlich reduziert
+- Footer laedt nur schlanke Statusdaten
+- volle Serverstats nur noch on demand und serverseitig kurz gecacht
+
+Erwartete Wirkung:
+
+- im 500er-Live-Szenario praktisch keine relevante Footer-Nebenlast mehr auf `join`, `vote`, `present` und `host`
+- deutliche Entlastung des frueheren Health-/Footer-Pfads
+
+### Join-Admission-Control
+
+Umgesetzt:
+
+- serverseitige Join-Glattung vor dem eigentlichen Teilnehmer-Create
+- Rejoins bleiben davon ausgenommen
+
+Erwartete Wirkung:
+
+- geringere Gleichzeitigkeit im Join-Schreibpeak
+- weniger harte Join-Spitzen auf Datenbank und Redis
+
+### Entschaerfung der Join-Vorlast
+
+Umgesetzt:
+
+- Join-Polling pausiert in versteckten Tabs
+- Join-Polling startet mit kleinem Jitter
+- Nickname-Liste wird seltener nachgeladen als Session-Info
+- kurze serverseitige Cache-Schicht fuer `getParticipantNicknames`
+
+Erwartete Wirkung:
+
+- deutliche Reduktion der Vorlast vor der eigentlichen Join-Welle
+- weniger redundante Nickname-Reads
+- geringere Burstlast synchroner Join-Clients
+
+### Entschaerfung des Vote-Fallbacks in versteckten Tabs
+
+Umgesetzt:
+
+- Vote-Fallback pausiert in versteckten Tabs
+- sichtbare Tabs synchronisieren nach dem Zurueckkehren sofort
+- Fallback startet mit kleinem Jitter
+- Session- und Frage-Fallback laufen nur noch im echten Stoerfallmodus nach Subscription-Fehlern
+- bei gesunder Status-Subscription bleibt nur noch kontextspezifisches Nachladen, z. B. fuer den gerade sichtbaren Blitzlicht-Kanal
+
+Erwartete Wirkung:
+
+- reale Entlastung bei Mobilgeraeten, Hintergrund-Tabs und Tab-Wechseln
+- geringere Burstlast gleichzeitiger Fallback-Starts
+- im strengen 500er-Fall mit gesunder Subscription entfaellt die fruehere Dauerlast durch `getInfo` und `getCurrentQuestionForStudent` weitgehend
+
+### Kurzzeit-Caches fuer kritische Lese-Hotpaths
+
+Umgesetzt:
+
+- `session.getInfo` liest kurzzeitig aus einem deduplizierten Read-Cache
+- `onStatusChanged` nutzt kurzzeitig deduplizierte Status-Snapshots
+- `getCurrentQuestionForStudent` nutzt fuer `ACTIVE` und `RESULTS` kurzzeitige Read-Caches
+- die Zugehoerigkeit eines Teilnehmenden zur Session wird kurzzeitig gecacht
+- aktive Vote-Zaehler und Ergebnisaggregationen werden getrennt als eigene In-Memory-Caches gehalten
+- relevante Schreibpfade invalidieren die jeweils betroffenen Caches sofort bei Join, Vote und Host-Statuswechseln
+
+Erwartete Wirkung:
+
+- deutlich weniger redundante frische Datenbankarbeit bei vielen gleichzeitigen Polls oder Subscriptions
+- geringere Leserwellen auf Session-, Quiz-, Vote- und Participant-Daten
+- vor allem Entlastung in genau den Phasen, in denen viele Clients gleichzeitig denselben Zustand abrufen
+- gleichzeitig keine kuenstliche Verzoegerung bis zum TTL-Ablauf nach echten Statusaenderungen oder neuen Votes
+- insbesondere bei aktiven Fragen weniger wiederholte `count(*)`-Abfragen auf `vote`
+
+### Eventgetriebene Status-Subscriptions
+
+Umgesetzt:
+
+- `session.onStatusChanged` reagiert primaer auf serverseitige Statussignale statt auf starres Polling
+- nur noch seltene Selbstheilungs-Resyncs bleiben als Sicherheitsnetz bestehen
+
+Erwartete Wirkung:
+
+- deutlich weniger dauerhafte DB-Reads ueber den Status-Subscription-Pfad
+- Statuswechsel erreichen viele Clients schneller und mit weniger Nebenlast
+- geringere Realtime-Dauerlast waehrend laenger laufender Fragen
+
+### Host- und Presenter-Polling reduziert
+
+Umgesetzt:
+
+- Host-Ansicht pausiert Polling in versteckten Tabs
+- Host nutzt Teilnehmer- und Status-Subscriptions als primaeren Live-Pfad
+- periodisch gepollt werden nur noch Hilfs- und Nebenkanaele, soweit fuer den aktuellen Kontext noetig
+- Presenter trennt Session-Metadaten und Live-Inhalte in langsamere und schnellere Intervalle
+- Presenter pausiert Polling in versteckten Tabs
+
+Erwartete Wirkung:
+
+- weniger periodische Doppellast auf Host- und Beamer-Ansichten
+- geringere Zusatzlast durch offene Moderations- oder Presenter-Tabs
+- bessere Trennung zwischen echten Live-Hotpaths und nur darstellungsbezogenem Nachladen
+
+## Vorlaeufige Gewinnbetrachtung fuer den 500er-Fall
+
+Die bisher umgesetzten Massnahmen ersetzen keinen produktionsnahen Lasttest. Sie erlauben aber bereits eine erste, plausible Vorher-Nachher-Abschaetzung.
+
+### Join-Vorlast
+
+Vorher:
+
+- `session.getInfo` alle `3s` bei 500 Join-Seiten: ca. **167 req/s**
+- `getParticipantNicknames` alle `3s` bei 500 Join-Seiten: ca. **167 req/s**
+- zusammen: ca. **334 req/s**
+
+Nachher:
+
+- `session.getInfo` weiter ca. **167 req/s**
+- `getParticipantNicknames` nur noch alle `12s`: ca. **42 req/s**
+- zusammen: ca. **209 req/s**
+
+Vorlaeufiger Gewinn:
+
+- ca. **125 req/s weniger**
+- entsprechend grob **37 % weniger Vorlast** in dieser Phase
+
+### Footer- und Betriebsstatus-Nebenlast
+
+Vorher:
+
+- bei 500 offenen Tabs mit 30s-Polling grob **16,7 req/s** auf den Footer-/Health-Pfad
+
+Nachher:
+
+- auf Live-Seiten praktisch **0 req/s**
+- auf nicht Live-Routen deutlich weniger und billigere Requests
+
+Vorlaeufiger Gewinn:
+
+- die fruehere Footer-Nebenlast ist fuer das eigentliche 500er-Live-Szenario praktisch eliminiert
+
+### Burst- und Peak-Entlastung
+
+Nicht direkt als Durchschnittsgewinn, aber betrieblich relevant:
+
+- Join-Admission-Control reduziert die Hoehe der Join-Spitze
+- Jitter reduziert synchrone Polling-Bursts
+- Hidden-Tab-Pausierung reduziert reale Last bei Hintergrund-Tabs
+- kurzer Nickname-Cache reduziert gleichzeitige DB-Reads
+- Kurzzeit-Caches fuer Session-, Status- und Current-Question-Reads reduzieren redundante Leserwellen
+- der Vote-Client erzeugt bei gesunder Subscription keine dauerhafte HTTP-Doppellast mehr neben dem Realtime-Pfad
+
+Diese Effekte muessen im Lasttest nicht nur ueber Durchschnittswerte, sondern auch ueber Peak-Metriken und Perzentile bewertet werden.
+
+### Gewinn durch weniger redundante Datenbankarbeit
+
+Die neuen Read-Caches fuer `getInfo`, `onStatusChanged` und `getCurrentQuestionForStudent` senken vor allem die **Kosten pro kurzer Welle**, nicht unbedingt die nominelle Request-Zahl.
+
+Fuer den 500er-Fall ist das relevant, weil viele Clients oft nahezu gleichzeitig:
+
+- dieselbe Session-Info
+- denselben Statuswechsel
+- dieselbe aktuelle Frage
+- denselben Ergebnisstand
+
+anfordern.
+
+Vorlaeufige Wirkung:
+
+- weniger doppelte Session- und Quiz-Reads
+- weniger parallele Vote-Count-Abfragen
+- weniger redundante Ergebnis-Aggregation
+- geringere Peak-Last auf PostgreSQL
+- trotz kurzer TTLs bleiben neue Votes, Joins und Host-Aktionen unmittelbar sichtbar, weil die Read-Caches jetzt aktiv invalidiert werden
+
+### Zusaetzlicher Gewinn im aktiven Vote-Pfad
+
+Neu ist ausserdem eine Trennung zwischen:
+
+- kurzzeitigem Current-Question-Response-Cache
+- laenger lebendem Vote-Count-Cache
+- laenger lebendem Ergebnisaggregat-Cache
+
+Das bedeutet im 500er-Fall:
+
+- selbst wenn der Current-Question-Response wegen neuer Votes haeufig invalidiert wird,
+- muss der Server nicht jedes Mal erneut den Vote-Stand voll aus PostgreSQL zaehlen oder aggregieren,
+- solange derselbe Frage-/Rundenkontext aktiv bleibt.
+
+Vorlaeufige Wirkung:
+
+- deutlich weniger redundante `vote.count`-Aufrufe waehrend einer aktiven Frage
+- weniger wiederholte Ergebnisaggregation beim Umschalten auf `RESULTS`
+- besseres Verhalten bei vielen dicht aufeinanderfolgenden Votes plus parallel lesenden Clients
+
+### Vorlaeufiger Gewinn durch echten Stoerfall-Fallback
+
+Vorher:
+
+- im aktiven 500er-Fall lief der HTTP-Fallback parallel zum Subscription-Pfad
+- grob entstanden dadurch bis zu
+  - ca. **167 `getInfo`-Reads/s**
+  - ca. **250 `getCurrentQuestionForStudent`-Reads/s**
+
+Nachher:
+
+- diese Session-/Frage-Reads laufen nur noch bei echter Stoerung oder nach Subscription-Abbruch
+- im Normalfall mit stabiler Realtime-Verbindung entfaellt diese Dauerlast weitgehend
+
+Vorlaeufige Wirkung:
+
+- groesster einzelner Gewinn im aktiven 500er-Quizbetrieb
+- deutlich weniger dauerhafte HTTP-Last auf Session- und Fragepfaden
+- Restlast konzentriert sich staerker auf reale Votes und echte Statuswechsel
+
+## Lasttest-Bausteine fuer den aktuellen Stand
+
+Fuer den neuen Performance-Stand stehen jetzt zwei gezielte Bausteine bereit:
+
+- `scripts/load/k6-session-hotpaths-500vu.js`
+  - Modi fuer `join-wave`, `active-question` und `vote-spike`
+- `scripts/load/ws-status-subscribers.mjs`
+  - parallele Last auf `session.onStatusChanged`
+
+Damit lassen sich Join-Welle, Active-Question-Hotpath, Vote-Spike und Realtime-Subscription getrennt und kombiniert testen.
+
+Der konkrete Ergebnisbericht des heute bereits gefahrenen lokalen 500er-Laufs ist in [LASTTEST-500-ERGEBNIS-2026-05-09.md](./LASTTEST-500-ERGEBNIS-2026-05-09.md) dokumentiert.
+
+## Durchgefuehrte Lasttests am 2026-05-09
+
+Am 2026-05-09 wurde ein **realer lokaler 500er-Lastlauf** gegen den aktuellen Entwicklungsstand gefahren.
+
+Wichtig:
+
+- Testziel war **nicht** die endgueltige Freigabe fuer Produktion.
+- Der Lauf diente dazu, die heute umgesetzten Performance-Massnahmen unter echter Parallelitaet zu verifizieren.
+- Der Lauf fand auf dem lokalen Entwicklungsstack mit PostgreSQL und Redis statt, **nicht** auf dem produktionsnahen Hetzner-Zielsystem.
+
+### Testaufbau
+
+- dedizierte Testsession mit dem Quiz `Alle Frageformate – Quiz aus der Oberstufe`
+- `k6` fuer HTTP-Hotpaths
+- `node scripts/load/ws-status-subscribers.mjs` fuer 500 parallele Status-Subscriptions
+- reale Join-Welle mit anschliessender Nutzung genau dieser 500 erzeugten Teilnehmenden-IDs fuer die Folgephasen
+
+### Gefahrene Szenarien
+
+1. `join-wave` mit 500 VUs
+2. `onStatusChanged` mit 500 parallelen WebSocket-Subscriptions
+3. `active-question` mit 500 VUs auf realen Teilnehmer-IDs
+4. `vote-spike` mit 500 VUs auf derselben aktiven Frage
+
+### Messergebnisse
+
+#### Join-Welle
+
+Erster Hauptlauf:
+
+- 500 VUs
+- 0 Fehler
+- `http_req_duration p95 = 204.3 ms`
+- 500 reale Teilnehmende erfolgreich erzeugt
+
+Post-Fix-Rerun:
+
+- 500 VUs
+- 0 Fehler
+- `http_req_duration p95 = 147.52 ms`
+
+#### Status-Subscription
+
+Erster Hauptlauf:
+
+- 500 geoeffnete WebSocket-Subscriptions
+- 0 Fehler
+- 3 Host-Statuswechsel
+- insgesamt 1500 empfangene Nachrichten
+
+Post-Fix-Rerun:
+
+- 500 geoeffnete WebSocket-Subscriptions
+- 0 Fehler
+- 2 Host-Statuswechsel
+- insgesamt 1000 empfangene Nachrichten
+
+#### Aktive Frage
+
+- 500 VUs
+- 0 Fehler
+- `http_req_duration p95 = 416.99 ms`
+
+#### Vote-Spike
+
+- 500 VUs
+- 0 Fehler
+- `http_req_duration p95 = 742.62 ms`
+- anschliessend in der Datenbank verifiziert:
+  - 500 Teilnehmende in der Session
+  - 500 Votes auf der aktiven Frage
+
+### Befunde aus dem Lauf
+
+Der Lastlauf hat zwei technische Probleme sichtbar gemacht, die noch am selben Tag behoben wurden:
+
+1. **lokale Dev-DB nicht vollstaendig schema-synchron**
+   - `PlatformStatistic.usedSessionsTotal` fehlte in der lokalen Datenbank
+   - behoben durch `npm run prisma:push`
+
+2. **EventEmitter-Listener-Limit bei vielen parallelen Subscriptions**
+   - unter 500 Status-Subscriptions trat `MaxListenersExceededWarning` auf
+   - behoben durch unlimitierte Listener-Konfiguration auf den internen Session-EventEmittern
+
+Zusaetzlich wurde die Teilnehmer-Subscription `onParticipantJoined` auf ein signalgetriebenes Modell umgestellt, damit auch dieser Host-nahe Realtime-Pfad nicht mehr mit starrem 2s-Polling arbeitet.
+
+### Vorlaeufige Interpretation
+
+Der aktuelle Entwicklungsstand hat den lokalen 500er-Lauf in allen vier Kernphasen bestanden:
+
+- Join-Welle
+- Status-Fan-out
+- aktive Frage
+- Vote-Spike
+
+Das ist ein starkes Signal dafuer, dass die heute umgesetzten Massnahmen wirksam sind.
+
+Trotzdem gilt ausdruecklich:
+
+- Dies ist **noch keine produktive Freigabe** fuer den Hetzner-Produktionsbetrieb.
+- Es fehlt weiterhin der produktionsnahe Lauf unter echter Zielinfrastruktur mit Monitoring von CPU, RAM, DB, Redis und Netzwerk.
+- Die Vor-Ort-Risiken durch WLAN und Mobilfunk werden durch den lokalen Test nicht abgebildet.
+
 ## Ziel des Lasttests
 
 Geprueft werden soll, ob eine Session mit 500 gleichzeitigen Teilnehmenden unter produktionsnahen Bedingungen stabil betrieben werden kann.
@@ -38,6 +376,7 @@ Der Test gilt als erfolgreich, wenn:
 - Statuswechsel und Fragenwechsel zuverlaessig ankommen
 - Abstimmungen unter Last mit akzeptabler Latenz verarbeitet werden
 - keine systematischen Fehler, Timeouts oder Neustarts auftreten
+- sichtbare Host- und Teilnehmer-Countdowns im aktiven Fragemodus hoechstens um **1 Sekunde** voneinander abweichen
 
 ## Scope
 
@@ -173,6 +512,8 @@ Vor jedem Lauf dokumentieren:
   - Fehlerquote
   - Latenz Join
   - CPU-, RAM- und DB-Last
+  - Wirkung der Join-Glattung
+  - Wirkung des Nickname-Caches
 
 ### Szenario B: Lobby-Stabilitaet
 
@@ -182,6 +523,7 @@ Vor jedem Lauf dokumentieren:
   - Stabilitaet
   - Polling- oder Subscription-Verhalten
   - Host-Reaktionsfaehigkeit
+  - Vorlast durch offene Join-Clients
 
 ### Szenario C: Frage starten
 
@@ -190,6 +532,8 @@ Vor jedem Lauf dokumentieren:
   - Zeit bis Teilnehmeransicht aktualisiert ist
   - Fehlerquote
   - Lastspitze im Backend
+  - Ueberlagerung mit Vote-Fallback
+  - Countdown-Synchronitaet zwischen Host-Beamer und Teilnehmergeraeten
 
 ### Szenario D: Vote-Spike
 
@@ -199,6 +543,8 @@ Vor jedem Lauf dokumentieren:
   - Fehlerquote
   - DB- und Redis-Last
   - Host-Wahrnehmung
+  - Restlast durch Vote-Fallback
+  - Stabilitaet der Countdown-Synchronitaet bis kurz vor Deadline
 
 ### Szenario E: Ergebnisphase
 
@@ -261,6 +607,7 @@ Anwendungswahrnehmung:
 
 - Zeit vom Host-Klick bis zur sichtbaren Teilnehmeraktualisierung
 - sichtbare Haenger, Timeouts oder UI-Stoerungen
+- Countdown-Abweichung zwischen Host-Projektion und Teilnehmergeraeten
 
 ## Abnahmekriterien
 
@@ -280,8 +627,36 @@ Pragmatische Zielwerte:
 - Vote `p95 < 1.5s`
 - Vote `p99 < 3s`
 - Fehlerquote unter 1 Prozent im stabilen Betrieb
+- Countdown-Differenz Host zu sichtbaren, aktiven Teilnehmergeraeten: **maximal 1 Sekunde**
 
 Wenn diese Werte klar ueberschritten werden oder die Bedienbarkeit sichtbar leidet, gilt der Test als nicht bestanden.
+
+## Interpretation der Vormaßnahmen
+
+Die bereits umgesetzten Optimierungen verbessern vor allem:
+
+- Vorlast
+- Nebenlast
+- Bursthoehe
+- redundante Lese-Arbeit in kurzen Hotpath-Fenstern
+
+Sie verbessern noch nicht ausreichend die eigentlichen Kern-Hotpaths:
+
+- `getCurrentQuestionForStudent`
+- verbleibende Ergebnis- und Detailabfragen im Fragekontext
+- Reconnect- und Subscription-Ausfallpfade
+- Ergebnis- und Frage-Aggregation im Live-Betrieb
+
+Deshalb ist die aktuelle Lage wie folgt zu bewerten:
+
+- der 500er-Fall ist heute realistischer und sauberer testbar als vor den Massnahmen
+- ein erfolgreicher 500er-Test ist dadurch wahrscheinlicher geworden
+- eine formale Freigabe fuer 500 Teilnehmende kann aber weiterhin erst nach produktionsnahem Lasttest erfolgen
+
+Unabhaengig davon gilt fuer die Bewertung des 500er-Falls zusaetzlich:
+
+- selbst wenn Lastwerte akzeptabel bleiben, ist eine sichtbare Countdown-Abweichung von mehr als 1 Sekunde zwischen Host und Teilnehmenden als relevanter Qualitaetsmangel zu werten
+- Countdown-Synchronitaet ist daher explizit als eigene Abnahmebedingung zu pruefen
 
 ## Abbruchkriterien
 
