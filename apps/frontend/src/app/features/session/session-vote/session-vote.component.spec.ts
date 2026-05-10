@@ -998,6 +998,26 @@ describe('SessionVoteComponent', () => {
     fixture.destroy();
   });
 
+  it('blendet den Kanalwahlschalter nach Session-Ende aus', () => {
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    const inst = fixture.componentInstance;
+
+    inst.status.set('FINISHED');
+    inst.sessionSettings.set({
+      type: 'QUIZ',
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen', moderationMode: false },
+        quickFeedback: { enabled: true, open: true },
+      },
+    } as never);
+    fixture.detectChanges();
+
+    expect(inst.showChannelTabs()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.session-channel-tabs')).toBeNull();
+    fixture.destroy();
+  });
+
   it('zeigt im Ergebnis der letzten Frage bereits den finalen Score-Titel', () => {
     const fixture = TestBed.createComponent(SessionVoteComponent);
     const inst = fixture.componentInstance;

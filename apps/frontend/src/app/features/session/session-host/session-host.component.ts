@@ -510,7 +510,9 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     if (!session) return [];
     return ['quiz', 'qa', 'quickFeedback'];
   });
-  readonly showChannelTabs = computed(() => this.availableChannels().length > 1);
+  readonly showChannelTabs = computed(
+    () => this.effectiveStatus() !== 'FINISHED' && this.availableChannels().length > 1,
+  );
   readonly showPrimaryLiveView = computed(() => {
     const active = this.activeChannel();
     if (active === 'quiz') {

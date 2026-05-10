@@ -718,6 +718,24 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
+  it('blendet den Kanalwahlschalter nach Session-Ende aus', () => {
+    const fixture = setup();
+    fixture.componentInstance.session.set({
+      ...defaultSession,
+      status: 'FINISHED',
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen', moderationMode: true },
+        quickFeedback: { enabled: true, open: true },
+      },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.showChannelTabs()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.session-channel-tabs')).toBeNull();
+    fixture.destroy();
+  });
+
   it('aktiviert den Q&A-Tab beim Klick auf einen inaktiven Kanal', async () => {
     getInfoQueryMock.mockResolvedValue({
       ...defaultSession,

@@ -612,7 +612,9 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     if (channels.quickFeedback) result.push('quickFeedback');
     return result;
   });
-  readonly showChannelTabs = computed(() => this.visibleChannels().length > 1);
+  readonly showChannelTabs = computed(
+    () => !this.isFinished() && this.visibleChannels().length > 1,
+  );
   readonly isStandaloneQaSession = computed(
     () => this.channels().quiz === false && this.channels().qa === true,
   );
