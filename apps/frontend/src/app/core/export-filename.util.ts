@@ -49,14 +49,9 @@ export function buildSessionResultsCsvFilename(quizTitle: string, sessionCode: s
   return `arsnova-results-${safeTitle}-${safeSessionCode}.csv`;
 }
 
-export function buildBonusCodesCsvFilename(quizTitle: string, sessionCode: string): string {
+export function buildBonusCodesCsvFilename(quizTitle: string): string {
   const safeTitle = sanitizeExportFilenameSegment(quizTitle, 'quiz');
-  const safeSessionCode = sanitizeExportFilenameSegment(
-    sessionCode,
-    'session',
-    SESSION_CODE_MAX_LENGTH,
-  );
-  return `arsnova-bonus-codes-${safeTitle}-${safeSessionCode}.csv`;
+  return `arsnova-bonus-codes-${safeTitle}.csv`;
 }
 
 export function buildQuizExportJsonFilename(quizTitle: string): string {

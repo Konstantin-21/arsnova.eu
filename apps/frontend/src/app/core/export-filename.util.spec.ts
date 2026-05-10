@@ -23,8 +23,8 @@ describe('export filename util', () => {
     expect(buildSessionResultsCsvFilename('Überprüfung / SQL? 101', 'ABC123')).toBe(
       'arsnova-results-Uberprufung-SQL-101-ABC123.csv',
     );
-    expect(buildBonusCodesCsvFilename('Überprüfung / SQL? 101', 'ABC123')).toBe(
-      'arsnova-bonus-codes-Uberprufung-SQL-101-ABC123.csv',
+    expect(buildBonusCodesCsvFilename('Überprüfung / SQL? 101')).toBe(
+      'arsnova-bonus-codes-Uberprufung-SQL-101.csv',
     );
   });
 

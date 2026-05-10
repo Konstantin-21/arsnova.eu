@@ -204,17 +204,9 @@ export class BonusCodesDialogComponent implements OnInit {
     const url = URL.createObjectURL(blob);
     const a = this.document.createElement('a');
     a.href = url;
-    a.download = buildBonusCodesCsvFilename(this.data.quizName, this.exportSessionCodeLabel());
+    a.download = buildBonusCodesCsvFilename(this.data.quizName);
     a.click();
     URL.revokeObjectURL(url);
-  }
-
-  private exportSessionCodeLabel(): string {
-    const sessions = this.sessions();
-    if (sessions.length === 1) {
-      return sessions[0].sessionCode;
-    }
-    return 'multiple-sessions';
   }
 
   private isCodeAlreadyVerified(code: string): boolean {
