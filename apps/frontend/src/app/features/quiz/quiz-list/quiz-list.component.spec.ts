@@ -236,6 +236,40 @@ describe('QuizListComponent', () => {
     expect(text).not.toContain('Verbunden');
   });
 
+  it('exportiert Quiz-Dateien mit sprachneutralem ASCII-Dateinamen', () => {
+    mockStore.exportQuiz.mockReturnValue({
+      quiz: {
+        name: 'Überprüfung / SQL? 101',
+      },
+    });
+    const fixture = TestBed.createComponent(QuizListComponent);
+    const component = fixture.componentInstance;
+    const originalCreateElement = document.createElement.bind(document);
+    const anchor = originalCreateElement('a');
+    const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => undefined);
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation(((tagName: string) =>
+        tagName.toLowerCase() === 'a'
+          ? anchor
+          : originalCreateElement(tagName)) as typeof document.createElement);
+    const urlCreateSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:quiz-export');
+    const urlRevokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    component.exportQuiz('quiz-1');
+
+    expect(anchor.download).toBe('arsnova-quiz-Uberprufung-SQL-101.json');
+    expect(anchor.href).toContain('blob:quiz-export');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(urlCreateSpy).toHaveBeenCalledTimes(1);
+    expect(urlRevokeSpy).toHaveBeenCalledWith('blob:quiz-export');
+
+    createElementSpy.mockRestore();
+    urlCreateSpy.mockRestore();
+    urlRevokeSpy.mockRestore();
+    clickSpy.mockRestore();
+  });
+
   it('zeigt nach einem Sync-Import einen Snackbar-Hinweis', async () => {
     quizzesSignal.set([
       {

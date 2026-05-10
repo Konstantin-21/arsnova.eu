@@ -85,6 +85,7 @@ import { recordServerTimeIso } from '../session-server-clock';
 import { MusicEqualizerIconComponent } from '../../../shared/music-equalizer-icon/music-equalizer-icon.component';
 import { FeedbackHostComponent } from '../../feedback/feedback-host.component';
 import { QuizStoreService } from '../../quiz/data/quiz-store.service';
+import { buildSessionResultsCsvFilename } from '../../../core/export-filename.util';
 import {
   replaceEmojiShortcodes,
   edgeEmojiMarkerPosition,
@@ -3901,7 +3902,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
       const url = URL.createObjectURL(blob);
       const a = this.document.createElement('a');
       a.href = url;
-      a.download = `session-results-${data.sessionCode}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = buildSessionResultsCsvFilename(data.quizName, data.sessionCode);
       a.click();
       URL.revokeObjectURL(url);
       this.exportStatus.set($localize`Ergebnis-CSV exportiert.`);

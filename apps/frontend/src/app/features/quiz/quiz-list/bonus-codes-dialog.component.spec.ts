@@ -360,7 +360,7 @@ describe('BonusCodesDialogComponent', () => {
     component.exportAllCsv();
 
     expect(urlCreateSpy).toHaveBeenCalledTimes(1);
-    expect(anchor.download).toContain('bonus-codes-Chemie-101.csv');
+    expect(anchor.download).toBe('arsnova-bonus-codes-Chemie-101-ABCDEF.csv');
     expect(anchor.href).toContain('blob:bonus');
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(urlRevokeSpy).toHaveBeenCalledWith('blob:bonus');

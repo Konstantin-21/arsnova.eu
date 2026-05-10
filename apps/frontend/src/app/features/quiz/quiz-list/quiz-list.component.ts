@@ -56,6 +56,7 @@ import {
 import { MarkdownImageLightboxDirective } from '../../../shared/markdown-image-lightbox/markdown-image-lightbox.directive';
 import { localizeKnownServerError } from '../../../core/localize-known-server-message';
 import { tryRequestDocumentFullscreen } from '../../../core/document-fullscreen.util';
+import { buildQuizExportJsonFilename } from '../../../core/export-filename.util';
 
 const QUIZ_HISTORY_SCOPE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -435,7 +436,7 @@ export class QuizListComponent implements OnInit {
     this.actionError.set(null);
     try {
       const quiz = this.quizStore.exportQuiz(quizId);
-      const filename = this.buildExportFilename(quiz.quiz.name);
+      const filename = buildQuizExportJsonFilename(quiz.quiz.name);
       const payload = JSON.stringify(quiz, null, 2);
       const blob = new Blob([payload], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -968,17 +969,6 @@ export class QuizListComponent implements OnInit {
     } finally {
       this.liveStartPending.set(false);
     }
-  }
-
-  private buildExportFilename(quizName: string): string {
-    const date = new Date().toISOString().slice(0, 10);
-    const safeName =
-      quizName
-        .trim()
-        .replace(/[^a-zA-Z0-9-_ ]/g, '')
-        .replace(/\s+/g, '-')
-        .slice(0, 80) || 'quiz';
-    return `${safeName}_${date}.json`;
   }
 
   private async resolveQuizHistoryAccessProof(quiz: QuizSummary): Promise<string | null> {

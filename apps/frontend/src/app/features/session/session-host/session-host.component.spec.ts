@@ -5060,7 +5060,7 @@ describe('SessionHostComponent', () => {
       await fixture.componentInstance.exportSessionResultsCsv();
       fixture.detectChanges();
 
-      expect(createdAnchor?.download).toBe('session-results-ABC123-2026-05-10.csv');
+      expect(createdAnchor?.download).toBe('arsnova-results-Demo-Quiz-ABC123.csv');
 
       fixture.destroy();
       anchorClickSpy.mockRestore();

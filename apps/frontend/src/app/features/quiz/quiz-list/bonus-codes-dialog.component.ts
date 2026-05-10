@@ -13,6 +13,7 @@ import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import type { BonusTokenListWithSessionMetaDTO } from '@arsnova/shared-types';
+import { buildBonusCodesCsvFilename } from '../../../core/export-filename.util';
 import { trpc } from '../../../core/trpc.client';
 
 export interface BonusCodesDialogData {
@@ -203,9 +204,17 @@ export class BonusCodesDialogComponent implements OnInit {
     const url = URL.createObjectURL(blob);
     const a = this.document.createElement('a');
     a.href = url;
-    a.download = `bonus-codes-${this.data.quizName.replace(/[^\wäöüÄÖÜß.-]+/gi, '-')}.csv`;
+    a.download = buildBonusCodesCsvFilename(this.data.quizName, this.exportSessionCodeLabel());
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  private exportSessionCodeLabel(): string {
+    const sessions = this.sessions();
+    if (sessions.length === 1) {
+      return sessions[0].sessionCode;
+    }
+    return 'multiple-sessions';
   }
 
   private isCodeAlreadyVerified(code: string): boolean {
