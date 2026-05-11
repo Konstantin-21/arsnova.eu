@@ -28,10 +28,17 @@ describe('kindergarten-nickname-icons', () => {
   });
 
   it('findet englische Labels nur in der englischen Locale', () => {
-    expect(findKindergartenNicknameIndex('Red dragon')).toBeNull();
-    expect(findKindergartenNicknameEmoji('Red dragon')).toBeNull();
+    expect(findKindergartenNicknameIndex('Red dragon')).toBe(0);
+    expect(findKindergartenNicknameEmoji('Red dragon')).toBe('🐉');
     expect(findKindergartenNicknameIndex('Red dragon', 'en')).toBe(0);
     expect(findKindergartenNicknameEmoji('Red dragon', 'en')).toBe('🐉');
+  });
+
+  it('findet Kindergarten-Labels locale-übergreifend mit demselben Emoji', () => {
+    expect(findKindergartenNicknameIndex('Lagunenblaue Qualle', 'en')).toBe(94);
+    expect(findKindergartenNicknameEmoji('Lagunenblaue Qualle', 'en')).toBe('🪼');
+    expect(findKindergartenNicknameIndex('Lagoon blue jellyfish', 'de')).toBe(94);
+    expect(findKindergartenNicknameEmoji('Lagoon blue jellyfish', 'de')).toBe('🪼');
   });
 
   it('ordnet auch generierte Reserve-Namen dem Ursprungs-Emoji zu', () => {

@@ -686,20 +686,31 @@ img[data-markdown-image-lightbox='true'][data-markdown-image-state='error'] {
 
 .vote-answer__text .answer-leading-emoji,
 .session-host__answer-text .answer-leading-emoji {
-  display: inline-block;
-  font-size: 0.9em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  min-width: 1.35em;
+  font-size: 1em;
   line-height: 1;
-  margin-inline-end: 14px;
+  margin-inline-end: 0.45em;
   vertical-align: -0.06em;
 }
 
 @media (max-width: 599px) {
   .vote-answer__text .answer-leading-emoji,
   .session-host__answer-text .answer-leading-emoji {
-    line-height: 0.88;
-    margin-inline-end: 14px;
+    width: 1.45em;
+    min-width: 1.45em;
+    line-height: 1;
+    margin-inline-end: 0.4em;
     vertical-align: -0.09em;
   }
+}
+
+.vote-answer__text > p,
+.session-host__answer-text > p {
+  margin: 0;
 }
 
 /* Host-Fragetext: große Markdown-Bilder, auch verlinkte, auf sinnvolle Viewport-Höhe begrenzen. */

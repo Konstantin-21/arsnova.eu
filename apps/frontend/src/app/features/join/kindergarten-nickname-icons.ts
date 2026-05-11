@@ -94,7 +94,7 @@ export const KINDERGARTEN_NICKNAME_EMOJIS: readonly string[] = [
   '🦥', // Nebelgraues Faultier
   '🦦', // Seegrüner Otter
   '🦨', // Veilchenfarbenes Stinktier
-  '🦣', // Mondgraues Mammut
+  '🐘', // Blauer Elefant
   '🐃', // Mahagonifarbener Wasserbüffel
   '🐪', // Sandbeiges Kamel
   '🐫', // Dünenfarbenes Trampeltier
@@ -126,9 +126,26 @@ export function findKindergartenNicknameIndex(
 ): number | null {
   const t = nickname.trim().replace(/\s+\d+$/, '');
   if (!t) return null;
-  const list = NICKNAME_LISTS_BY_LOCALE[locale].KINDERGARTEN;
-  const i = list.indexOf(t);
-  return i >= 0 ? i : null;
+  const localizedList = NICKNAME_LISTS_BY_LOCALE[locale].KINDERGARTEN;
+  const localizedIndex = localizedList.indexOf(t);
+  if (localizedIndex >= 0) {
+    return localizedIndex;
+  }
+
+  for (const [candidateLocale, lists] of Object.entries(NICKNAME_LISTS_BY_LOCALE) as [
+    SupportedLocale,
+    (typeof NICKNAME_LISTS_BY_LOCALE)[SupportedLocale],
+  ][]) {
+    if (candidateLocale === locale) {
+      continue;
+    }
+    const candidateIndex = lists.KINDERGARTEN.indexOf(t);
+    if (candidateIndex >= 0) {
+      return candidateIndex;
+    }
+  }
+
+  return null;
 }
 
 export function findKindergartenNicknameEmoji(
