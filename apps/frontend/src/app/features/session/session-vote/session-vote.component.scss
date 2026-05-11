@@ -1840,8 +1840,8 @@
 
   &__text {
     flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     line-height: 1.4;
   }
 

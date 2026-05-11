@@ -684,33 +684,59 @@ img[data-markdown-image-lightbox='true'][data-markdown-image-state='error'] {
   box-sizing: border-box;
 }
 
-.vote-answer__text .answer-leading-emoji,
-.session-host__answer-text .answer-leading-emoji {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35em;
-  min-width: 1.35em;
-  font-size: 1em;
-  line-height: 1;
-  margin-inline-end: 0.45em;
-  vertical-align: -0.06em;
+.vote-answer__text,
+.session-host__answer-text {
+  --answer-leading-emoji-size: 1.6em;
+  --answer-leading-emoji-gap: 0.45em;
+  --answer-leading-emoji-slot: calc(
+    var(--answer-leading-emoji-size) + var(--answer-leading-emoji-gap)
+  );
 }
 
-@media (max-width: 599px) {
-  .vote-answer__text .answer-leading-emoji,
-  .session-host__answer-text .answer-leading-emoji {
-    width: 1.45em;
-    min-width: 1.45em;
-    line-height: 1;
-    margin-inline-end: 0.4em;
-    vertical-align: -0.09em;
-  }
+.vote-answer__text:has(> .answer-leading-emoji),
+.session-host__answer-text:has(> .answer-leading-emoji) {
+  position: relative;
+  display: block;
+  min-height: var(--answer-leading-emoji-size);
+  padding-inline-start: var(--answer-leading-emoji-slot);
 }
 
 .vote-answer__text > p,
 .session-host__answer-text > p {
   margin: 0;
+}
+
+.vote-answer__text > p:has(> .answer-leading-emoji),
+.session-host__answer-text > p:has(> .answer-leading-emoji) {
+  position: relative;
+  min-height: var(--answer-leading-emoji-size);
+  padding-inline-start: var(--answer-leading-emoji-slot);
+}
+
+.vote-answer__text > .answer-leading-emoji,
+.session-host__answer-text > .answer-leading-emoji,
+.vote-answer__text > p > .answer-leading-emoji,
+.session-host__answer-text > p > .answer-leading-emoji {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.04em;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: var(--answer-leading-emoji-size);
+  min-width: var(--answer-leading-emoji-size);
+  margin: 0;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: top;
+}
+
+@media (max-width: 599px) {
+  .vote-answer__text,
+  .session-host__answer-text {
+    --answer-leading-emoji-size: 1.8em;
+    --answer-leading-emoji-gap: 0.55em;
+  }
 }
 
 /* Host-Fragetext: große Markdown-Bilder, auch verlinkte, auf sinnvolle Viewport-Höhe begrenzen. */
