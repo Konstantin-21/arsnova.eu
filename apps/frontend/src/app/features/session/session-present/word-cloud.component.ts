@@ -32,11 +32,12 @@ import {
 } from './word-cloud-layout';
 import {
   aggregateWeightedWords,
-  createWordCloudStopwordLookup,
+  createWordCloudStopwordContext,
   extractResponseGroupKeys,
   getStopwordsForLocale,
   normalizeFreeTextResponseForDisplay,
   type WordCloudAnalysisMode,
+  type WordCloudStopwordContext,
   type WeightedWordSource,
 } from './word-cloud.util';
 import type { WordCloudDialogData } from './word-cloud-dialog.component';
@@ -193,8 +194,8 @@ export class WordCloudComponent implements AfterViewInit, OnDestroy {
   private readonly renderedCloudStageHeight = signal(0);
   private readonly layoutFontFamily = signal('system-ui');
   private readonly activeLayoutSignature = signal('');
-  private readonly stopwordLookup = computed(() =>
-    createWordCloudStopwordLookup(this.stopwords, this.activeLocale, this.analysisMode()),
+  private readonly stopwordContext = computed<WordCloudStopwordContext>(() =>
+    createWordCloudStopwordContext(this.stopwords, this.activeLocale, this.analysisMode()),
   );
 
   private readonly aggregationSources = computed<WeightedWordSource[]>(() => {
@@ -284,14 +285,7 @@ export class WordCloudComponent implements AfterViewInit, OnDestroy {
   private readonly responseSearchIndex = computed(() =>
     this.responses().map((response) => ({
       response: normalizeFreeTextResponseForDisplay(response),
-      groupKeys: new Set(
-        extractResponseGroupKeys(
-          response,
-          this.stopwordLookup(),
-          this.activeLocale,
-          this.analysisMode(),
-        ),
-      ),
+      groupKeys: new Set(extractResponseGroupKeys(response, this.stopwordContext())),
     })),
   );
 

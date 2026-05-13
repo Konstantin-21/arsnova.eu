@@ -2,6 +2,7 @@ import { deu, eng, fra, ita, spa } from 'stopword';
 import type { SupportedLocale } from '../../../core/locale-from-path';
 
 export type WordCloudAnalysisMode = 'default' | 'qa';
+const WORD_CLOUD_LOCALES: readonly SupportedLocale[] = ['de', 'en', 'fr', 'it', 'es'];
 
 export interface WordAggregate {
   word: string;
@@ -13,6 +14,12 @@ export interface WordAggregate {
 export interface WeightedWordSource {
   text: string;
   weight?: number;
+}
+
+export interface WordCloudStopwordContext {
+  readonly primaryLocale: SupportedLocale;
+  readonly analysisMode: WordCloudAnalysisMode;
+  readonly lookupsByLocale: ReadonlyMap<SupportedLocale, ReadonlySet<string>>;
 }
 
 type GroupingKind = 'token' | 'phrase';
@@ -165,7 +172,33 @@ export function createWordCloudStopwordLookup(
   locale: SupportedLocale = 'de',
   analysisMode: WordCloudAnalysisMode = 'default',
 ): ReadonlySet<string> {
-  return createStopwordLookup(stopwords, locale, analysisMode);
+  return createWordCloudStopwordContext(stopwords, locale, analysisMode).lookupsByLocale.get(
+    locale,
+  )!;
+}
+
+export function createWordCloudStopwordContext(
+  stopwords: ReadonlySet<string> = DEFAULT_STOPWORDS,
+  locale: SupportedLocale = 'de',
+  analysisMode: WordCloudAnalysisMode = 'default',
+): WordCloudStopwordContext {
+  const lookupsByLocale = new Map<SupportedLocale, ReadonlySet<string>>();
+  for (const candidateLocale of WORD_CLOUD_LOCALES) {
+    lookupsByLocale.set(
+      candidateLocale,
+      createStopwordLookup(
+        candidateLocale === locale ? stopwords : getStopwordsForLocale(candidateLocale),
+        candidateLocale,
+        analysisMode,
+      ),
+    );
+  }
+
+  return {
+    primaryLocale: locale,
+    analysisMode,
+    lookupsByLocale,
+  };
 }
 
 export function aggregateWords(
@@ -189,12 +222,10 @@ export function aggregateWeightedWords(
   analysisMode: WordCloudAnalysisMode = 'default',
 ): WordAggregate[] {
   const buckets = new Map<string, AggregateBucket>();
-  const stopwordLookup = createWordCloudStopwordLookup(stopwords, locale, analysisMode);
+  const stopwordContext = createWordCloudStopwordContext(stopwords, locale, analysisMode);
   const groupedSources = sources.map((source) => ({
     weight: normalizeWeight(source.weight),
-    groupings: [
-      ...collectResponseGroupings(source.text, stopwordLookup, locale, analysisMode).values(),
-    ],
+    groupings: [...collectResponseGroupings(source.text, stopwordContext).values()],
   }));
   const phraseResponseSupport = new Map<string, number>();
   const phraseWeightedSupport = new Map<string, number>();
@@ -294,11 +325,9 @@ export function responseContainsWord(
 
 export function extractResponseGroupKeys(
   response: string,
-  stopwordLookup: ReadonlySet<string>,
-  locale: SupportedLocale = 'de',
-  analysisMode: WordCloudAnalysisMode = 'default',
+  stopwordContext: WordCloudStopwordContext,
 ): string[] {
-  return [...collectResponseGroupings(response, stopwordLookup, locale, analysisMode).keys()];
+  return [...collectResponseGroupings(response, stopwordContext).keys()];
 }
 
 function normalizeWeight(weight?: number): number {
@@ -331,23 +360,31 @@ function getOrCreateBucket(
 
 function collectResponseGroupings(
   response: string,
-  stopwordLookup: ReadonlySet<string>,
-  locale: SupportedLocale,
-  analysisMode: WordCloudAnalysisMode,
+  stopwordFilter: ReadonlySet<string> | WordCloudStopwordContext,
+  locale?: SupportedLocale,
+  analysisMode?: WordCloudAnalysisMode,
 ): Map<string, ResponseGroupingBucket> {
   const groupings = new Map<string, ResponseGroupingBucket>();
+  const effectiveLocale = isWordCloudStopwordContext(stopwordFilter)
+    ? stopwordFilter.primaryLocale
+    : (locale ?? 'de');
+  const effectiveAnalysisMode = isWordCloudStopwordContext(stopwordFilter)
+    ? stopwordFilter.analysisMode
+    : (analysisMode ?? 'default');
+  const activeStopwordLocales = resolveActiveStopwordLocales(response, stopwordFilter);
   const tokenGroupings: WordGrouping[] = [];
 
   for (const word of tokenize(response)) {
     if (!isNumericToken(word) && word.length < MIN_TEXT_TOKEN_LENGTH) continue;
-    const grouping = getWordGrouping(word, locale);
-    if (stopwordLookup.has(word) || stopwordLookup.has(grouping.groupKey)) continue;
+    if (isStopwordToken(word, stopwordFilter, activeStopwordLocales)) continue;
+
+    const grouping = getWordGrouping(word, effectiveLocale);
 
     tokenGroupings.push(grouping);
     addResponseGrouping(groupings, grouping);
   }
 
-  if (analysisMode === 'qa') {
+  if (effectiveAnalysisMode === 'qa') {
     for (const phrase of buildQaPhraseGroupings(tokenGroupings)) {
       addResponseGrouping(groupings, phrase);
     }
@@ -422,6 +459,93 @@ function createStopwordLookup(
   }
 
   return lookup;
+}
+
+function isWordCloudStopwordContext(
+  value: ReadonlySet<string> | WordCloudStopwordContext,
+): value is WordCloudStopwordContext {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'lookupsByLocale' in value &&
+    'primaryLocale' in value
+  );
+}
+
+function resolveActiveStopwordLocales(
+  response: string,
+  stopwordFilter: ReadonlySet<string> | WordCloudStopwordContext,
+): SupportedLocale[] {
+  if (!isWordCloudStopwordContext(stopwordFilter)) {
+    return [];
+  }
+
+  const textTokens = tokenize(response).filter(
+    (token) => !isNumericToken(token) && token.length >= MIN_TEXT_TOKEN_LENGTH,
+  );
+  const activeLocales: SupportedLocale[] = [stopwordFilter.primaryLocale];
+  if (textTokens.length === 0) {
+    return activeLocales;
+  }
+
+  const primaryLookup = stopwordFilter.lookupsByLocale.get(stopwordFilter.primaryLocale);
+
+  for (const candidateLocale of WORD_CLOUD_LOCALES) {
+    if (candidateLocale === stopwordFilter.primaryLocale) {
+      continue;
+    }
+
+    const lookup = stopwordFilter.lookupsByLocale.get(candidateLocale);
+    if (!lookup) {
+      continue;
+    }
+
+    let score = 0;
+    for (const token of textTokens) {
+      const matchedCandidate = matchesStopwordLookup(token, candidateLocale, lookup);
+      const matchedPrimary =
+        primaryLookup && matchesStopwordLookup(token, stopwordFilter.primaryLocale, primaryLookup);
+      if (matchedCandidate && !matchedPrimary) {
+        score += 1;
+      }
+    }
+
+    if (score >= minimumAutoDetectedStopwordMatches(textTokens.length)) {
+      activeLocales.push(candidateLocale);
+    }
+  }
+
+  return activeLocales;
+}
+
+function minimumAutoDetectedStopwordMatches(tokenCount: number): number {
+  return Math.min(4, Math.max(2, Math.ceil(tokenCount / 4)));
+}
+
+function isStopwordToken(
+  token: string,
+  stopwordFilter: ReadonlySet<string> | WordCloudStopwordContext,
+  activeLocales: readonly SupportedLocale[],
+): boolean {
+  if (isWordCloudStopwordContext(stopwordFilter)) {
+    for (const locale of activeLocales) {
+      const lookup = stopwordFilter.lookupsByLocale.get(locale);
+      if (lookup && matchesStopwordLookup(token, locale, lookup)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return stopwordFilter.has(token);
+}
+
+function matchesStopwordLookup(
+  token: string,
+  locale: SupportedLocale,
+  lookup: ReadonlySet<string>,
+): boolean {
+  return lookup.has(token) || lookup.has(getWordGrouping(token, locale).groupKey);
 }
 
 function normalizeLookupToken(value: string): string {

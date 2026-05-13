@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_STOPWORDS,
   aggregateWords,
+  createWordCloudStopwordContext,
+  extractResponseGroupKeys,
   getWordCloudWeightFromUpvotes,
   getStopwordsForLocale,
   normalizeFreeTextResponseForDisplay,
@@ -229,6 +231,49 @@ describe('aggregateWords', () => {
 
     expect(spanish.some((entry) => entry.word === 'qué')).toBe(false);
     expect(spanish.some((entry) => entry.word === 'fórmula')).toBe(true);
+  });
+
+  it('filtert auch dann deutsche Stopwoerter, wenn die UI-Locale englisch ist', () => {
+    const result = aggregateWords(
+      ['Wie koennen wir das mit dem Beispiel und der Seite besser machen?'],
+      getStopwordsForLocale('en'),
+      'en',
+    );
+
+    expect(result.some((entry) => entry.word === 'wie')).toBe(false);
+    expect(result.some((entry) => entry.word === 'koennen')).toBe(false);
+    expect(result.some((entry) => entry.word === 'das')).toBe(false);
+    expect(result.some((entry) => entry.word === 'mit')).toBe(false);
+    expect(result.some((entry) => entry.word === 'dem')).toBe(false);
+    expect(result.some((entry) => entry.word === 'und')).toBe(false);
+    expect(result.some((entry) => entry.word === 'der')).toBe(false);
+    expect(result.some((entry) => entry.word === 'seite')).toBe(true);
+  });
+
+  it('filtert Antwort-GroupKeys mit mehrsprachigem Stopwort-Fallback, ohne englisches "die" blind zu verlieren', () => {
+    const germanContext = createWordCloudStopwordContext(getStopwordsForLocale('en'), 'en');
+    expect(
+      responseContainsWord(
+        'Wie koennen wir das mit dem Beispiel und der Seite besser machen?',
+        'beispiel',
+        'en',
+      ),
+    ).toBe(true);
+    expect(
+      new Set(
+        aggregateWords(
+          ['To die or not to die in this example'],
+          getStopwordsForLocale('en'),
+          'en',
+        ).map((entry) => entry.word),
+      ).has('die'),
+    ).toBe(true);
+    expect(
+      extractResponseGroupKeys(
+        'Wie koennen wir das mit dem Beispiel und der Seite besser machen?',
+        germanContext,
+      ),
+    ).not.toContain('und');
   });
 
   it('flacht Upvotes fuer die Q&A-Wortwolke per Wurzelgewicht ab', () => {
