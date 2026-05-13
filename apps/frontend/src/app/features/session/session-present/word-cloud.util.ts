@@ -131,6 +131,24 @@ const STOPWORDS_BY_LOCALE: Record<SupportedLocale, ReadonlySet<string>> = {
   es: new Set(spa),
 };
 
+const STOPWORD_ALLOWLIST_BY_LOCALE: Partial<Record<SupportedLocale, readonly string[]>> = {
+  de: [
+    'beispiel',
+    'beispiele',
+    'machen',
+    'macht',
+    'machte',
+    'gemacht',
+    'besser',
+    'wirklich',
+    'heute',
+    'morgen',
+    'jetzt',
+  ],
+  en: ['make', 'makes', 'made', 'making', 'now'],
+  fr: ['faire'],
+};
+
 const QA_EXTRA_STOPWORDS_BY_LOCALE: Partial<Record<SupportedLocale, readonly string[]>> = {
   de: [
     'bitte',
@@ -154,11 +172,105 @@ const QA_EXTRA_STOPWORDS_BY_LOCALE: Partial<Record<SupportedLocale, readonly str
     'soll',
     'sollen',
     'gemeint',
+    'eigentlich',
+    'kurz',
+    'mal',
+    'eben',
+    'halt',
+    'vielleicht',
+    'paar',
+    'moment',
+    'machen',
+    'macht',
+    'machte',
+    'gemacht',
   ],
-  en: ['please', 'exactly', 'again', 'could', 'would', 'should', 'need', 'needs', 'needed'],
-  fr: ['svp', "s'il", 'vous', 'plait', 'encore', 'exactement', 'faut', 'doit', 'doivent'],
-  it: ['per', 'favore', 'ancora', 'esattamente', 'serve', 'servono', 'devo', 'dobbiamo'],
-  es: ['favor', 'exactamente', 'otra', 'vez', 'puede', 'pueden', 'necesito', 'necesitamos'],
+  en: [
+    'please',
+    'exactly',
+    'again',
+    'could',
+    'would',
+    'should',
+    'need',
+    'needs',
+    'needed',
+    'actually',
+    'just',
+    'maybe',
+    'basically',
+    'simply',
+    'moment',
+    'make',
+    'makes',
+    'made',
+    'making',
+  ],
+  fr: [
+    'svp',
+    "s'il",
+    'vous',
+    'plait',
+    'encore',
+    'exactement',
+    'faut',
+    'doit',
+    'doivent',
+    'comment',
+    'quand',
+    'pourquoi',
+    'peux',
+    'peut',
+    'pouvez',
+    'pouvent',
+    'besoin',
+    'moment',
+    'juste',
+    'simplement',
+    'vraiment',
+    'maintenant',
+    'faire',
+  ],
+  it: [
+    'per',
+    'favore',
+    'ancora',
+    'esattamente',
+    'serve',
+    'servono',
+    'devo',
+    'dobbiamo',
+    'quando',
+    'perché',
+    'perche',
+    'bisogno',
+    'momento',
+    'proprio',
+    'semplicemente',
+    'davvero',
+    'adesso',
+    'fare',
+    'può',
+    'puo',
+    'possono',
+  ],
+  es: [
+    'favor',
+    'exactamente',
+    'otra',
+    'vez',
+    'puede',
+    'pueden',
+    'necesito',
+    'necesitamos',
+    'realmente',
+    'ahora',
+    'momento',
+    'simplemente',
+    'justo',
+    'hacer',
+    'hace',
+  ],
 };
 
 export const DEFAULT_STOPWORDS = STOPWORDS_BY_LOCALE.de;
@@ -448,14 +560,18 @@ function createStopwordLookup(
   analysisMode: WordCloudAnalysisMode,
 ): ReadonlySet<string> {
   const lookup = new Set<string>();
-  for (const stopword of [...stopwords, ...getAnalysisStopwords(locale, analysisMode)]) {
-    const normalized = normalizeLookupToken(stopword);
-    if (!normalized) {
+  const allowlist = createStopwordAllowlistLookup(locale);
+
+  for (const stopword of stopwords) {
+    if (isAllowlistedStopword(stopword, locale, allowlist)) {
       continue;
     }
 
-    lookup.add(normalized);
-    lookup.add(getWordGrouping(normalized, locale).groupKey);
+    addStopwordLookupEntry(lookup, stopword, locale);
+  }
+
+  for (const stopword of getAnalysisStopwords(locale, analysisMode)) {
+    addStopwordLookupEntry(lookup, stopword, locale);
   }
 
   return lookup;
@@ -546,6 +662,38 @@ function matchesStopwordLookup(
   lookup: ReadonlySet<string>,
 ): boolean {
   return lookup.has(token) || lookup.has(getWordGrouping(token, locale).groupKey);
+}
+
+function createStopwordAllowlistLookup(locale: SupportedLocale): ReadonlySet<string> {
+  const lookup = new Set<string>();
+  for (const token of STOPWORD_ALLOWLIST_BY_LOCALE[locale] ?? []) {
+    addStopwordLookupEntry(lookup, token, locale);
+  }
+
+  return lookup;
+}
+
+function isAllowlistedStopword(
+  token: string,
+  locale: SupportedLocale,
+  allowlist: ReadonlySet<string>,
+): boolean {
+  const normalized = normalizeLookupToken(token);
+  if (!normalized) {
+    return false;
+  }
+
+  return allowlist.has(normalized) || allowlist.has(getWordGrouping(normalized, locale).groupKey);
+}
+
+function addStopwordLookupEntry(lookup: Set<string>, token: string, locale: SupportedLocale): void {
+  const normalized = normalizeLookupToken(token);
+  if (!normalized) {
+    return;
+  }
+
+  lookup.add(normalized);
+  lookup.add(getWordGrouping(normalized, locale).groupKey);
 }
 
 function normalizeLookupToken(value: string): string {

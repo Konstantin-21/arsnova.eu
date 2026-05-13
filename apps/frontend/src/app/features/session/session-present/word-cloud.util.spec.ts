@@ -233,6 +233,198 @@ describe('aggregateWords', () => {
     expect(spanish.some((entry) => entry.word === 'fórmula')).toBe(true);
   });
 
+  it('behaelt kuratierte deutsche Inhaltswoerter trotz aggressiver Upstream-Stopliste', () => {
+    const result = aggregateWords([
+      'Heute machen wir ein Beispiel, das wirklich besser erklaert wird.',
+      'Morgen wird das Beispiel noch besser.',
+    ]);
+
+    expect(result.find((entry) => entry.word === 'heute')).toMatchObject({
+      word: 'heute',
+      count: 1,
+    });
+    expect(result.find((entry) => entry.word === 'morgen')).toMatchObject({
+      word: 'morgen',
+      count: 1,
+    });
+    expect(result.find((entry) => entry.word === 'machen')).toMatchObject({
+      word: 'machen',
+      count: 1,
+    });
+    expect(result.find((entry) => entry.word === 'beispiel')).toMatchObject({
+      word: 'beispiel',
+      count: 2,
+    });
+    expect(result.find((entry) => entry.word === 'wirklich')).toMatchObject({
+      word: 'wirklich',
+      count: 1,
+    });
+    expect(result.find((entry) => entry.word === 'besser')).toMatchObject({
+      word: 'besser',
+      count: 2,
+    });
+  });
+
+  it('behaelt kuratierte englische Inhaltswoerter trotz aggressiver Upstream-Stopliste', () => {
+    const result = aggregateWords(
+      ['We make the example clearer now.', 'Now we make progress together.'],
+      getStopwordsForLocale('en'),
+      'en',
+    );
+
+    expect(result.find((entry) => entry.word === 'make')).toMatchObject({
+      word: 'make',
+      count: 2,
+    });
+    expect(result.find((entry) => entry.word === 'now')).toMatchObject({
+      word: 'now',
+      count: 2,
+    });
+    expect(result.find((entry) => entry.word === 'example')).toMatchObject({
+      word: 'example',
+      count: 1,
+    });
+  });
+
+  it('behaelt kuratierte franzoesische Inhaltswoerter trotz aggressiver Upstream-Stopliste', () => {
+    const result = aggregateWords(
+      ['Nous allons faire un exemple concret.', 'Faire cela aide pour la formule.'],
+      getStopwordsForLocale('fr'),
+      'fr',
+    );
+
+    expect(result.find((entry) => entry.word === 'faire')).toMatchObject({
+      word: 'faire',
+      count: 2,
+    });
+    expect(result.find((entry) => entry.word === 'exemple')).toMatchObject({
+      word: 'exemple',
+      count: 1,
+    });
+    expect(result.find((entry) => entry.word === 'formule')).toMatchObject({
+      word: 'formule',
+      count: 1,
+    });
+  });
+
+  it('filtert zusaetzliche deutsche Q&A-Fuellwoerter haerter als die Standardwolke', () => {
+    const result = aggregateWords(
+      [
+        'Koennen wir eigentlich kurz noch mal ein paar Schritte zur Formel machen?',
+        'Vielleicht noch einen Moment zur Formel, wie wir das gemacht haben?',
+      ],
+      DEFAULT_STOPWORDS,
+      'de',
+      'qa',
+    );
+
+    expect(result.some((entry) => entry.word === 'eigentlich')).toBe(false);
+    expect(result.some((entry) => entry.word === 'kurz')).toBe(false);
+    expect(result.some((entry) => entry.word === 'paar')).toBe(false);
+    expect(result.some((entry) => entry.word === 'vielleicht')).toBe(false);
+    expect(result.some((entry) => entry.word === 'moment')).toBe(false);
+    expect(result.some((entry) => entry.word === 'machen')).toBe(false);
+    expect(result.some((entry) => entry.word === 'gemacht')).toBe(false);
+    expect(result.find((entry) => entry.word === 'formel')).toMatchObject({
+      word: 'formel',
+      count: 2,
+    });
+  });
+
+  it('filtert zusaetzliche englische Q&A-Fuellwoerter haerter als die Standardwolke', () => {
+    const result = aggregateWords(
+      [
+        'Could we actually just make the formula simpler again, please?',
+        'Maybe we need one more moment to make the formula work.',
+      ],
+      getStopwordsForLocale('en'),
+      'en',
+      'qa',
+    );
+
+    expect(result.some((entry) => entry.word === 'actually')).toBe(false);
+    expect(result.some((entry) => entry.word === 'just')).toBe(false);
+    expect(result.some((entry) => entry.word === 'maybe')).toBe(false);
+    expect(result.some((entry) => entry.word === 'moment')).toBe(false);
+    expect(result.some((entry) => entry.word === 'make')).toBe(false);
+    expect(result.some((entry) => entry.word === 'need')).toBe(false);
+    expect(result.find((entry) => entry.word === 'formula')).toMatchObject({
+      word: 'formula',
+      count: 2,
+    });
+  });
+
+  it('filtert zusaetzliche franzoesische Q&A-Fuellwoerter haerter als die Standardwolke', () => {
+    const result = aggregateWords(
+      [
+        'Comment pouvez-vous faire cela plus simplement ?',
+        'Pourquoi avons-nous besoin d’un moment pour faire la formule maintenant ?',
+      ],
+      getStopwordsForLocale('fr'),
+      'fr',
+      'qa',
+    );
+
+    expect(result.some((entry) => entry.word === 'comment')).toBe(false);
+    expect(result.some((entry) => entry.word === 'pourquoi')).toBe(false);
+    expect(result.some((entry) => entry.word === 'pouvez')).toBe(false);
+    expect(result.some((entry) => entry.word === 'besoin')).toBe(false);
+    expect(result.some((entry) => entry.word === 'moment')).toBe(false);
+    expect(result.some((entry) => entry.word === 'simplement')).toBe(false);
+    expect(result.some((entry) => entry.word === 'maintenant')).toBe(false);
+    expect(result.some((entry) => entry.word === 'faire')).toBe(false);
+    expect(result.find((entry) => entry.word === 'formule')).toMatchObject({
+      word: 'formule',
+      count: 1,
+    });
+  });
+
+  it('filtert zusaetzliche italienische Q&A-Fuellwoerter haerter als die Standardwolke', () => {
+    const result = aggregateWords(
+      [
+        'Quando possiamo fare un momento sulla formula?',
+        'Perche abbiamo bisogno di spiegare la formula semplicemente adesso?',
+      ],
+      getStopwordsForLocale('it'),
+      'it',
+      'qa',
+    );
+
+    expect(result.some((entry) => entry.word === 'quando')).toBe(false);
+    expect(result.some((entry) => entry.word === 'fare')).toBe(false);
+    expect(result.some((entry) => entry.word === 'momento')).toBe(false);
+    expect(result.some((entry) => entry.word === 'perche')).toBe(false);
+    expect(result.some((entry) => entry.word === 'bisogno')).toBe(false);
+    expect(result.some((entry) => entry.word === 'semplicemente')).toBe(false);
+    expect(result.some((entry) => entry.word === 'adesso')).toBe(false);
+    expect(result.find((entry) => entry.word === 'formula')).toMatchObject({
+      word: 'formula',
+      count: 2,
+    });
+  });
+
+  it('filtert zusaetzliche spanische Q&A-Fuellwoerter haerter als die Standardwolke', () => {
+    const result = aggregateWords(
+      [
+        'Podemos hacer esto ahora, justo para la formula?',
+        'Necesitamos un momento simplemente para que la formula funcione.',
+      ],
+      getStopwordsForLocale('es'),
+      'es',
+      'qa',
+    );
+
+    expect(result.some((entry) => entry.word === 'hacer')).toBe(false);
+    expect(result.some((entry) => entry.word === 'ahora')).toBe(false);
+    expect(result.some((entry) => entry.word === 'justo')).toBe(false);
+    expect(result.some((entry) => entry.word === 'momento')).toBe(false);
+    expect(result.some((entry) => entry.word === 'simplemente')).toBe(false);
+    expect(result.find((entry) => entry.word === 'formula')).toMatchObject({
+      word: 'formula',
+      count: 2,
+    });
+  });
+
   it('filtert auch dann deutsche Stopwoerter, wenn die UI-Locale englisch ist', () => {
     const result = aggregateWords(
       ['Wie koennen wir das mit dem Beispiel und der Seite besser machen?'],
