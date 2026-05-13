@@ -98,9 +98,9 @@ describe('SessionPresentComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Word-Cloud');
     expect(text).toContain('Live-Freitext');
-    expect(text).toContain('Frage 2');
+    expect(text).toContain('Frage 2: Was war hilfreich?');
+    expect(text).toContain('Antworten verdichten sich live zu einem gemeinsamen Themenbild.');
     fixture.destroy();
   });
 

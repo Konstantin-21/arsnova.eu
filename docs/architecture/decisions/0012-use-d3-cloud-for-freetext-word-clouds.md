@@ -4,13 +4,15 @@
 
 **Status:** Accepted  
 **Datum:** 2026-03-17  
-**Entscheider:** Projektteam  
+**Entscheider:** Projektteam
+
+> Hinweis: Der Kontext dieser ADR beschreibt bewusst die Ausgangslage zum Entscheidungszeitpunkt im Maerz 2026. Der aktuelle Produktstand ist weiter unten unter **Umsetzungsstand (Mai 2026)** dokumentiert.
 
 ## Kontext
 
-arsnova.eu zeigt Freitext-Antworten derzeit in einer einfachen, selbstgebauten Word-Cloud-Ansicht.
+Zum Entscheidungszeitpunkt zeigte arsnova.eu Freitext-Antworten in einer einfachen, selbstgebauten Word-Cloud-Ansicht.
 
-Der aktuelle Stand ist funktional, aber gestalterisch stark begrenzt:
+Der damalige Stand war funktional, aber gestalterisch stark begrenzt:
 
 - Woerter werden im Wesentlichen als umbrochene Tags in einem `flex-wrap`-Container dargestellt.
 - Die Schriftgroesse variiert nach Haeufigkeit, aber es gibt **keine echte Layout-Logik** fuer eine visuell dichte Wolkenform.
@@ -18,13 +20,13 @@ Der aktuelle Stand ist funktional, aber gestalterisch stark begrenzt:
 - Es gibt keine Spiralplatzierung, keine Kollisionspruefung, keine Rotationslogik und keine echte Wolkensilhouette.
 - Der PNG-Export ist derzeit nur eine einfache zeilenweise Canvas-Ausgabe und bildet keine hochwertige Praesentationsgrafik.
 
-Fuer Live-Sessions mit vielen unterschiedlichen Freitext-Antworten ist das UX-seitig unbefriedigend:
+Fuer Live-Sessions mit vielen unterschiedlichen Freitext-Antworten war das UX-seitig unbefriedigend:
 
 1. Die Darstellung wirkt eher wie eine Tag-Liste als wie eine echte Word-Cloud.
 2. Auf Host- und Presenter-Ansichten fehlt die visuelle Verdichtung der wichtigsten Begriffe.
 3. Die aktuelle Eigenloesung bietet zu wenig Gestaltungsoptionen fuer kuenftige Anforderungen wie Mittelpunkt-Gewichtung, Rotation, Padding, Dichte oder unterschiedliche Layoutstrategien.
 
-Wir brauchen daher eine belastbare technische Entscheidung fuer die naechste Ausbaustufe der Freitext-Visualisierung.
+Das Projekt brauchte daher eine belastbare technische Entscheidung fuer die naechste Ausbaustufe der Freitext-Visualisierung.
 
 ## Entscheidung
 
@@ -104,10 +106,23 @@ Die empfohlene Integrationsform ist:
 
 - eigene Angular-Komponente, z. B. `app-word-cloud`
 - interne Nutzung von `d3-cloud` zur Positionsberechnung
-- Rendering ueber SVG oder kontrolliertes Canvas innerhalb der Komponente
+- Rendering ueber eine kontrollierte DOM-/HTML-Ebene innerhalb der Komponente; Exporte koennen davon getrennt ueber Canvas erzeugt werden
 - projektinterne Steuerung von Export, Filterung, Interaktion und Responsiveness
 
 Die bestehende einfache Word-Cloud ist damit eine **Uebergangsloesung**, nicht das langfristige Zielbild.
+
+## Umsetzungsstand (Mai 2026)
+
+Die Entscheidung ist inzwischen umgesetzt. Der aktuelle Produktstand ist:
+
+- `d3-cloud` ist in `app-word-cloud` als Layout-Engine integriert; das sichtbare Live-Rendering erfolgt ueber absolut positionierte HTML-/Material-Chips bzw. -Buttons.
+- Die Presenter-Ansicht zeigt die Freitext-Wortwolke bei aktiver Freitextfrage standardmaessig als grosse Buehnenansicht. Die Host-Ansicht nutzt dieselbe Komponente im Steuerkontext und kann die Wolke explizit einfrieren bzw. wieder live fortsetzen.
+- Das Layout ist bewusst begrenzt: `50` Woerter mobil, `100` Woerter im Desktop-Host und `150` Woerter in breiten Presenter-Ansichten.
+- Relayouts laufen mit `120 ms` Debounce und `8 ms` Time-Slicing. Die zuvor sichtbare Wolke bleibt stehen, bis das neue Layout fertig berechnet ist.
+- Die fachliche Vorverarbeitung bleibt von `d3-cloud` getrennt und wurde parallel in `Word Cloud 2.1/2.2` ausgebaut: locale-spezifische Group-Keys, regelbasierte Wortfamilien-Gruppierung, Antwortfilter auf Gruppenbasis und Zaehlung pro Antwort maximal einmal pro Gruppe.
+- Stopwoerter werden produktseitig standardmaessig ausgeblendet; der fruehere Umschalter wurde aus der UI entfernt, weil er die Live-Darstellung in Host und Presenter meist nur verschlechtert hat.
+- Der CSV-Export liefert `word,count,variants`.
+- Der PNG-Export bleibt bewusst ein geordneter Zeilenexport nach Wortgroesse. Er bildet nicht den exakten d3-Livezustand ab, weil diese Variante fuer Doku, Versand und Moderationsunterlagen stabiler und lesbarer ist als ein fragiler WYSIWYG-Snapshot.
 
 ## Konsequenzen
 
@@ -139,7 +154,7 @@ Die bestehende einfache Word-Cloud ist damit eine **Uebergangsloesung**, nicht d
 - Host- und Presenter-Ansicht verwenden dieselbe fachliche Datenbasis, aber koennen unterschiedliche Dichte- oder Groessenprofile erhalten.
 - Interaktion wie Filterung, Auswahl einzelner Woerter und Export bleibt in projektinterner Kontrolle.
 - Vor produktiver Aktivierung wird die Darstellung mit vielen heterogenen Freitext-Antworten visuell auf Smartphone, Laptop und Projektionsansicht geprueft.
-- Die bisherige Tag-Cloud darf als Fallback oder Zwischenschritt bestehen bleiben, bis die neue Komponente stabil ist.
+- Ein einfaches Zeilen-/Fallback-Layout bleibt nur als technischer Fallback und fuer den geordneten PNG-Export erhalten.
 
 ---
 

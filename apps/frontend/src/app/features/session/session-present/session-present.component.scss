@@ -484,6 +484,12 @@
   box-shadow: 0 1rem 2rem color-mix(in srgb, var(--mat-sys-shadow) 5%, transparent);
 }
 
+.session-present__word-cloud-stage {
+  display: block;
+  width: 100%;
+  height: min(92dvh, 78rem);
+}
+
 .session-present__confetti {
   position: absolute;
   inset: 0;
@@ -577,6 +583,11 @@
 
   .session-present__word-cloud-card {
     padding: var(--host-mobile-card-padding);
+  }
+
+  .session-present__word-cloud-stage {
+    display: block;
+    height: min(86dvh, 64rem);
   }
 }
 

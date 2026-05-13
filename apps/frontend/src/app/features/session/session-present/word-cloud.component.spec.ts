@@ -1,7 +1,8 @@
 import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DOCUMENT } from '@angular/common';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MatDialog } from '@angular/material/dialog';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WordCloudComponent } from './word-cloud.component';
 
 describe('WordCloudComponent', () => {
@@ -9,6 +10,11 @@ describe('WordCloudComponent', () => {
     TestBed.configureTestingModule({
       imports: [WordCloudComponent],
     });
+    TestBed.overrideProvider(LOCALE_ID, { useValue: 'de' });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('zeigt aggregierte Wörter und filtert Antworten per Klick', () => {
@@ -31,6 +37,18 @@ describe('WordCloudComponent', () => {
     expect(component.filteredResponses().length).toBe(2);
   });
 
+  it('zaehlt Wiederholungen innerhalb derselben Antwort nur einmal pro Wortgruppe', () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('responses', [
+      'Motivation Motivation Motivation',
+      'Motivation durch Teamarbeit',
+    ]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.words().find((entry) => entry.word === 'motivation')?.count).toBe(2);
+  });
+
   it('nutzt Singularformen fuer genau einen Begriff und eine sichtbare Antwort', () => {
     const fixture = TestBed.createComponent(WordCloudComponent);
     fixture.componentRef.setInput('responses', ['Motivation']);
@@ -42,9 +60,7 @@ describe('WordCloudComponent', () => {
     expect(text).toContain('Antwort anzeigen (1)');
   });
 
-  it('kann Stopwörter optional einblenden', () => {
-    TestBed.overrideProvider(LOCALE_ID, { useValue: 'de' });
-
+  it('filtert Stopwörter in der Standardansicht dauerhaft aus', () => {
     const fixture = TestBed.createComponent(WordCloudComponent);
     const component = fixture.componentInstance;
     fixture.componentRef.setInput('responses', [
@@ -54,9 +70,7 @@ describe('WordCloudComponent', () => {
     fixture.detectChanges();
 
     expect(component.words().some((entry) => entry.word === 'und')).toBe(false);
-    component.toggleStopwords();
-    fixture.detectChanges();
-    expect(component.words().some((entry) => entry.word === 'und')).toBe(true);
+    expect(fixture.nativeElement.textContent).not.toContain('Stopwörter');
   });
 
   it('waehlt die Stopliste anhand der aktiven Locale', () => {
@@ -114,10 +128,10 @@ describe('WordCloudComponent', () => {
     fixture.detectChanges();
 
     expect(component.showResponses()).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Word Cloud 2.0');
-    expect(fixture.nativeElement.textContent).toContain('intelligente Moderationshilfe');
+    expect(fixture.nativeElement.textContent).toContain('Word Cloud 2.1');
+    expect(fixture.nativeElement.textContent).toContain('Wortfamilien');
     expect(fixture.nativeElement.textContent).toContain('Natural Language Processing');
-    expect(fixture.nativeElement.textContent).toContain('gemeinsamen Themen');
+    expect(fixture.nativeElement.textContent).toContain('Themenclustern');
   });
 
   it('zeigt standardmäßig Erklärtext und Gewichtungshinweis für bessere Orientierung', () => {
@@ -161,33 +175,139 @@ describe('WordCloudComponent', () => {
     expect(component.filteredResponses()).toEqual(['3.14529', '3.14529']);
   });
 
-  it('exportiert CSV und setzt eine Statusmeldung', () => {
+  it('fasst Wortfamilien zusammen und filtert Antworten ueber den groupKey', () => {
     const fixture = TestBed.createComponent(WordCloudComponent);
     fixture.componentRef.setInput('responses', [
-      'Motivation durch Teamarbeit',
-      'Teamarbeit schafft Fokus',
-      'Motivation hilft beim Lernen',
+      'Die Validierung fehlt noch',
+      'Das ist schon validiert',
+      'Wir validieren morgen gemeinsam',
     ]);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    const documentRef = TestBed.inject(DOCUMENT);
-    const originalCreateElement = documentRef.createElement.bind(documentRef);
-    const anchor = originalCreateElement('a') as HTMLAnchorElement;
-    const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => undefined);
-    const blobSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:word-cloud-csv');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    vi.spyOn(documentRef, 'createElement').mockImplementation(((tagName: string) => {
-      if (tagName === 'a') {
-        return anchor;
-      }
-      return originalCreateElement(tagName);
-    }) as typeof documentRef.createElement);
+    expect(component.words().find((entry) => entry.groupKey === 'validieren')).toMatchObject({
+      word: 'validieren',
+      count: 3,
+      groupKey: 'validieren',
+    });
+
+    component.toggleWord('validieren');
+    fixture.detectChanges();
+
+    expect(component.selectedWordLabel()).toBe('validieren');
+    expect(component.filteredResponses()).toEqual([
+      'Die Validierung fehlt noch',
+      'Das ist schon validiert',
+      'Wir validieren morgen gemeinsam',
+    ]);
+  });
+
+  it('setzt den aktiven Filter zurueck, wenn die Frage-Scope wechselt', () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('selectionScopeKey', 'question-a');
+    fixture.componentRef.setInput('responses', [
+      'Motivation durch Teamarbeit',
+      'Teamarbeit schafft Fokus',
+    ]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.toggleWord('motivation');
+    fixture.detectChanges();
+
+    expect(component.selectedWordLabel()).toBe('motivation');
+
+    fixture.componentRef.setInput('selectionScopeKey', 'question-b');
+    fixture.componentRef.setInput('responses', ['Neue Frage mit Struktur']);
+    fixture.detectChanges();
+
+    expect(component.selectedGroupKey()).toBe(null);
+    expect(component.showResponses()).toBe(false);
+  });
+
+  it('setzt den aktiven Filter zurueck, wenn das Wort in neuen Daten nicht mehr vorkommt', () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('responses', [
+      'Motivation durch Teamarbeit',
+      'Teamarbeit schafft Fokus',
+    ]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.toggleWord('motivation');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('responses', ['Nur Struktur bleibt sichtbar']);
+    fixture.detectChanges();
+
+    expect(component.selectedGroupKey()).toBe(null);
+    expect(component.filteredResponses()).toEqual(['Nur Struktur bleibt sichtbar']);
+  });
+
+  it('laedt Antworten im Panel schrittweise nach', () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput(
+      'responses',
+      Array.from({ length: 65 }, (_, index) => `Antwort ${index + 1}`),
+    );
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.toggleResponses();
+    fixture.detectChanges();
+
+    expect(component.visibleResponses().length).toBe(50);
+    expect(component.hasMoreResponses()).toBe(true);
+
+    component.showMoreResponses();
+    fixture.detectChanges();
+
+    expect(component.visibleResponses().length).toBe(65);
+    expect(component.hasMoreResponses()).toBe(false);
+  });
+
+  it('zeigt Varianten im Wort-Tooltip fuer transparentere Gruppenbildung', () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('responses', [
+      'Validierung fehlt noch',
+      'Das ist schon validiert',
+      'Wir validieren morgen gemeinsam',
+    ]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const entry = component.words().find((item) => item.groupKey === 'validieren');
+
+    expect(entry).toBeTruthy();
+    expect(component.wordTooltip(entry!)).toContain('Formen:');
+    expect(component.wordTooltip(entry!)).toContain('validierung');
+    expect(component.wordTooltip(entry!)).toContain('validiert');
+    expect(component.wordTooltip(entry!)).toContain('validieren');
+  });
+
+  it('exportiert CSV mit Variantenliste und setzt eine Statusmeldung', async () => {
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('responses', [
+      'Validierung fehlt noch',
+      'Validierung bleibt wichtig',
+      'Das ist schon validiert',
+      'Wir validieren morgen gemeinsam',
+    ]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const downloadSpy = vi
+      .spyOn(component as never, 'downloadBlob')
+      .mockImplementation(() => undefined);
 
     component.exportCsv();
 
-    expect(blobSpy).toHaveBeenCalled();
-    expect(clickSpy).toHaveBeenCalled();
+    expect(downloadSpy).toHaveBeenCalledTimes(1);
+    const [csv, filename, mimeType] = downloadSpy.mock.calls[0] as [string, string, string];
+    expect(csv).toContain('word,count,variants');
+    expect(csv).toContain('"validieren",4,"validierung | validiert | validieren"');
+    expect(filename).toMatch(/^wordcloud_\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(mimeType).toBe('text/csv;charset=utf-8');
     expect(component.statusMessage()).toBe('CSV exportiert.');
   });
 
@@ -208,6 +328,10 @@ describe('WordCloudComponent', () => {
     const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => undefined);
     const context = {
       scale: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
       clearRect: vi.fn(),
       beginPath: vi.fn(),
       roundRect: vi.fn(),
@@ -219,6 +343,7 @@ describe('WordCloudComponent', () => {
       strokeStyle: '',
       lineWidth: 1,
       font: '',
+      textAlign: 'start',
       textBaseline: 'alphabetic',
     } satisfies Partial<CanvasRenderingContext2D>;
 
@@ -243,5 +368,30 @@ describe('WordCloudComponent', () => {
     expect(context.fillText).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
     expect(component.statusMessage()).toBe('PNG exportiert.');
+    expect(fixture.nativeElement.textContent).toContain('PNG exportieren (geordnet)');
+  });
+
+  it('oeffnet die Wortwolke als maximalen Dialog', async () => {
+    const openSpy = vi.fn();
+    TestBed.overrideProvider(MatDialog, { useValue: { open: openSpy } });
+
+    const fixture = TestBed.createComponent(WordCloudComponent);
+    fixture.componentRef.setInput('responses', [
+      'Motivation durch Teamarbeit',
+      'Teamarbeit schafft Fokus',
+    ]);
+    fixture.detectChanges();
+
+    await fixture.componentInstance.openInDialog();
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [, config] = openSpy.mock.calls[0] as [unknown, Record<string, unknown>];
+    expect(config['panelClass']).toBe('word-cloud-dialog-panel');
+    expect(config['width']).toBe('100vw');
+    expect(config['height']).toBe('100dvh');
+    expect(config['data']).toMatchObject({
+      responses: ['Motivation durch Teamarbeit', 'Teamarbeit schafft Fokus'],
+      title: 'Word-Cloud (Freitext)',
+    });
   });
 });

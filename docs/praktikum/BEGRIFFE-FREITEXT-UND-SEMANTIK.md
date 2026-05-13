@@ -299,7 +299,7 @@ Diese Tabelle ist eine **Orientierung** für eure **Konzeptionsphase** — keine
 | Übersetzungsgleiche Antworten       | Mehrsprachige Modelle        | cross-lingual Ähnlichkeit                      | Qualität variiert stark                           |
 | Verständliche Zusammenfassung       | LLM + strikte Ausgabeform    | Kompakte Texte                                 | muss **gegen** Schema validiert werden            |
 
-**Bezug arsnova.eu (heute):** Die **lexikalische** Wolke in `word-cloud.util.ts` löst vor allem **Tokenisierung + Zählen** — das ist **bewusst einfach** und **schnell**. Eure **intelligente** Variante soll **andere** Ziele explizit machen und **Fallbacks** definieren (siehe Praktikumsbeschreibung).
+**Bezug arsnova.eu (heute):** Die produktive Wortwolke in `word-cloud.util.ts` bleibt primaer **lexikalisch**, ist aber nicht mehr nur rohe Tokenzaehlung. Sie kombiniert **Tokenisierung, Stopwortfilter, locale-spezifische Group-Keys, regelbasierte Wortfamilien-Gruppierung und Zaehlung pro Antwort maximal einmal pro Gruppe**. Eure **intelligente** Variante soll darueber hinaus **semantische** Ziele explizit machen und **Fallbacks** definieren (siehe Praktikumsbeschreibung).
 
 ---
 
@@ -470,4 +470,4 @@ Bei Fragen zur **Umsetzung in der Codebasis** siehe [`PRAKTIKUM.md`](./PRAKTIKUM
 
 ---
 
-_Stand: 2026-04-01 · Didaktischer Kern unverändert gültig. **Produktbezug:** Freitext/Wortwolke im Live-System ist weiterhin vor allem **lexikalisch** (Story 1.14). Semantische Bündelung bleibt ein **offenes Thema**. Davon getrennt ist die Layout-Weiterentwicklung der Word Cloud in Story **1.14a** und [ADR-0012](../architecture/decisions/0012-use-d3-cloud-for-freetext-word-clouds.md) beschrieben. Übungsaufgaben mit Musterlösungen · Ergänzungen willkommen (Pull Request oder Absprache mit der Betreuung)._
+_Stand: 2026-05-13 · Didaktischer Kern unverändert gültig. **Produktbezug:** Freitext/Wortwolke im Live-System ist weiterhin primaer **lexikalisch**, inzwischen aber mit `d3-cloud`-Layout, Wortfamilien-Gruppierung, gruppenbasiertem Filter und Varianten-Export. Semantische Bündelung bleibt davon getrennt ein **offenes Thema**. Davon getrennt ist die Layout-Weiterentwicklung der Word Cloud in Story **1.14a** und [ADR-0012](../architecture/decisions/0012-use-d3-cloud-for-freetext-word-clouds.md) beschrieben. Übungsaufgaben mit Musterlösungen · Ergänzungen willkommen (Pull Request oder Absprache mit der Betreuung)._

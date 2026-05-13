@@ -28,6 +28,7 @@
     "sync-i18n": "node scripts/sync-i18n-locales.mjs",
     "demo-quiz:locales": "node scripts/apply-demo-quiz-locale-strings.mjs",
     "screenshots": "node scripts/capture-screenshots.mjs",
+    "benchmark:word-cloud": "node scripts/benchmark-word-cloud.mjs",
     "serve:ssr:frontend": "node dist/server/server.mjs"
   },
   "dependencies": {
@@ -75,6 +76,7 @@
     "@types/node": "^20.17.19",
     "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.0",
+    "d3-cloud": "^1.2.9",
     "jsdom": "^26.1.0",
     "playwright": "^1.49.0",
     "postcss": "^8.4.0",

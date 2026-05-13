@@ -410,6 +410,8 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   readonly freetextResponses = signal<string[]>([]);
   readonly wordCloudExpanded = signal(false);
   readonly wordCloudInfo = signal($localize`Warte auf Live-Freitextdaten …`);
+  readonly wordCloudFrozen = signal(false);
+  readonly frozenWordCloudResponses = signal<string[] | null>(null);
   readonly freetextWordCloudEyebrow = $localize`:@@sessionWordCloud.freetextEyebrow:Live-Freitext`;
   readonly freetextWordCloudDescription = $localize`:@@sessionWordCloud.freetextDescription:Antworten verdichten sich live zu einem gemeinsamen Themenbild.`;
   readonly qaWordCloudEyebrow = $localize`:@@sessionWordCloud.qaEyebrow:Publikumsfragen`;
@@ -494,6 +496,21 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     this.wordCloudExpanded()
       ? $localize`:@@sessionHost.wordCloudHide:Word Cloud ausblenden`
       : $localize`:@@sessionHost.wordCloudShow:Word Cloud anzeigen`,
+  );
+  readonly wordCloudFreezeLabel = computed(() =>
+    this.wordCloudFrozen()
+      ? $localize`:@@sessionHost.wordCloudResume:Live fortsetzen`
+      : $localize`:@@sessionHost.wordCloudFreeze:Wortwolke einfrieren`,
+  );
+  readonly displayedFreetextResponses = computed(() =>
+    this.wordCloudFrozen()
+      ? (this.frozenWordCloudResponses() ?? this.freetextResponses())
+      : this.freetextResponses(),
+  );
+  readonly displayedWordCloudInfo = computed(() =>
+    this.wordCloudFrozen()
+      ? $localize`:@@sessionHost.wordCloudFrozenInfo:Wortwolke eingefroren.`
+      : this.wordCloudInfo(),
   );
   readonly teamScoreboardHasPoints = computed(() => this.teamLeaderboardTopScore() > 0);
   readonly channels = computed(() => {
@@ -1122,6 +1139,18 @@ export class SessionHostComponent implements OnInit, OnDestroy {
       : $localize`:@@sessionHost.responseCountMany:${count}:count: Antworten`;
   }
 
+  async toggleWordCloudFreeze(): Promise<void> {
+    if (this.wordCloudFrozen()) {
+      this.wordCloudFrozen.set(false);
+      this.frozenWordCloudResponses.set(null);
+      await this.refreshLiveFreetext();
+      return;
+    }
+
+    this.frozenWordCloudResponses.set([...this.freetextResponses()]);
+    this.wordCloudFrozen.set(true);
+  }
+
   ratingBarRange(q: HostCurrentQuestionDTO): number[] {
     const min = q.ratingMin ?? 1;
     const max = q.ratingMax ?? 5;
@@ -1392,7 +1421,10 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     if (this.activeChannel() !== 'quiz') {
       return false;
     }
-    return this.currentQuestionForHost()?.type === 'FREETEXT' || this.wordCloudExpanded();
+    if (this.wordCloudFrozen()) {
+      return false;
+    }
+    return this.currentQuestionForHost()?.type === 'FREETEXT';
   }
 
   private shouldPollQaQuestions(): boolean {
@@ -2616,9 +2648,19 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   }
 
   private syncCurrentQuestionForHost(next: HostCurrentQuestionDTO | null): void {
-    if (this.isSameHostCurrentQuestion(this.currentQuestionForHost(), next)) {
+    const current = this.currentQuestionForHost();
+    if (this.isSameHostCurrentQuestion(current, next)) {
       return;
     }
+
+    if (
+      this.wordCloudFrozen() &&
+      (current?.questionId !== next?.questionId || next?.type !== 'FREETEXT')
+    ) {
+      this.wordCloudFrozen.set(false);
+      this.frozenWordCloudResponses.set(null);
+    }
+
     this.currentQuestionForHost.set(next);
   }
 
@@ -4150,6 +4192,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
         );
         this.wordCloudInfo.set($localize`Live-Freitext wird aktualisiert.`);
       } else if (data.questionType) {
+        this.wordCloudExpanded.set(false);
         this.currentQuestionLabel.set(
           data.questionOrder !== null
             ? $localize`Frage ${data.questionOrder + 1}:questionNumber:: ${data.questionText ?? ''}:questionText:`

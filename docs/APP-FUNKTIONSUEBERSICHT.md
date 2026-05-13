@@ -313,7 +313,7 @@ Der Host sieht zusätzlich:
 
 - aktuelle Frage inklusive korrekter Antworten
 - Live-Freitextdaten
-- Wortwolke
+- Freitext-Wortwolke inklusive Einfrieren/Live-Fortsetzen sowie CSV-/PNG-Export
 - Q&A-Fragenliste
 - Blitzlicht-Ergebnisse
 - Emoji-Reaktionen
@@ -366,7 +366,7 @@ Sie zeigt je nach Situation:
 - Countdown
 - Ergebnisse
 - Team-Finale
-- Wortwolke aus Freitext-Antworten
+- grosse Freitext-Wortwolke als Standard-Buehnenansicht bei aktiver Freitextfrage
 - sichtbare Q&A-Fragen
 - angepinnte Q&A-Frage
 - Blitzlicht-Balkendiagramm

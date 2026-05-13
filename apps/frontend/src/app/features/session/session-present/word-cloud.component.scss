@@ -12,6 +12,31 @@
   box-shadow: 0 1rem 2rem color-mix(in srgb, var(--mat-sys-shadow) 6%, transparent);
 }
 
+.word-cloud-card--presentation {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  border-radius: clamp(1.35rem, 2.4vw, 1.85rem);
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--mat-sys-primary) 16%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--mat-sys-surface) 82%, var(--mat-sys-primary-container) 18%),
+      color-mix(in srgb, var(--mat-sys-surface) 94%, var(--mat-sys-surface-container-low))
+    );
+  box-shadow:
+    0 1.4rem 3rem color-mix(in srgb, var(--mat-sys-shadow) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+}
+
+.word-cloud-card--presentation .mat-mdc-card-content:last-child {
+  flex: 1;
+}
+
 .word-cloud__header {
   display: grid;
   gap: 0.35rem;
@@ -36,6 +61,23 @@
 
 .word-cloud {
   gap: clamp(1.15rem, 3vw, 1.65rem);
+}
+
+.word-cloud--presentation {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-content: start;
+}
+
+.word-cloud-card--presentation .mat-mdc-card-title {
+  font-size: clamp(1.6rem, 2.2vw, 2.4rem);
+  line-height: 1.08;
+}
+
+.word-cloud-card--presentation .word-cloud__description {
+  max-width: 72ch;
+  font: var(--mat-sys-body-large);
 }
 
 .word-cloud__meta {
@@ -105,6 +147,14 @@
     0 0.8rem 1.8rem color-mix(in srgb, var(--mat-sys-shadow) 7%, transparent);
 }
 
+.word-cloud--presentation .word-cloud__visual-frame {
+  min-height: 0;
+  padding: clamp(1.3rem, 2.4vw, 1.95rem);
+  border-radius: clamp(1.2rem, 2.2vw, 1.8rem);
+  display: flex;
+  flex-direction: column;
+}
+
 .word-cloud__empty {
   margin: 0;
   color: var(--mat-sys-on-surface-variant);
@@ -123,6 +173,30 @@
   gap: 1rem;
   min-height: var(--word-cloud-stage-height, 14rem);
   padding: clamp(0.5rem, 1.2vw, 0.8rem);
+}
+
+.word-cloud--presentation .word-cloud__visual {
+  flex: 1;
+  gap: 1.2rem;
+  padding: clamp(0.8rem, 1.8vw, 1.3rem);
+  min-height: var(--word-cloud-stage-height, 28rem);
+}
+
+.word-cloud__visual--cloud {
+  position: relative;
+  display: block;
+  min-height: 0;
+  padding: clamp(0.45rem, 1vw, 0.7rem);
+  overflow: hidden;
+}
+
+.word-cloud--presentation .word-cloud__visual--cloud {
+  min-height: 100%;
+  padding: clamp(0.65rem, 1.4vw, 1rem);
+}
+
+.word-cloud__visual--pending {
+  opacity: 0.92;
 }
 
 .word-cloud__word {
@@ -149,11 +223,33 @@
   white-space: normal;
 }
 
+.word-cloud__word--positioned {
+  position: absolute;
+  inset: auto auto;
+  max-inline-size: none;
+  min-height: auto;
+  margin: 0;
+  padding-block: 0.34em;
+  padding-inline: 0.62em;
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.word-cloud--presentation .word-cloud__word--positioned {
+  padding-block: 0.38em;
+  padding-inline: 0.72em;
+}
+
 .word-cloud__word .mdc-button__label {
   display: block;
   white-space: normal;
   line-height: inherit;
   overflow-wrap: anywhere;
+}
+
+.word-cloud__word--positioned .mdc-button__label {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .word-cloud__word--active {
@@ -206,6 +302,10 @@
   padding-inline: 0.2rem;
 }
 
+.word-cloud__action--maximize {
+  font-weight: 700;
+}
+
 .word-cloud__status {
   margin: 0;
   color: var(--mat-sys-tertiary);
@@ -254,6 +354,11 @@
   line-height: 1.45;
 }
 
+.word-cloud__responses-more {
+  margin-top: 0.5rem;
+  justify-self: start;
+}
+
 .word-cloud__release-note {
   margin: 0;
   padding: 1rem 1.1rem;
@@ -287,11 +392,26 @@
     padding: 0.3rem;
   }
 
+  .word-cloud--presentation .word-cloud__visual {
+    min-height: var(--word-cloud-stage-height, 20rem);
+  }
+
+  .word-cloud__visual--cloud {
+    padding: 0.2rem;
+  }
+
   .word-cloud__word {
     max-inline-size: 100%;
     min-height: 2.55rem;
     padding-block: clamp(0.55rem, 0.34em, 0.95rem);
     padding-inline: 0.85rem;
+  }
+
+  .word-cloud__word--positioned {
+    max-inline-size: none;
+    min-height: auto;
+    padding-block: 0.32em;
+    padding-inline: 0.56em;
   }
 
   .word-cloud__responses-panel {

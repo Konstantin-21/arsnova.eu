@@ -1,0 +1,33 @@
+<section class="word-cloud-dialog">
+  <button
+    mat-icon-button
+    type="button"
+    class="word-cloud-dialog__close"
+    matDialogClose
+    i18n-aria-label="@@wordCloud.dialogCloseAria"
+    aria-label="Wortwolke schließen"
+  >
+    <mat-icon aria-hidden="true">close</mat-icon>
+  </button>
+
+  <app-word-cloud
+    class="word-cloud-dialog__cloud"
+    [responses]="data.responses"
+    [weightedResponses]="data.weightedResponses"
+    [title]="data.title"
+    [eyebrow]="data.eyebrow"
+    [description]="data.description"
+    [emptyMessage]="data.emptyMessage"
+    [itemLabelSingular]="data.itemLabelSingular"
+    [itemLabelPlural]="data.itemLabelPlural"
+    [wordLabelSingular]="data.wordLabelSingular"
+    [wordLabelPlural]="data.wordLabelPlural"
+    [showResponsesSingularLabel]="data.showResponsesSingularLabel"
+    [showResponsesPluralLabel]="data.showResponsesPluralLabel"
+    [showResponsesPanel]="false"
+    [weightingHint]="data.weightingHint"
+    [showReleaseNote]="false"
+    [showMaximizeAction]="false"
+    [presentationMode]="true"
+  />
+</section>

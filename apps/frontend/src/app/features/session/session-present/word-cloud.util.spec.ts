@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_STOPWORDS,
   aggregateWords,
   getStopwordsForLocale,
   normalizeFreeTextResponseForDisplay,
@@ -14,7 +15,12 @@ describe('aggregateWords', () => {
       'Klare Struktur und Motivation',
     ]);
 
-    expect(result[0]).toEqual({ word: 'motivation', count: 3 });
+    expect(result[0]).toMatchObject({
+      word: 'motivation',
+      count: 3,
+      groupKey: 'motivation',
+      variants: ['motivation'],
+    });
     expect(result.some((entry) => entry.word === 'und')).toBe(false);
     expect(result.some((entry) => entry.word === 'teamarbeit')).toBe(true);
   });
@@ -45,10 +51,38 @@ describe('aggregateWords', () => {
   it('behaelt numerische Antworten als ganze Tokens und normalisiert Dezimaltrennzeichen', () => {
     const result = aggregateWords(['3.14', '3,14', '7', 'a']);
 
-    expect(result.find((entry) => entry.word === '3.14')?.count).toBe(2);
-    expect(result.find((entry) => entry.word === '7')?.count).toBe(1);
+    expect(result.find((entry) => entry.word === '3.14')).toMatchObject({
+      word: '3.14',
+      count: 2,
+      groupKey: '3.14',
+      variants: ['3.14'],
+    });
+    expect(result.find((entry) => entry.word === '7')).toMatchObject({
+      word: '7',
+      count: 1,
+      groupKey: '7',
+      variants: ['7'],
+    });
     expect(result.some((entry) => entry.word === '14')).toBe(false);
     expect(result.some((entry) => entry.word === 'a')).toBe(false);
+  });
+
+  it('zaehlt Wortgruppen pro Antwort nur einmal, auch bei Wiederholung im selben Text', () => {
+    const result = aggregateWords([
+      'Motivation Motivation Motivation durch Teamarbeit',
+      'Teamarbeit schafft Motivation',
+    ]);
+
+    expect(result.find((entry) => entry.word === 'motivation')).toMatchObject({
+      word: 'motivation',
+      count: 2,
+      groupKey: 'motivation',
+    });
+    expect(result.find((entry) => entry.word === 'teamarbeit')).toMatchObject({
+      word: 'teamarbeit',
+      count: 2,
+      groupKey: 'teamarbeit',
+    });
   });
 
   it('normalisiert reine numerische Antworten verlustfrei fuer die Anzeige', () => {
@@ -63,22 +97,71 @@ describe('aggregateWords', () => {
     expect(responseContainsWord('spiel', 'pi')).toBe(false);
   });
 
+  it('bündelt deutsche Wortfamilien auf Gruppenbasis und waehlt eine lesbare Anzeigeform', () => {
+    const result = aggregateWords(
+      [
+        'Validierung und validiert',
+        'Wir validieren die Lösung',
+        'Visualisierung hilft beim visualisieren',
+        'Das Layout hängt und haengt manchmal',
+      ],
+      DEFAULT_STOPWORDS,
+      'de',
+    );
+
+    expect(result.find((entry) => entry.groupKey === 'validieren')).toMatchObject({
+      word: 'validieren',
+      count: 2,
+      groupKey: 'validieren',
+    });
+    expect(result.find((entry) => entry.groupKey === 'validieren')?.variants).toEqual(
+      expect.arrayContaining(['validierung', 'validiert', 'validieren']),
+    );
+    expect(result.find((entry) => entry.groupKey === 'visualisieren')).toMatchObject({
+      word: 'visualisieren',
+      count: 1,
+      groupKey: 'visualisieren',
+    });
+    expect(result.find((entry) => entry.groupKey === 'visualisieren')?.variants).toEqual(
+      expect.arrayContaining(['visualisierung', 'visualisieren']),
+    );
+    expect(result.find((entry) => entry.groupKey === 'haengen')).toMatchObject({
+      word: 'hängen',
+      count: 1,
+      groupKey: 'haengen',
+    });
+    expect(result.find((entry) => entry.groupKey === 'haengen')?.variants).toEqual(
+      expect.arrayContaining(['hängt', 'haengt']),
+    );
+  });
+
+  it('filtert Antworten ueber groupKeys statt nur ueber exakte Tokenformen', () => {
+    expect(responseContainsWord('Die Validierung fehlt noch', 'validieren', 'de')).toBe(true);
+    expect(responseContainsWord('Die Visualisierung hilft', 'visualisieren', 'de')).toBe(true);
+    expect(responseContainsWord('Das Layout haengt fest', 'hängen', 'de')).toBe(true);
+    expect(responseContainsWord('Das Layout haengt fest', 'visualisieren', 'de')).toBe(false);
+  });
+
   it('nutzt sprachspezifische Stoplisten fuer die unterstuetzten Locales', () => {
     const english = aggregateWords(
       ['What does the formula mean?', 'How does the formula work?'],
       getStopwordsForLocale('en'),
+      'en',
     );
     const french = aggregateWords(
       ['Quelle est l’idée centrale ?', 'Comment fonctionne la formule ?'],
       getStopwordsForLocale('fr'),
+      'fr',
     );
     const italian = aggregateWords(
       ['Quale formula dobbiamo usare?', 'Come funziona l’analisi?'],
       getStopwordsForLocale('it'),
+      'it',
     );
     const spanish = aggregateWords(
       ['¿Qué fórmula necesitamos?', '¿Cómo funciona la dinámica?'],
       getStopwordsForLocale('es'),
+      'es',
     );
 
     expect(english.some((entry) => entry.word === 'what')).toBe(false);

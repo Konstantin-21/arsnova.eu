@@ -225,32 +225,38 @@
       </mat-card>
     }
 
-    <mat-card appearance="outlined" class="session-placeholder">
-      <mat-card-content>
-        <p class="session-placeholder__text">{{ presenterInfo() }}</p>
-        @if (currentQuestionLabel()) {
-          <p class="session-placeholder__question">{{ currentQuestionLabel() }}</p>
-        }
-        @if (showHomeCta()) {
-          <a
-            matButton="filled"
-            [routerLink]="localizedPath('/')"
-            class="session-placeholder__home-link"
-          >
-            <mat-icon>home</mat-icon>
-            <span i18n="@@sessionVote.sessionEndGateContinue">Zur Startseite</span>
-          </a>
-        }
-      </mat-card-content>
-    </mat-card>
-
-    <section class="session-present__word-cloud-card">
+    @if (showPresenterFreetextStage()) {
       <app-word-cloud
+        class="session-present__word-cloud-stage"
         [responses]="freetextResponses()"
+        [selectionScopeKey]="freetextQuestionId()"
+        [title]="freetextWordCloudStageTitle()"
         [eyebrow]="freetextWordCloudEyebrow"
         [description]="freetextWordCloudDescription"
+        [showResponsesPanel]="false"
+        [showMaximizeAction]="false"
+        [presentationMode]="true"
         [showReleaseNote]="false"
       />
-    </section>
+    } @else {
+      <mat-card appearance="outlined" class="session-placeholder">
+        <mat-card-content>
+          <p class="session-placeholder__text">{{ presenterInfo() }}</p>
+          @if (currentQuestionLabel()) {
+            <p class="session-placeholder__question">{{ currentQuestionLabel() }}</p>
+          }
+          @if (showHomeCta()) {
+            <a
+              matButton="filled"
+              [routerLink]="localizedPath('/')"
+              class="session-placeholder__home-link"
+            >
+              <mat-icon>home</mat-icon>
+              <span i18n="@@sessionVote.sessionEndGateContinue">Zur Startseite</span>
+            </a>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
   }
 </section>

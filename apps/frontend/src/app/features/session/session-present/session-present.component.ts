@@ -77,11 +77,16 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
   readonly presenterQaQuestions = signal<QaQuestionDTO[]>([]);
   readonly quickFeedbackResult = signal<QuickFeedbackResult | null>(null);
   readonly freetextResponses = signal<string[]>([]);
+  readonly freetextQuestionId = signal<string | null>(null);
   readonly currentQuestionLabel = signal<string | null>(null);
   readonly showHomeCta = signal(false);
   readonly presenterInfo = signal($localize`Warte auf Live-Freitextdaten …`);
+  readonly presenterFreetextActive = signal(false);
   readonly freetextWordCloudEyebrow = $localize`:@@sessionWordCloud.freetextEyebrow:Live-Freitext`;
   readonly freetextWordCloudDescription = $localize`:@@sessionWordCloud.freetextDescription:Antworten verdichten sich live zu einem gemeinsamen Themenbild.`;
+  readonly freetextWordCloudStageTitle = computed(
+    () => this.currentQuestionLabel() ?? $localize`:@@wordCloud.title:Word-Cloud (Freitext)`,
+  );
   readonly qaWordCloudEyebrow = $localize`:@@sessionWordCloud.qaEyebrow:Publikumsfragen`;
   readonly qaWordCloudDescription = $localize`:@@sessionWordCloud.qaDescription:Sichtbare Fragen werden als Themenraum lesbar gebündelt.`;
   readonly qaWordCloudWeightingHint = $localize`:@@sessionWordCloud.qaHint:Größere Begriffe verbinden Häufigkeit und Upvotes.`;
@@ -111,6 +116,9 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
   );
   readonly showQuickFeedbackCard = computed(
     () => this.quickFeedbackResult() !== null && !this.showTeamFinish(),
+  );
+  readonly showPresenterFreetextStage = computed(
+    () => this.presenterFreetextActive() && !this.showTeamFinish(),
   );
   readonly showTeamFinish = computed(() => {
     const session = this.session();
@@ -308,8 +316,10 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
     try {
       const data = await trpc.session.getLiveFreetext.query({ code: this.code.toUpperCase() });
       this.freetextResponses.set(data.responses);
+      this.freetextQuestionId.set(data.questionId);
 
       if (data.questionType === 'FREETEXT') {
+        this.presenterFreetextActive.set(true);
         this.currentQuestionLabel.set(
           data.questionOrder !== null
             ? $localize`Frage ${data.questionOrder + 1}:questionNumber:: ${data.questionText ?? ''}:questionText:`
@@ -317,6 +327,7 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
         );
         this.presenterInfo.set($localize`Live-Freitext wird aktualisiert.`);
       } else if (data.questionType) {
+        this.presenterFreetextActive.set(false);
         this.currentQuestionLabel.set(
           data.questionOrder !== null
             ? $localize`Frage ${data.questionOrder + 1}:questionNumber:: ${data.questionText ?? ''}:questionText:`
@@ -324,10 +335,13 @@ export class SessionPresentComponent implements OnInit, OnDestroy {
         );
         this.presenterInfo.set($localize`Aktuelle Frage ist keine Freitext-Frage.`);
       } else {
+        this.presenterFreetextActive.set(false);
         this.currentQuestionLabel.set(null);
         this.presenterInfo.set($localize`Noch keine aktive Frage.`);
       }
     } catch {
+      this.freetextQuestionId.set(null);
+      this.presenterFreetextActive.set(false);
       this.presenterInfo.set($localize`Live-Freitextdaten konnten nicht geladen werden.`);
     }
   }

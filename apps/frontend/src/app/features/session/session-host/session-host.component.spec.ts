@@ -1308,6 +1308,68 @@ describe('SessionHostComponent', () => {
     expect(text).toContain('Live-Freitext wird aktualisiert.');
     expect(text).toContain('Live-Freitext');
     expect(text).toContain('Antworten verdichten sich live zu einem gemeinsamen Themenbild.');
+    expect(text).toContain('Wortwolke einfrieren');
+    fixture.destroy();
+  });
+
+  it('kann die Host-Wortwolke einfrieren und wieder live fortsetzen', async () => {
+    getInfoQueryMock.mockResolvedValue({ ...defaultSession, status: 'ACTIVE' });
+    getCurrentQuestionForHostQueryMock.mockResolvedValue({
+      questionId: '11111111-1111-4111-8111-111111111111',
+      order: 5,
+      text: 'Warum bleibt ein Satellit im Orbit?',
+      type: 'FREETEXT',
+      difficulty: 'EASY',
+      answers: [],
+    });
+    getLiveFreetextQueryMock
+      .mockResolvedValueOnce({
+        ...defaultLiveFreetext,
+        questionId: '11111111-1111-4111-8111-111111111111',
+        questionOrder: 5,
+        questionType: 'FREETEXT',
+        questionText: 'Warum bleibt ein Satellit im Orbit?',
+        responses: ['Gravitation', 'Orbit'],
+      })
+      .mockResolvedValue({
+        ...defaultLiveFreetext,
+        questionId: '11111111-1111-4111-8111-111111111111',
+        questionOrder: 5,
+        questionType: 'FREETEXT',
+        questionText: 'Warum bleibt ein Satellit im Orbit?',
+        responses: ['Gravitation', 'Orbit', 'Trägheit'],
+      });
+
+    const fixture = setup();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.waitUntil(() => fixture.componentInstance.displayedFreetextResponses().length === 2, {
+      timeout: 5000,
+      interval: 25,
+    });
+
+    const component = fixture.componentInstance;
+    await component.toggleWordCloudFreeze();
+    fixture.detectChanges();
+
+    expect(component.wordCloudFrozen()).toBe(true);
+    expect(component.displayedFreetextResponses()).toEqual(['Gravitation', 'Orbit']);
+    expect(component.wordCloudFreezeLabel()).toBe('Live fortsetzen');
+    expect(component.displayedWordCloudInfo()).toBe('Wortwolke eingefroren.');
+
+    component.freetextResponses.set(['Gravitation', 'Orbit', 'Trägheit']);
+    expect(component.displayedFreetextResponses()).toEqual(['Gravitation', 'Orbit']);
+
+    await component.toggleWordCloudFreeze();
+    fixture.detectChanges();
+    await vi.waitUntil(() => component.displayedFreetextResponses().length === 3, {
+      timeout: 5000,
+      interval: 25,
+    });
+
+    expect(component.wordCloudFrozen()).toBe(false);
+    expect(component.displayedFreetextResponses()).toEqual(['Gravitation', 'Orbit', 'Trägheit']);
+    expect(component.wordCloudFreezeLabel()).toBe('Wortwolke einfrieren');
     fixture.destroy();
   });
 

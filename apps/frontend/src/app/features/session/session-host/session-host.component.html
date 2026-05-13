@@ -1759,17 +1759,31 @@
                       <span>{{ wordCloudToggleLabel() }}</span>
                     </span>
                     <span class="session-host__extra-summary-meta">
-                      {{ responseCountLabel(freetextResponses().length) }}
+                      {{ responseCountLabel(displayedFreetextResponses().length) }}
                       <span aria-hidden="true">&#183;</span>
-                      {{ wordCloudInfo() }}
+                      {{ displayedWordCloudInfo() }}
                     </span>
                   </summary>
                   <div class="session-host__extra-content">
+                    <div class="session-host__extra-actions">
+                      <button
+                        mat-button
+                        type="button"
+                        class="session-host__extra-action"
+                        (click)="toggleWordCloudFreeze()"
+                      >
+                        <mat-icon aria-hidden="true">{{
+                          wordCloudFrozen() ? 'play_arrow' : 'pause_circle'
+                        }}</mat-icon>
+                        <span>{{ wordCloudFreezeLabel() }}</span>
+                      </button>
+                    </div>
                     @if (exportStatus()) {
                       <p class="session-host__export-status" role="status">{{ exportStatus() }}</p>
                     }
                     <app-word-cloud
-                      [responses]="freetextResponses()"
+                      [responses]="displayedFreetextResponses()"
+                      [selectionScopeKey]="currentQuestionForHost()?.questionId ?? null"
                       [eyebrow]="freetextWordCloudEyebrow"
                       [description]="freetextWordCloudDescription"
                       [showReleaseNote]="false"

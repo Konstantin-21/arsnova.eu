@@ -1,4 +1,8 @@
-<mat-card appearance="outlined" class="word-cloud-card">
+<mat-card
+  appearance="outlined"
+  class="word-cloud-card"
+  [class.word-cloud-card--presentation]="presentationMode()"
+>
   <mat-card-header class="word-cloud__header">
     @if (eyebrow()) {
       <p class="word-cloud__eyebrow">{{ eyebrow() }}</p>
@@ -8,19 +12,26 @@
       <mat-card-subtitle class="word-cloud__description">{{ description() }}</mat-card-subtitle>
     }
   </mat-card-header>
-  <mat-card-content class="word-cloud l-stack l-stack--sm">
+  <mat-card-content
+    class="word-cloud l-stack l-stack--sm"
+    [class.word-cloud--presentation]="presentationMode()"
+  >
     <div class="word-cloud__meta">
       <p class="word-cloud__meta-line">
-        <span class="word-cloud__meta-pill"
-          >{{ words().length }} {{ wordLabel(words().length) }}</span
-        >
+        <span class="word-cloud__meta-pill">
+          @if (isWordCountPartial()) {
+            {{ visibleWordCount() }} / {{ words().length }} {{ wordLabel(words().length) }}
+          } @else {
+            {{ words().length }} {{ wordLabel(words().length) }}
+          }
+        </span>
         <span class="word-cloud__meta-pill"
           >{{ responseSummary().total }} {{ itemLabel(responseSummary().total) }}</span
         >
       </p>
-      @if (selectedWord()) {
+      @if (selectedWordLabel()) {
         <p class="word-cloud__filter-info">
-          Filter aktiv: <strong>{{ selectedWord() }}</strong>
+          Filter aktiv: <strong>{{ selectedWordLabel() }}</strong>
         </p>
       }
     </div>
@@ -34,22 +45,52 @@
       @if (words().length === 0) {
         <p class="word-cloud__empty">{{ emptyMessage() }}</p>
       } @else {
-        <div class="word-cloud__visual" [style.--word-cloud-stage-height]="stageMinHeight()">
-          @for (entry of words(); track entry.word; let index = $index) {
-            <button
-              type="button"
-              mat-button
-              class="word-cloud__word"
-              [class.word-cloud__word--active]="selectedWord() === entry.word"
-              [class.word-cloud__word--top]="index < 2"
-              [class.word-cloud__word--featured]="index >= 2 && index < 6"
-              [style.font-size.px]="entry.size"
-              [attr.title]="'Anzahl: ' + entry.count"
-              [attr.aria-pressed]="selectedWord() === entry.word"
-              (click)="toggleWord(entry.word)"
-            >
-              {{ entry.word }}
-            </button>
+        <div
+          #layoutStage
+          class="word-cloud__visual"
+          [class.word-cloud__visual--cloud]="cloudLayoutActive()"
+          [class.word-cloud__visual--pending]="layoutPending() && !cloudLayoutActive()"
+          [style.--word-cloud-stage-height]="stageMinHeight()"
+          [style.height.px]="renderedCloudStageHeightPx() || null"
+        >
+          @if (cloudLayoutActive()) {
+            @for (entry of positionedWords(); track entry.groupKey) {
+              <button
+                type="button"
+                mat-button
+                class="word-cloud__word word-cloud__word--positioned"
+                [class.word-cloud__word--active]="selectedGroupKey() === entry.groupKey"
+                [class.word-cloud__word--top]="entry.rank < 2"
+                [class.word-cloud__word--featured]="entry.rank >= 2 && entry.rank < 6"
+                [style.font-size.px]="entry.size"
+                [style.left.px]="cloudWordLeft(entry)"
+                [style.top.px]="cloudWordTop(entry)"
+                [style.transform]="cloudWordTransform(entry)"
+                [style.z-index]="wordZIndex(entry.rank)"
+                [attr.title]="wordTooltip(entry)"
+                [attr.aria-pressed]="selectedGroupKey() === entry.groupKey"
+                (click)="toggleWord(entry.groupKey)"
+              >
+                {{ entry.word }}
+              </button>
+            }
+          } @else {
+            @for (entry of displayWords(); track entry.groupKey) {
+              <button
+                type="button"
+                mat-button
+                class="word-cloud__word"
+                [class.word-cloud__word--active]="selectedGroupKey() === entry.groupKey"
+                [class.word-cloud__word--top]="entry.rank < 2"
+                [class.word-cloud__word--featured]="entry.rank >= 2 && entry.rank < 6"
+                [style.font-size.px]="entry.size"
+                [attr.title]="wordTooltip(entry)"
+                [attr.aria-pressed]="selectedGroupKey() === entry.groupKey"
+                (click)="toggleWord(entry.groupKey)"
+              >
+                {{ entry.word }}
+              </button>
+            }
           }
         </div>
       }
@@ -58,17 +99,26 @@
       <div class="word-cloud__supporting">
         <div class="word-cloud__actions-panel">
           <div class="word-cloud__actions">
-            <button mat-button type="button" class="word-cloud__action" (click)="toggleStopwords()">
-              <mat-icon>filter_alt</mat-icon>
-              {{ hideStopwords() ? showStopwordsLabel : hideStopwordsLabel }}
-            </button>
+            @if (showMaximizeAction()) {
+              <button
+                mat-button
+                type="button"
+                class="word-cloud__action word-cloud__action--maximize"
+                aria-haspopup="dialog"
+                [attr.aria-label]="maximizeAriaLabel"
+                (click)="openInDialog()"
+              >
+                <mat-icon>open_in_full</mat-icon>
+                {{ maximizeLabel }}
+              </button>
+            }
             <button mat-button type="button" class="word-cloud__action" (click)="exportCsv()">
               <mat-icon>table_view</mat-icon>
               CSV exportieren
             </button>
             <button mat-button type="button" class="word-cloud__action" (click)="exportPng()">
               <mat-icon>image</mat-icon>
-              PNG exportieren
+              {{ exportPngLabel }}
             </button>
           </div>
           @if (statusMessage()) {
@@ -91,20 +141,29 @@
               }}</mat-icon>
             </summary>
             <ul class="word-cloud__responses">
-              @for (response of filteredResponses(); track response + $index) {
+              @for (response of visibleResponses(); track response + $index) {
                 <li>{{ response }}</li>
               }
             </ul>
+            @if (hasMoreResponses()) {
+              <button
+                mat-button
+                type="button"
+                class="word-cloud__responses-more"
+                (click)="showMoreResponses()"
+              >
+                {{ loadMoreResponsesLabel() }}
+              </button>
+            }
           </details>
         }
         @if (showReleaseNote()) {
           <p class="word-cloud__release-note">
-            Hinweis: Zum nächsten Major Release am 1. August 2026 ist Word Cloud 2.0 geplant. Dann
-            kommt ein echtes, dichteres Cloud-Layout mit ruhigerem Live-Update und stärkerer
-            Präsentationsqualität. Das Zielbild danach ist die intelligente Moderationshilfe mit NLP
-            (Natural Language Processing, also automatische Sprachverarbeitung): ähnliche Antworten
-            und Formulierungen werden zu gemeinsamen Themen gebündelt, verständlich benannt und
-            sinnvoll gewichtet, statt nur identische Wörter zu zählen.
+            Hinweis: Word Cloud 2.1 bündelt jetzt Wortfamilien wie „validieren“, „validiert“ und
+            „validierung“ automatisch zu gemeinsamen Begriffen. Der nächste Ausbauschritt ist der
+            semantische Layer mit NLP (Natural Language Processing, also automatische
+            Sprachverarbeitung): ähnliche Antworten und Formulierungen sollen dann zu echten
+            Themenclustern zusammenlaufen, statt nur auf Lemma-Ebene gruppiert zu werden.
           </p>
         }
       </div>

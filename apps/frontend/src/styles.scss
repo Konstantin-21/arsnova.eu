@@ -578,6 +578,50 @@ html {
   overflow: hidden;
 }
 
+.cdk-overlay-pane.word-cloud-dialog-panel {
+  inset: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+}
+
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-inner-container,
+.cdk-overlay-pane.word-cloud-dialog-panel .mdc-dialog__container,
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-container,
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-surface,
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-content {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-inner-container,
+.cdk-overlay-pane.word-cloud-dialog-panel .mdc-dialog__container {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-surface {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.cdk-overlay-pane.word-cloud-dialog-panel .mat-mdc-dialog-content {
+  overflow: hidden;
+}
+
+.cdk-overlay-backdrop.word-cloud-dialog-backdrop {
+  background: color-mix(in srgb, #08040f 80%, var(--mat-sys-primary) 20%);
+  backdrop-filter: blur(12px) saturate(1.15);
+}
+
 .markdown-lightbox-enabled img[data-markdown-image-lightbox='true'],
 img[data-markdown-image-lightbox='true'] {
   cursor: -webkit-zoom-in !important;
