@@ -123,6 +123,29 @@ describe('qa router (Epic 8)', () => {
     ]);
   });
 
+  it('fragt ohne participantId nur freigegebene Q&A-Status ab', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      code: 'CODE12',
+      type: 'QUIZ',
+      qaEnabled: true,
+      qaOpen: true,
+      qaModerationMode: false,
+    });
+    prismaMock.qaQuestion.findMany.mockResolvedValue([]);
+
+    await caller.list({ sessionId: SESSION_ID });
+
+    expect(prismaMock.qaQuestion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          sessionId: SESSION_ID,
+          status: { in: ['ACTIVE', 'PINNED', 'ARCHIVED'] },
+        },
+      }),
+    );
+  });
+
   it('legt eine neue Frage an und setzt ohne Moderation den Status ACTIVE', async () => {
     prismaMock.participant.findUnique.mockResolvedValue({
       id: PARTICIPANT_ID,
@@ -418,6 +441,49 @@ describe('qa router (Epic 8)', () => {
         myVote: null,
       },
     ]);
+  });
+
+  it('liefert im Host-Q&A fuer Kindergarten-Sessions den Autor-Nickname fuer Tier-Badges', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      code: 'ABC123',
+      type: 'Q_AND_A',
+      qaEnabled: true,
+      qaOpen: true,
+      qaModerationMode: true,
+      onboardingNicknameTheme: 'KINDERGARTEN',
+      onboardingAnonymousMode: false,
+    });
+    prismaMock.qaQuestion.findMany.mockResolvedValue([
+      {
+        id: QUESTION_ID,
+        participantId: PARTICIPANT_ID,
+        text: 'Kannst du das Beispiel nochmal zeigen?',
+        upvoteCount: 3,
+        status: 'ACTIVE',
+        createdAt: new Date('2026-03-13T12:00:00.000Z'),
+        participant: { nickname: 'Gelber Löwe' },
+        upvotes: [],
+      },
+    ]);
+
+    const result = await hostCaller.list({ sessionId: SESSION_ID, moderatorView: true });
+
+    expect(prismaMock.qaQuestion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          participant: {
+            select: {
+              nickname: true,
+            },
+          },
+        }),
+      }),
+    );
+    expect(result[0]).toMatchObject({
+      id: QUESTION_ID,
+      authorNickname: 'Gelber Löwe',
+    });
   });
 
   it('sortiert Host-Q&A im BEST-Modus nach Wilson-Score', async () => {

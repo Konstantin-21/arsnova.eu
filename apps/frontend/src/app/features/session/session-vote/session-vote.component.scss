@@ -963,6 +963,22 @@
   flex-wrap: wrap;
 }
 
+.session-qa-card__author-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.35rem;
+  min-height: 2rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--mat-sys-corner-full);
+  background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface));
+  border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 18%, transparent);
+  font-size: 1rem;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .session-qa-card__status {
   display: inline-flex;
   align-items: center;

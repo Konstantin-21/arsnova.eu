@@ -266,7 +266,7 @@ describe('JoinComponent', () => {
     expect(comp.isTaken('Albert Einstein')).toBe(false);
   });
 
-  it('zeigt bei Q&A ein freies Namensfeld auch ohne Quiz-Einstellungen', async () => {
+  it('zeigt bei Q&A standardmäßig die Kita-Pseudonymliste auch ohne Quiz-Einstellungen', async () => {
     vi.mocked(trpc.session.getInfo.query).mockResolvedValue({
       id: 'sess-qa',
       code: 'ABC123',
@@ -276,7 +276,8 @@ describe('JoinComponent', () => {
       quizName: null,
       title: 'Offene Fragen',
       participantCount: 3,
-      allowCustomNicknames: true,
+      nicknameTheme: 'KINDERGARTEN',
+      allowCustomNicknames: false,
       anonymousMode: false,
       teamMode: false,
     });
@@ -286,8 +287,9 @@ describe('JoinComponent', () => {
     await fixture.whenStable();
     await new Promise((r) => setTimeout(r, 80));
 
-    expect(comp.showCustomNickname()).toBe(true);
-    expect(comp.showNicknameList()).toBe(false);
+    expect(comp.showCustomNickname()).toBe(false);
+    expect(comp.showNicknameList()).toBe(true);
+    expect(comp.nicknameOptions()[0]).toBe(NICKNAME_LISTS.KINDERGARTEN[0]);
     expect(comp.canSubmit()).toBe(false);
   });
 

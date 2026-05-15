@@ -1655,6 +1655,55 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
+  it('zeigt im Host-Q&A fuer Kita-Reserve-Namen ein eindeutiges Tier-Badge an', async () => {
+    getInfoQueryMock.mockResolvedValue({
+      ...defaultSession,
+      status: 'ACTIVE',
+      nicknameTheme: 'KINDERGARTEN',
+      allowCustomNicknames: false,
+      anonymousMode: false,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen aus dem Publikum', moderationMode: true },
+        quickFeedback: { enabled: false, open: false },
+      },
+    });
+    qaListQueryMock.mockResolvedValue([
+      {
+        id: '55555555-5555-4555-8555-555555555555',
+        text: 'Kannst du das Beispiel noch einmal erklären?',
+        upvoteCount: 5,
+        status: 'ACTIVE',
+        createdAt: '2026-03-13T12:00:00.000Z',
+        authorNickname: 'Roter Drache 2',
+        myVote: null,
+        isOwn: false,
+        hasUpvoted: false,
+      },
+    ]);
+
+    const fixture = setup();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.waitUntil(() => fixture.componentInstance.qaQuestions().length === 1, {
+      timeout: 5000,
+      interval: 25,
+    });
+
+    fixture.componentInstance.activeChannel.set('qa');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const badge = fixture.nativeElement.querySelector(
+      '.session-qa-card__author-icon',
+    ) as HTMLElement | null;
+
+    expect(badge?.textContent?.trim()).toBe('🐉 2');
+    expect(badge?.getAttribute('title')).toBe('Roter Drache 2');
+    fixture.destroy();
+  });
+
   it('zeigt bei aktiver reiner Q&A-Session das Fragen-Panel statt nur der Live-Karte', async () => {
     getInfoQueryMock.mockResolvedValue({
       ...defaultSession,

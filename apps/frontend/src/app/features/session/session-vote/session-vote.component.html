@@ -1538,6 +1538,15 @@
                   }
                   <div class="session-qa-card__body">
                     <div class="session-qa-card__status-row">
+                      @if (qaAuthorKindergartenBadgeLabel(question); as authorBadge) {
+                        <span
+                          class="session-qa-card__author-icon"
+                          [attr.aria-label]="qaAuthorKindergartenAriaLabel(question)"
+                          [attr.title]="question.authorNickname || null"
+                        >
+                          <span aria-hidden="true">{{ authorBadge }}</span>
+                        </span>
+                      }
                       @if (question.status !== 'ACTIVE') {
                         <span
                           class="session-qa-card__status"

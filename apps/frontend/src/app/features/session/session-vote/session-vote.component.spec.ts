@@ -1444,6 +1444,29 @@ describe('SessionVoteComponent', () => {
     fixture.destroy();
   });
 
+  it('leitet fuer Kindergarten-Q&A-Fragen eindeutige Tier-Badges ab', () => {
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    fixture.componentInstance.sessionSettings.set({
+      nicknameTheme: 'KINDERGARTEN',
+      anonymousMode: false,
+    });
+
+    expect(
+      fixture.componentInstance.qaAuthorKindergartenBadgeLabel({
+        id: 'question-1',
+        text: 'Wie viel Stoff ist klausurrelevant?',
+        upvoteCount: 2,
+        status: 'ACTIVE',
+        createdAt: '2026-03-13T12:00:00.000Z',
+        authorNickname: 'Roter Drache 2',
+        myVote: null,
+        isOwn: false,
+        hasUpvoted: false,
+      }),
+    ).toBe('🐉 2');
+    fixture.destroy();
+  });
+
   it('zeigt bei aktiver Quizfrage den Abstimmen-Button im unteren Aktionsanker', async () => {
     getInfoQueryMock.mockResolvedValue({
       id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',

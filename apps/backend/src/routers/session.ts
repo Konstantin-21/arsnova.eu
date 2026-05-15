@@ -1243,8 +1243,8 @@ interface SessionOnboardingProfile {
 }
 
 const LEGACY_SESSION_ONBOARDING_PROFILE: SessionOnboardingProfile = {
-  nicknameTheme: 'HIGH_SCHOOL',
-  allowCustomNicknames: true,
+  nicknameTheme: 'KINDERGARTEN',
+  allowCustomNicknames: false,
   anonymousMode: false,
   teamMode: false,
   teamCount: null,

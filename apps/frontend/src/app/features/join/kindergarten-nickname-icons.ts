@@ -155,3 +155,15 @@ export function findKindergartenNicknameEmoji(
   const i = findKindergartenNicknameIndex(nickname, locale);
   return i === null ? null : kindergartenEmojiAtIndex(i);
 }
+
+export function findKindergartenNicknameBadgeLabel(
+  nickname: string,
+  locale: SupportedLocale = getEffectiveLocale(),
+): string | null {
+  const emoji = findKindergartenNicknameEmoji(nickname, locale);
+  if (!emoji) {
+    return null;
+  }
+  const suffix = nickname.trim().match(/\s+(\d+)$/)?.[1] ?? null;
+  return suffix ? `${emoji} ${suffix}` : emoji;
+}

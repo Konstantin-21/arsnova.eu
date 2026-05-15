@@ -198,7 +198,8 @@ describe('session.getInfo (ADR-0009)', () => {
     });
     expect(result.quizName).toBeNull();
     expect(result.title).toBe('Offene Fragerunde');
-    expect(result.allowCustomNicknames).toBe(true);
+    expect(result.allowCustomNicknames).toBe(false);
+    expect(result.nicknameTheme).toBe('KINDERGARTEN');
     expect(result.teamMode).toBe(false);
   });
 

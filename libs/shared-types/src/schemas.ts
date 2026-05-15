@@ -1615,6 +1615,7 @@ export const QaQuestionDTOSchema = z.object({
   score: z.number().optional(),
   status: QaQuestionStatusEnum,
   createdAt: z.string(),
+  authorNickname: z.string().min(1).max(30).optional(),
   positiveVoteCount: z.number().int().min(0).optional(),
   negativeVoteCount: z.number().int().min(0).optional(),
   voteCount: z.number().int().min(0).optional(),

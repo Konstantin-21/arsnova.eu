@@ -38,6 +38,7 @@ import { ThemePresetService } from '../../../core/theme-preset.service';
 import * as vpc from './session-vote-participant-copy';
 import { localizePath, resolveLocalizedJoinUrl } from '../../../core/locale-router';
 import type {
+  NicknameTheme,
   ParticipantDTO,
   PersonalScorecardDTO,
   QaQuestionDTO,
@@ -64,7 +65,12 @@ import {
   consumeConfirmedParticipantTeam,
   peekConfirmedParticipantTeam,
 } from '../../../core/participant-team-confirmation';
-import { findKindergartenNicknameEmoji } from '../../join/kindergarten-nickname-icons';
+import {
+  findKindergartenNicknameBadgeLabel,
+  findKindergartenNicknameEmoji,
+} from '../../join/kindergarten-nickname-icons';
+import { getEffectiveLocale } from '../../../core/locale-from-path';
+import { getNicknameList } from '../../join/nickname-themes';
 import {
   edgeEmojiMarkerPosition,
   extractEdgeEmoji,
@@ -389,17 +395,15 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
       ? $localize`:@@sessionVote.teamArrivalSuffixPlayful:wartet schon auf dich.`
       : $localize`:@@sessionVote.teamArrivalSuffixSerious:zugeordnet.`;
 
-  readonly isKindergartenQuizNickname = computed(() => {
+  readonly usesKindergartenNicknames = computed(() => {
     const session = this.sessionSettings();
     return (
-      session.type === 'QUIZ' &&
-      (session.nicknameTheme ?? 'HIGH_SCHOOL') === 'KINDERGARTEN' &&
-      session.anonymousMode !== true
+      (session.nicknameTheme ?? 'HIGH_SCHOOL') === 'KINDERGARTEN' && session.anonymousMode !== true
     );
   });
 
   readonly playerKindergartenEmoji = computed((): string | null => {
-    if (!this.isKindergartenQuizNickname()) return null;
+    if (!this.usesKindergartenNicknames()) return null;
     const nick = this.playerNickname()?.trim();
     return nick ? findKindergartenNicknameEmoji(nick) : null;
   });
@@ -415,6 +419,36 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
   teamNameUsesEmojiMarker(teamName: string | null | undefined): boolean {
     return typeof teamName === 'string' && edgeEmojiMarkerPosition(teamName) !== null;
+  }
+
+  qaAuthorKindergartenBadgeLabel(question: QaQuestionDTO): string | null {
+    if (!this.usesKindergartenNicknames()) {
+      return null;
+    }
+    const nickname = question.authorNickname ?? (question.isOwn ? this.playerNickname() : null);
+    const trimmedNickname = nickname?.trim();
+    return trimmedNickname ? findKindergartenNicknameBadgeLabel(trimmedNickname) : null;
+  }
+
+  qaAuthorKindergartenAriaLabel(question: QaQuestionDTO): string {
+    const nickname = question.authorNickname?.trim();
+    if (nickname) {
+      return $localize`Frage von ${nickname}`;
+    }
+    return question.isOwn ? $localize`Deine Frage` : $localize`Frage aus dem Publikum`;
+  }
+
+  private buildAutoJoinNickname(): string {
+    const session = this.sessionSettings();
+    const theme = (session.nicknameTheme ?? 'HIGH_SCHOOL') as NicknameTheme;
+    if (session.anonymousMode !== true && session.allowCustomNicknames === false) {
+      const candidates = getNicknameList(theme, getEffectiveLocale());
+      if (candidates.length > 0) {
+        const base = candidates[Math.floor(Math.random() * candidates.length)]!;
+        return `${base} ${Math.floor(Math.random() * 9000) + 1000}`.slice(0, 30);
+      }
+    }
+    return `Teilnehmende #${Math.floor(Math.random() * 9000) + 1000}`;
   }
 
   teamNameEmojiMarker(teamName: string | null | undefined): string | null {
@@ -1944,7 +1978,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
     if (!participantId && this.code) {
       try {
-        const autoNickname = `Teilnehmende #${Math.floor(Math.random() * 9000) + 1000}`;
+        const autoNickname = this.buildAutoJoinNickname();
         const join = await trpc.session.join.mutate({
           code: this.code,
           nickname: autoNickname,

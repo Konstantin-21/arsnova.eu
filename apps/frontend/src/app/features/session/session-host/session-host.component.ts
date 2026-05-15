@@ -119,7 +119,10 @@ import {
   extractEdgeEmoji,
   stripEdgeEmojiMarker,
 } from '../../../shared/emoji-shortcode.util';
-import { findKindergartenNicknameEmoji } from '../../join/kindergarten-nickname-icons';
+import {
+  findKindergartenNicknameBadgeLabel,
+  findKindergartenNicknameEmoji,
+} from '../../join/kindergarten-nickname-icons';
 import {
   SessionQuizPickerDialogComponent,
   type SessionQuizPickerDialogData,
@@ -3417,6 +3420,19 @@ export class SessionHostComponent implements OnInit, OnDestroy {
       return this.activeChannel() !== 'quickFeedback' && this.quickFeedbackUnseenCount() > 0;
     }
     return false;
+  }
+
+  qaAuthorKindergartenBadgeLabel(question: QaQuestionDTO): string | null {
+    const nickname = question.authorNickname?.trim();
+    if (!nickname || this.session()?.nicknameTheme !== 'KINDERGARTEN') {
+      return null;
+    }
+    return findKindergartenNicknameBadgeLabel(nickname);
+  }
+
+  qaAuthorKindergartenAriaLabel(question: QaQuestionDTO): string {
+    const nickname = question.authorNickname?.trim();
+    return nickname ? $localize`Frage von ${nickname}` : $localize`Frage aus dem Publikum`;
   }
 
   qaStatusLabel(status: QaQuestionDTO['status']): string {

@@ -35,6 +35,9 @@ type QaQuestionRecord = {
   status: 'PENDING' | 'ACTIVE' | 'PINNED' | 'ARCHIVED' | 'DELETED';
   createdAt: Date;
   participantId: string;
+  participant?: {
+    nickname?: string | null;
+  } | null;
   upvotes?: QaQuestionVoteRecord[];
 };
 
@@ -318,6 +321,7 @@ function mapQaQuestion(
       : {}),
     status: question.status,
     createdAt: question.createdAt.toISOString(),
+    ...(question.participant?.nickname ? { authorNickname: question.participant.nickname } : {}),
     myVote: myUpvote ? (myUpvote.direction === 'DOWN' ? 'DOWN' : 'UP') : null,
     isOwn: !!participantId && question.participantId === participantId,
     hasUpvoted: !!myUpvote && myUpvote.direction !== 'DOWN',
@@ -364,7 +368,7 @@ function buildQaQuestionWhere(
               { status: 'PENDING' as const, participantId },
             ],
           }
-        : { status: { not: 'DELETED' as const } }),
+        : { status: { in: [...PARTICIPANT_VISIBLE_QA_STATUSES] } }),
   };
 }
 
@@ -404,10 +408,20 @@ async function buildQaQuestionPayloadFromDb(
   moderatorView: boolean | undefined,
   sortMode: QaQuestionSortMode,
   participantCountForControversy?: number,
+  includeAuthorNickname = false,
 ) {
   const questions = await prisma.qaQuestion.findMany({
     where: buildQaQuestionWhere(sessionId, moderatorView, participantId),
     include: {
+      ...(includeAuthorNickname
+        ? {
+            participant: {
+              select: {
+                nickname: true,
+              },
+            },
+          }
+        : {}),
       upvotes: moderatorView
         ? false
         : participantId
@@ -474,6 +488,8 @@ export const qaRouter = router({
           qaEnabled: true,
           qaOpen: true,
           qaModerationMode: true,
+          onboardingNicknameTheme: true,
+          onboardingAnonymousMode: true,
         },
       });
       if (!session) {
@@ -494,6 +510,10 @@ export const qaRouter = router({
               where: { sessionId: session.id },
             })
           : undefined;
+      const includeAuthorNickname =
+        session.onboardingAnonymousMode !== true &&
+        session.onboardingNicknameTheme === 'KINDERGARTEN' &&
+        (input.moderatorView === true || input.participantId !== undefined);
 
       return buildQaQuestionPayloadFromDb(
         session.id,
@@ -501,6 +521,7 @@ export const qaRouter = router({
         input.moderatorView,
         sortMode,
         participantCountForControversy,
+        includeAuthorNickname,
       );
     }),
 
@@ -1028,7 +1049,14 @@ export const qaRouter = router({
       while (true) {
         const session = await prisma.session.findUnique({
           where: { id: input.sessionId },
-          select: { id: true, type: true, qaEnabled: true, qaOpen: true },
+          select: {
+            id: true,
+            type: true,
+            qaEnabled: true,
+            qaOpen: true,
+            onboardingNicknameTheme: true,
+            onboardingAnonymousMode: true,
+          },
         });
         if (!session) {
           return;
@@ -1057,6 +1085,10 @@ export const qaRouter = router({
           }
           participantCountForControversy = cachedParticipantCountForControversy;
         }
+        const includeAuthorNickname =
+          session.onboardingAnonymousMode !== true &&
+          session.onboardingNicknameTheme === 'KINDERGARTEN' &&
+          (input.moderatorView === true || input.participantId !== undefined);
 
         const revisionKey = await getQaQuestionsRevisionKey(
           input.sessionId,
@@ -1076,6 +1108,7 @@ export const qaRouter = router({
           input.moderatorView,
           sortMode,
           participantCountForControversy,
+          includeAuthorNickname,
         );
         const json = JSON.stringify(payload);
         if (json !== lastJson) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  findKindergartenNicknameBadgeLabel,
   findKindergartenNicknameEmoji,
   findKindergartenNicknameIndex,
   KINDERGARTEN_NICKNAME_EMOJIS,
@@ -44,6 +45,7 @@ describe('kindergarten-nickname-icons', () => {
   it('ordnet auch generierte Reserve-Namen dem Ursprungs-Emoji zu', () => {
     expect(findKindergartenNicknameIndex('Roter Drache 2')).toBe(0);
     expect(findKindergartenNicknameEmoji('Roter Drache 2')).toBe('🐉');
+    expect(findKindergartenNicknameBadgeLabel('Roter Drache 2')).toBe('🐉 2');
   });
 
   it('gibt null für unbekannte Strings zurück', () => {
