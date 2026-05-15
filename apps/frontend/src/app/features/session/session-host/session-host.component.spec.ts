@@ -1321,6 +1321,10 @@ describe('SessionHostComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent ?? '';
+    const wordCloudDetails = fixture.nativeElement.querySelector('.session-host__extra');
+
+    expect(wordCloudDetails?.className).toContain('session-host__extra--freetext');
+    expect(wordCloudDetails?.className).toContain('session-host__extra--no-divider');
     expect(text).toContain('Wortwolke anzeigen');
     expect(text).not.toContain('Weitere Aktionen');
     expect(text).toContain('2 Antworten');

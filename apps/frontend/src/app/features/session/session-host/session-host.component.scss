@@ -3578,6 +3578,14 @@ button.session-host__btn-discussion {
   border-top: 0;
 }
 
+.session-host__extra--freetext {
+  margin-top: 1rem;
+}
+
+.session-host__extra--freetext .session-host__extra-content {
+  margin-top: 0.6rem;
+}
+
 .session-host__extra summary {
   cursor: pointer;
   list-style: none;
@@ -4002,14 +4010,14 @@ button.session-host__btn-discussion {
 
 // FREETEXT Host-Anzeige
 .session-host__freetext {
-  padding: 0.5rem 0;
+  padding: 0.2rem 0;
 }
 
 .session-host__freetext-waiting {
   font: var(--mat-sys-body-large);
   color: var(--mat-sys-on-surface-variant);
   text-align: center;
-  padding: 1.5rem 0.5rem;
+  padding: 1rem 0.5rem;
   margin: 0;
 }
 

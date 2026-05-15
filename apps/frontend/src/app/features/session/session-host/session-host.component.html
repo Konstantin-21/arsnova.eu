@@ -1732,8 +1732,7 @@
 
               @if (currentQuestionForHost()?.type === 'FREETEXT') {
                 <details
-                  class="session-host__extra"
-                  [class.session-host__extra--no-divider]="effectiveStatus() === 'RESULTS'"
+                  class="session-host__extra session-host__extra--freetext session-host__extra--no-divider"
                   [attr.open]="wordCloudExpanded() ? true : null"
                   (toggle)="wordCloudExpanded.set($any($event.target).open)"
                 >
