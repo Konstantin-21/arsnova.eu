@@ -97,6 +97,8 @@ export type VoteAutoScrollPhase = 'read' | 'vote' | 'result';
 
 type CurrentQuestion = QuestionStudentDTO | QuestionPreviewDTO | QuestionRevealedDTO;
 type SessionChannelTab = 'quiz' | 'qa' | 'quickFeedback';
+type ParticipantLiveChannelTab = Extract<SessionChannelTab, 'qa' | 'quickFeedback'>;
+type QuickFeedbackPhaseKey = string | null;
 type StoredVoteResponse = {
   answerIds?: string[];
   freeText?: string;
@@ -504,6 +506,8 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
   private readonly markdownCache = new Map<string, SafeHtml>();
   private feedbackStateLoaded = false;
   private lastAppliedPreferredChannel: SessionLiveChannel | null = null;
+  private participantLiveChannelOverride: ParticipantLiveChannelTab | null = null;
+  private participantLiveChannelOverrideQuickFeedbackPhase: QuickFeedbackPhaseKey = null;
 
   /**
    * Nach Session-Ende: Bonus-Code sichern und/oder Session-Feedback, dann Startseite.
@@ -699,9 +703,44 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     }
 
     if (this.visibleChannels().includes(preferredChannel)) {
+      this.clearParticipantLiveChannelOverride();
       this.activeChannel.set(preferredChannel);
     }
     this.lastAppliedPreferredChannel = preferredChannel;
+  }
+
+  private quickFeedbackPhaseKey(result: QuickFeedbackResult | null): QuickFeedbackPhaseKey {
+    if (!result) {
+      return null;
+    }
+    return `${result.type}:${result.currentRound ?? 0}:${result.discussion === true ? 'discussion' : 'vote'}`;
+  }
+
+  private clearParticipantLiveChannelOverride(): void {
+    this.participantLiveChannelOverride = null;
+    this.participantLiveChannelOverrideQuickFeedbackPhase = null;
+  }
+
+  private rememberParticipantLiveChannelOverride(channel: SessionChannelTab): void {
+    if (channel === 'qa' || channel === 'quickFeedback') {
+      this.participantLiveChannelOverride = channel;
+      this.participantLiveChannelOverrideQuickFeedbackPhase = this.quickFeedbackPhaseKey(
+        this.quickFeedbackResult(),
+      );
+      return;
+    }
+    this.clearParticipantLiveChannelOverride();
+  }
+
+  private applyQuickFeedbackResult(result: QuickFeedbackResult | null): void {
+    const nextPhase = this.quickFeedbackPhaseKey(result);
+    if (
+      this.participantLiveChannelOverride &&
+      this.participantLiveChannelOverrideQuickFeedbackPhase !== nextPhase
+    ) {
+      this.clearParticipantLiveChannelOverride();
+    }
+    this.quickFeedbackResult.set(result);
   }
   readonly ownTeamEntry = computed(() => {
     const teamName = this.participantTeam()?.teamName;
@@ -1026,6 +1065,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
   selectChannel(channel: string): void {
     if (channel === 'quiz' || channel === 'qa' || channel === 'quickFeedback') {
+      this.rememberParticipantLiveChannelOverride(channel);
       this.activeChannel.set(channel);
       this.ensureActiveChannel();
     }
@@ -1457,7 +1497,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     if (!this.channels().quickFeedback || !this.isQuickFeedbackChannelOpen() || !this.code) {
       this.quickFeedbackSub?.unsubscribe();
       this.quickFeedbackSub = null;
-      this.quickFeedbackResult.set(null);
+      this.applyQuickFeedbackResult(null);
       return;
     }
 
@@ -1469,7 +1509,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
       { sessionCode: this.code },
       {
         onData: (data) => {
-          this.quickFeedbackResult.set(data);
+          this.applyQuickFeedbackResult(data);
           this.ensureActiveChannel();
         },
         onError: () => {
@@ -1801,6 +1841,13 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (
+      this.participantLiveChannelOverride &&
+      !visible.includes(this.participantLiveChannelOverride)
+    ) {
+      this.clearParticipantLiveChannelOverride();
+    }
+
     const active = this.activeChannel();
     if (!visible.includes(active)) {
       this.activeChannel.set(visible[0]!);
@@ -1810,6 +1857,13 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     if (visible.includes('quiz') && this.quizChannelLocksStudentNavigation()) {
       if (active !== 'quiz') {
         this.activeChannel.set('quiz');
+      }
+      return;
+    }
+
+    if (this.participantLiveChannelOverride) {
+      if (active !== this.participantLiveChannelOverride) {
+        this.activeChannel.set(this.participantLiveChannelOverride);
       }
       return;
     }
@@ -1900,15 +1954,15 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
   private async refreshQuickFeedbackResult(): Promise<void> {
     if (!this.channels().quickFeedback || !this.isQuickFeedbackChannelOpen() || !this.code) {
-      this.quickFeedbackResult.set(null);
+      this.applyQuickFeedbackResult(null);
       return;
     }
 
     try {
       const result = await trpc.quickFeedback.results.query({ sessionCode: this.code });
-      this.quickFeedbackResult.set(result);
+      this.applyQuickFeedbackResult(result);
     } catch {
-      this.quickFeedbackResult.set(null);
+      this.applyQuickFeedbackResult(null);
     }
   }
 

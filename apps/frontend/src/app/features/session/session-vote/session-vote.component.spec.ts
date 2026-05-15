@@ -1858,7 +1858,7 @@ describe('SessionVoteComponent', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     const component = fixture.componentInstance;
-    component.activeChannel.set('quickFeedback');
+    component.selectChannel('quickFeedback');
     fixture.detectChanges();
 
     expect(component.activeChannel()).toBe('quickFeedback');
@@ -1903,6 +1903,134 @@ describe('SessionVoteComponent', () => {
       },
       { timeout: 3000, interval: 10 },
     );
+    fixture.destroy();
+  });
+
+  it('lässt Clients manuell vom Blitzlicht zurück in den Q&A-Kanal wechseln', () => {
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    const component = fixture.componentInstance;
+    component.status.set('ACTIVE');
+    component.sessionSettings.set({
+      id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
+      code: 'ABC123',
+      type: 'QUIZ',
+      status: 'ACTIVE',
+      serverTime: MOCK_SERVER_TIME,
+      quizName: 'Team-Quiz',
+      participantCount: 6,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen', moderationMode: false },
+        quickFeedback: { enabled: true, open: true },
+      },
+    } as never);
+    component.quickFeedbackResult.set({
+      type: 'MOOD',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 3,
+      distribution: { POSITIVE: 1, NEUTRAL: 1, NEGATIVE: 1 },
+      currentRound: 1,
+    });
+    (
+      component as unknown as {
+        ensureActiveChannel: () => void;
+      }
+    ).ensureActiveChannel();
+
+    expect(component.activeChannel()).toBe('quickFeedback');
+
+    component.selectChannel('qa');
+
+    expect(component.activeChannel()).toBe('qa');
+
+    component.quickFeedbackResult.set({
+      type: 'MOOD',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 4,
+      distribution: { POSITIVE: 2, NEUTRAL: 1, NEGATIVE: 1 },
+      currentRound: 1,
+    });
+    (
+      component as unknown as {
+        ensureActiveChannel: () => void;
+      }
+    ).ensureActiveChannel();
+
+    expect(component.activeChannel()).toBe('qa');
+    fixture.destroy();
+  });
+
+  it('zieht Clients bei einer neuen Blitzlicht-Vergleichsrunde wieder in den Blitzlicht-Kanal', () => {
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    const component = fixture.componentInstance;
+    component.status.set('ACTIVE');
+    component.sessionSettings.set({
+      id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
+      code: 'ABC123',
+      type: 'QUIZ',
+      status: 'ACTIVE',
+      serverTime: MOCK_SERVER_TIME,
+      quizName: 'Team-Quiz',
+      participantCount: 6,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen', moderationMode: false },
+        quickFeedback: { enabled: true, open: true },
+      },
+    } as never);
+    (
+      component as unknown as {
+        applyQuickFeedbackResult: (result: unknown) => void;
+        ensureActiveChannel: () => void;
+      }
+    ).applyQuickFeedbackResult({
+      type: 'MOOD',
+      theme: 'system',
+      preset: 'serious',
+      locked: true,
+      totalVotes: 3,
+      distribution: { POSITIVE: 1, NEUTRAL: 1, NEGATIVE: 1 },
+      currentRound: 1,
+      discussion: true,
+    });
+    (
+      component as unknown as {
+        ensureActiveChannel: () => void;
+      }
+    ).ensureActiveChannel();
+
+    expect(component.activeChannel()).toBe('quickFeedback');
+
+    component.selectChannel('qa');
+
+    expect(component.activeChannel()).toBe('qa');
+
+    (
+      component as unknown as {
+        applyQuickFeedbackResult: (result: unknown) => void;
+        ensureActiveChannel: () => void;
+      }
+    ).applyQuickFeedbackResult({
+      type: 'MOOD',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 0,
+      distribution: { POSITIVE: 0, NEUTRAL: 0, NEGATIVE: 0 },
+      currentRound: 2,
+      discussion: false,
+    });
+    (
+      component as unknown as {
+        ensureActiveChannel: () => void;
+      }
+    ).ensureActiveChannel();
+
+    expect(component.activeChannel()).toBe('quickFeedback');
     fixture.destroy();
   });
 
