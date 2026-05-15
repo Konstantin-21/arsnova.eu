@@ -3649,6 +3649,42 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
+  it('blendet bei Freitext-Ergebnissen die redundante Antwortliste aus', async () => {
+    getInfoQueryMock.mockResolvedValue({ ...defaultSession, status: 'RESULTS' });
+    onStatusChangedSubscribeMock.mockImplementation(
+      (_input: unknown, opts: { onData: (d: unknown) => void }) => {
+        opts.onData({ status: 'RESULTS', currentQuestion: 1 });
+        return { unsubscribe: unsubscribeMock };
+      },
+    );
+    getCurrentQuestionForHostQueryMock.mockResolvedValue({
+      questionId: '11111111-1111-4111-8111-111111111111',
+      order: 1,
+      totalQuestions: 3,
+      text: 'Warum bleibt ein Satellit im Orbit?',
+      type: 'FREETEXT',
+      difficulty: 'EASY',
+      answers: [],
+      freeTextResponses: ['Gravitation', 'Orbit', 'Traegheit'],
+      totalVotes: 3,
+    });
+
+    const fixture = setup();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    const resultsWrap = fixture.nativeElement.querySelector('.session-host__results-wrap');
+    const wordCloudDetails = fixture.nativeElement.querySelector('.session-host__extra');
+
+    expect(resultsWrap).toBeNull();
+    expect(wordCloudDetails?.className).toContain('session-host__extra--no-divider');
+    expect(fixture.nativeElement.textContent ?? '').not.toContain('Gravitation');
+    expect(fixture.nativeElement.textContent ?? '').not.toContain('haben geantwortet');
+    fixture.destroy();
+  });
+
   it('scrollt beim Ergebniszeigen zur Ergebniskarte', async () => {
     getInfoQueryMock.mockResolvedValue({ ...defaultSession, status: 'ACTIVE' });
     getCurrentQuestionForHostQueryMock.mockResolvedValue({

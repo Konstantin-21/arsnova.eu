@@ -1060,7 +1060,10 @@
                 </mat-card>
 
                 <!-- Karte 2: Ergebnis (schmaler, zentriert) -->
-                @if (effectiveStatus() !== 'QUESTION_OPEN') {
+                @if (
+                  effectiveStatus() !== 'QUESTION_OPEN' &&
+                  !(effectiveStatus() === 'RESULTS' && q.type === 'FREETEXT')
+                ) {
                   <div class="session-host__results-wrap" #hostResultsSection>
                     <mat-card appearance="outlined" class="session-host__results-card">
                       <mat-card-content>
@@ -1141,33 +1144,13 @@
                             }
                           </div>
                         } @else if (q.type === 'FREETEXT') {
-                          <div class="session-host__freetext">
-                            @if (
-                              effectiveStatus() === 'RESULTS' &&
-                              q.freeTextResponses &&
-                              q.freeTextResponses.length > 0
-                            ) {
-                              <p class="session-host__freetext-count">
-                                {{
-                                  freetextRespondedLabel(
-                                    q.freeTextResponses.length,
-                                    participantsPayload()?.participantCount ?? 0
-                                  )
-                                }}
-                              </p>
-                              <ul class="session-host__freetext-list" role="list">
-                                @for (text of q.freeTextResponses; track text) {
-                                  <li class="session-host__freetext-item">
-                                    {{ normalizeFreetextResponse(text) }}
-                                  </li>
-                                }
-                              </ul>
-                            } @else {
+                          @if (effectiveStatus() !== 'RESULTS') {
+                            <div class="session-host__freetext">
                               <p class="session-host__freetext-waiting">
                                 {{ freetextWaitingText() }}
                               </p>
-                            }
-                          </div>
+                            </div>
+                          }
                         } @else if (q.roundComparison && effectiveStatus() === 'RESULTS') {
                           <!-- Peer Instruction: Vorher/Nachher-Vergleich (Story 2.7) -->
                           <div
@@ -1750,6 +1733,7 @@
               @if (currentQuestionForHost()?.type === 'FREETEXT') {
                 <details
                   class="session-host__extra"
+                  [class.session-host__extra--no-divider]="effectiveStatus() === 'RESULTS'"
                   [attr.open]="wordCloudExpanded() ? true : null"
                   (toggle)="wordCloudExpanded.set($any($event.target).open)"
                 >

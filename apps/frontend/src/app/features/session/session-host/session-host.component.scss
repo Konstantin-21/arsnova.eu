@@ -3573,6 +3573,11 @@ button.session-host__btn-discussion {
   color: var(--mat-sys-on-surface-variant);
 }
 
+.session-host__extra--no-divider {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .session-host__extra summary {
   cursor: pointer;
   list-style: none;
@@ -3995,36 +4000,9 @@ button.session-host__btn-discussion {
   margin: 0;
 }
 
-// FREETEXT Host-Ergebnis
+// FREETEXT Host-Anzeige
 .session-host__freetext {
   padding: 0.5rem 0;
-}
-
-.session-host__freetext-count {
-  font: var(--mat-sys-title-medium);
-  font-weight: 600;
-  color: var(--mat-sys-primary);
-  margin-bottom: 0.75rem;
-}
-
-.session-host__freetext-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.session-host__freetext-item {
-  background: var(--mat-sys-surface-container);
-  padding: 0.75rem 1rem;
-  border-radius: var(--mat-sys-corner-small, 8px);
-  font: var(--mat-sys-body-large);
-  color: var(--mat-sys-on-surface);
-  border: 1px solid var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.08));
 }
 
 .session-host__freetext-waiting {
@@ -4259,8 +4237,7 @@ button.session-host__btn-discussion {
     padding: 0.2rem 0.35rem;
   }
 
-  .session-host__vote-dist-total,
-  .session-host__freetext-count {
+  .session-host__vote-dist-total {
     font: var(--mat-sys-title-small);
     margin-bottom: 0.35rem;
   }
@@ -4273,7 +4250,6 @@ button.session-host__btn-discussion {
   }
 
   .session-host__vote-dist-list,
-  .session-host__freetext-list,
   .session-host__rating-bars {
     gap: 0.35rem;
   }
@@ -4291,11 +4267,6 @@ button.session-host__btn-discussion {
 
   .session-host__freetext {
     padding: 0.15rem 0 0;
-  }
-
-  .session-host__freetext-list {
-    max-height: min(50vh, 24rem);
-    padding-right: 0.15rem;
   }
 
   .session-host__vote-dist-item {
@@ -4350,17 +4321,10 @@ button.session-host__btn-discussion {
     min-width: 0;
   }
 
-  .session-host__freetext-item,
   .session-host__rating-count,
   .session-host__rating-waiting,
   .session-host__freetext-waiting {
     font: var(--mat-sys-body-small);
-  }
-
-  .session-host__freetext-item {
-    padding: 0.65rem 0.8rem;
-    border-radius: var(--mat-sys-corner-medium, 0.75rem);
-    line-height: 1.45;
   }
 
   .session-host__freetext-waiting {

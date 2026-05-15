@@ -95,7 +95,6 @@ import { WordCloudComponent } from '../session-present/word-cloud.component';
 import {
   getWordCloudWeightFromNormalizedMetric,
   getWordCloudWeightFromUpvotes,
-  normalizeFreeTextResponseForDisplay,
 } from '../session-present/word-cloud.util';
 import {
   WordCloudTermExtractorService,
@@ -3088,15 +3087,6 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     return $localize`Warte auf Antworten…`;
   }
 
-  /** Label „X von Y hat/haben geantwortet“ mit korrekter Pluralform. */
-  freetextRespondedLabel(count: number, total: number | undefined): string {
-    const totalStr = total !== undefined && total !== null ? String(total) : '?';
-    if (count === 1) {
-      return $localize`${count} von ${totalStr} hat geantwortet`;
-    }
-    return $localize`${count} von ${totalStr} haben geantwortet`;
-  }
-
   voteProgressCompactLabel(votes: number, participants: number): string {
     return $localize`${votes} von ${participants}`;
   }
@@ -3106,10 +3096,6 @@ export class SessionHostComponent implements OnInit, OnDestroy {
       return $localize`:@@sessionHost.voteProgressAriaOne:${votes}:votes: von ${participants}:participants: Teilnehmenden hat abgestimmt. ${percentage}:percentage: Prozent erreicht.`;
     }
     return $localize`:@@sessionHost.voteProgressAriaMany:${votes}:votes: von ${participants}:participants: Teilnehmenden haben abgestimmt. ${percentage}:percentage: Prozent erreicht.`;
-  }
-
-  normalizeFreetextResponse(value: string): string {
-    return normalizeFreeTextResponseForDisplay(value);
   }
 
   /** Ergebnisansicht: „X von Y hat/haben abgestimmt“ (Plural nach Anzahl abgegebener Stimmen). */
