@@ -4,7 +4,7 @@ import { getDemoQuizPayload, getDemoQuizSeedFingerprint } from './demo-quiz-payl
 describe('getDemoQuizSeedFingerprint', () => {
   it('ändert sich mit exportVersion, Motiv-URL und Beschreibung (Demo-Reseed)', () => {
     const de = getDemoQuizSeedFingerprint('de');
-    expect(de).toMatch(/^de\|22\|/);
+    expect(de).toMatch(/^de\|23\|/);
     expect(de).toContain(
       'https://upload.wikimedia.org/wikipedia/commons/b/b4/Sixteen_faces_expressing_the_human_passions._Wellcome_L0068375_%28cropped%29.jpg',
     );
@@ -24,7 +24,7 @@ describe('getDemoQuizSeedFingerprint', () => {
     expect(payload.quiz?.questions?.[3]?.skipReadingPhase).toBe(true);
   });
 
-  it('enthält eine anspruchsvolle SHORT_TEXT-Frage mit toleranter Auswertung', () => {
+  it('enthält eine 1.2ea-taugliche SHORT_TEXT-Frage mit Varianten und Buchstabendrehern', () => {
     const payload = getDemoQuizPayload('de') as {
       quiz?: {
         questions?: Array<{
@@ -47,6 +47,7 @@ describe('getDemoQuizSeedFingerprint', () => {
     );
 
     expect(shortTextQuestion?.text).toContain('individuell abstimmen');
+    expect(shortTextQuestion?.text).toContain('Buchstabendreher');
     expect(shortTextQuestion?.difficulty).toBe('HARD');
     expect(shortTextQuestion?.shortTextMaxLength).toBe(32);
     expect(shortTextQuestion?.shortTextEvaluationMode).toBe('auto');
@@ -59,6 +60,7 @@ describe('getDemoQuizSeedFingerprint', () => {
         expect.objectContaining({ text: 'Peer Instruction', isCorrect: true }),
         expect.objectContaining({ text: 'Peer-Instruction', isCorrect: true }),
         expect.objectContaining({ text: 'Mazur-Methode', isCorrect: true }),
+        expect.objectContaining({ text: 'Mazur Methode', isCorrect: true }),
       ]),
     );
   });

@@ -660,8 +660,8 @@
               Tippfehler und Schreibvarianten
             </legend>
             <p class="quiz-edit-form__fieldset-hint" i18n="@@quizEdit.shortTextConfigHint">
-              Lege fest, wie tolerant Kurzantworten bewertet werden und wann kleine Abweichungen
-              noch zählen.
+              Lege fest, welche Tippfehler noch zählen. Die Vorschau unten zeigt, ob daraus volle
+              Punkte, Teilpunkte oder keine Wertung werden.
             </p>
             <div class="quiz-edit-form__grid">
               <mat-form-field appearance="outline">
@@ -673,7 +673,7 @@
                 </mat-select>
               </mat-form-field>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label i18n="@@quizEdit.shortTextToleranceFieldLabel">Toleranz</mat-label>
                 <mat-select formControlName="shortTextToleranceLevel">
                   @for (option of shortTextToleranceOptions; track option.value) {
@@ -681,7 +681,9 @@
                   }
                 </mat-select>
                 <mat-hint i18n="@@quizEdit.shortTextToleranceHint"
-                  >Wirkt nur bei toleranter Bewertung.</mat-hint
+                  >Die Prozentwerte beschreiben die erlaubte Abweichung zur Musterlösung, nicht die
+                  Punktzahl. Niedrig ≈ 10 %, Mittel ≈ 20 %, Großzügig ≈ 30 %. Bei kurzen Begriffen
+                  wirkt dieselbe Stufe strenger.</mat-hint
                 >
               </mat-form-field>
 
@@ -770,9 +772,10 @@
                   class="quiz-edit-form__fieldset-hint"
                   i18n="@@quizEdit.shortTextTechnicalDetailsIntro"
                 >
-                  Auto wählt passend zwischen Hamming und Levenshtein. Hamming eignet sich für
-                  einzelne falsche Zeichen bei gleicher Länge, Levenshtein zusätzlich für fehlende
-                  oder extra Zeichen.
+                  Auto kombiniert exakte Treffer, Hamming, Damerau-Levenshtein und Levenshtein.
+                  Hamming eignet sich für einzelne falsche Zeichen bei gleicher Länge,
+                  Damerau-Levenshtein zusätzlich für vertauschte Nachbarbuchstaben, Levenshtein
+                  außerdem für fehlende oder extra Zeichen.
                 </p>
                 <div class="quiz-edit-form__short-text-toggle">
                   <mat-checkbox

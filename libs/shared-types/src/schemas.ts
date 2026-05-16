@@ -139,7 +139,12 @@ export const DEFAULT_SHORT_ANSWER_EVALUATION_SETTINGS: ShortAnswerEvaluationSett
   normalizeWhitespace: true,
 };
 
-type ShortAnswerEvaluationMethod = 'exact' | 'hamming' | 'levenshtein' | 'none';
+type ShortAnswerEvaluationMethod =
+  | 'exact'
+  | 'hamming'
+  | 'levenshtein'
+  | 'damerau_levenshtein'
+  | 'none';
 type ShortAnswerFeedbackCategory = 'exact_match' | 'minor_typo' | 'partial_match' | 'no_match';
 
 export interface EvaluateShortAnswerInput {
@@ -159,6 +164,7 @@ export interface EvaluateShortAnswerResult {
   similarity: number | null;
   evaluationMethod: ShortAnswerEvaluationMethod;
   feedbackCategory: ShortAnswerFeedbackCategory;
+  explanation: string;
 }
 
 const SHORT_TEXT_DISTANCE_BANDS = [
@@ -166,6 +172,14 @@ const SHORT_TEXT_DISTANCE_BANDS = [
   { maxDistance: 0.2, minRatio: 0.7, maxRatio: 0.8 },
   { maxDistance: 0.3, minRatio: 0.4, maxRatio: 0.6 },
 ] as const;
+
+const SHORT_TEXT_EVALUATION_METHOD_PRIORITY: Record<ShortAnswerEvaluationMethod, number> = {
+  exact: 0,
+  hamming: 1,
+  levenshtein: 2,
+  damerau_levenshtein: 3,
+  none: 4,
+};
 
 export function resolveShortAnswerEvaluationSettings(
   options?: ShortTextEvaluationOptions | null,
@@ -259,6 +273,59 @@ export function calculateLevenshteinDistance(modelAnswer: string, studentAnswer:
   return previousRow[studentAnswer.length];
 }
 
+export function calculateDamerauLevenshteinDistance(
+  modelAnswer: string,
+  studentAnswer: string,
+): number {
+  if (modelAnswer === studentAnswer) {
+    return 0;
+  }
+  if (!modelAnswer.length) {
+    return studentAnswer.length;
+  }
+  if (!studentAnswer.length) {
+    return modelAnswer.length;
+  }
+
+  const matrix = Array.from({ length: modelAnswer.length + 1 }, () =>
+    Array<number>(studentAnswer.length + 1).fill(0),
+  );
+
+  for (let modelIndex = 0; modelIndex <= modelAnswer.length; modelIndex += 1) {
+    matrix[modelIndex]![0] = modelIndex;
+  }
+  for (let studentIndex = 0; studentIndex <= studentAnswer.length; studentIndex += 1) {
+    matrix[0]![studentIndex] = studentIndex;
+  }
+
+  for (let modelIndex = 1; modelIndex <= modelAnswer.length; modelIndex += 1) {
+    for (let studentIndex = 1; studentIndex <= studentAnswer.length; studentIndex += 1) {
+      const substitutionCost =
+        modelAnswer[modelIndex - 1] === studentAnswer[studentIndex - 1] ? 0 : 1;
+
+      matrix[modelIndex]![studentIndex] = Math.min(
+        matrix[modelIndex - 1]![studentIndex]! + 1,
+        matrix[modelIndex]![studentIndex - 1]! + 1,
+        matrix[modelIndex - 1]![studentIndex - 1]! + substitutionCost,
+      );
+
+      if (
+        modelIndex > 1 &&
+        studentIndex > 1 &&
+        modelAnswer[modelIndex - 1] === studentAnswer[studentIndex - 2] &&
+        modelAnswer[modelIndex - 2] === studentAnswer[studentIndex - 1]
+      ) {
+        matrix[modelIndex]![studentIndex] = Math.min(
+          matrix[modelIndex]![studentIndex]!,
+          matrix[modelIndex - 2]![studentIndex - 2]! + 1,
+        );
+      }
+    }
+  }
+
+  return matrix[modelAnswer.length]![studentAnswer.length]!;
+}
+
 function createZeroShortAnswerResult(maxPoints: number): EvaluateShortAnswerResult {
   return {
     points: 0,
@@ -269,24 +336,134 @@ function createZeroShortAnswerResult(maxPoints: number): EvaluateShortAnswerResu
     similarity: null,
     evaluationMethod: 'none',
     feedbackCategory: 'no_match',
+    explanation: 'No model answer matched within the configured tolerance.',
   };
 }
 
-function resolveShortAnswerEvaluationMethod(
+function resolveShortAnswerEvaluationMethods(
   modelAnswer: string,
   studentAnswer: string,
   evaluationMode: ShortAnswerEvaluationMode,
-): ShortAnswerEvaluationMethod {
+): ShortAnswerEvaluationMethod[] {
+  // Stable pipeline: exact matches on explicit variants win first, then mode-specific
+  // distance methods run in deterministic priority order.
+  if (modelAnswer === studentAnswer) {
+    return ['exact'];
+  }
+
   switch (evaluationMode) {
     case 'exact':
-      return 'exact';
+      return ['exact'];
     case 'hamming':
-      return modelAnswer.length === studentAnswer.length ? 'hamming' : 'none';
+      return modelAnswer.length === studentAnswer.length
+        ? ['hamming', 'damerau_levenshtein']
+        : ['none'];
     case 'levenshtein':
-      return 'levenshtein';
+      return ['levenshtein', 'damerau_levenshtein'];
     case 'auto':
-      return modelAnswer.length === studentAnswer.length ? 'hamming' : 'levenshtein';
+      return modelAnswer.length === studentAnswer.length
+        ? ['hamming', 'damerau_levenshtein', 'levenshtein']
+        : ['levenshtein', 'damerau_levenshtein'];
   }
+}
+
+function resolveShortAnswerDistance(
+  modelAnswer: string,
+  studentAnswer: string,
+  evaluationMethod: ShortAnswerEvaluationMethod,
+): { distance: number | null; normalizedDistance: number | null } {
+  switch (evaluationMethod) {
+    case 'exact': {
+      const distance = modelAnswer === studentAnswer ? 0 : 1;
+      return { distance, normalizedDistance: distance };
+    }
+    case 'hamming': {
+      const distance = calculateHammingDistance(modelAnswer, studentAnswer);
+      return {
+        distance,
+        normalizedDistance: distance === null ? null : distance / Math.max(modelAnswer.length, 1),
+      };
+    }
+    case 'levenshtein': {
+      const distance = calculateLevenshteinDistance(modelAnswer, studentAnswer);
+      return {
+        distance,
+        normalizedDistance: distance / Math.max(modelAnswer.length, studentAnswer.length, 1),
+      };
+    }
+    case 'damerau_levenshtein': {
+      const distance = calculateDamerauLevenshteinDistance(modelAnswer, studentAnswer);
+      return {
+        distance,
+        normalizedDistance: distance / Math.max(modelAnswer.length, studentAnswer.length, 1),
+      };
+    }
+    case 'none':
+      return { distance: null, normalizedDistance: null };
+  }
+}
+
+function createShortAnswerExplanation(result: {
+  points: number;
+  maxPoints: number;
+  evaluationMethod: ShortAnswerEvaluationMethod;
+  feedbackCategory: ShortAnswerFeedbackCategory;
+  normalizedDistance: number | null;
+}): string {
+  if (result.feedbackCategory === 'no_match') {
+    switch (result.evaluationMethod) {
+      case 'exact':
+        return 'No exact match after normalization.';
+      case 'none':
+        return 'Configured comparison could not be applied to this answer length.';
+      default:
+        return 'Closest match stayed outside the configured tolerance.';
+    }
+  }
+
+  if (result.normalizedDistance === 0) {
+    return 'Exact match after normalization.';
+  }
+
+  const awardsFullPoints = result.points >= result.maxPoints && result.maxPoints > 0;
+  switch (result.evaluationMethod) {
+    case 'hamming':
+      return awardsFullPoints
+        ? 'Accepted minor same-length character difference within tolerance.'
+        : 'Partial credit for a minor same-length character difference.';
+    case 'levenshtein':
+      return awardsFullPoints
+        ? 'Accepted missing or additional character within tolerance.'
+        : 'Partial credit for a missing or additional character.';
+    case 'damerau_levenshtein':
+      return awardsFullPoints
+        ? 'Accepted adjacent transposition within tolerance.'
+        : 'Partial credit for an adjacent transposition.';
+    case 'exact':
+      return 'Exact match after normalization.';
+    case 'none':
+      return 'No supported comparison was available.';
+  }
+}
+
+function isBetterShortAnswerResult(
+  candidate: EvaluateShortAnswerResult,
+  current: EvaluateShortAnswerResult,
+): boolean {
+  if (candidate.points !== current.points) {
+    return candidate.points > current.points;
+  }
+
+  const candidateDistance = candidate.normalizedDistance ?? Number.POSITIVE_INFINITY;
+  const currentDistance = current.normalizedDistance ?? Number.POSITIVE_INFINITY;
+  if (candidateDistance !== currentDistance) {
+    return candidateDistance < currentDistance;
+  }
+
+  return (
+    SHORT_TEXT_EVALUATION_METHOD_PRIORITY[candidate.evaluationMethod] <
+    SHORT_TEXT_EVALUATION_METHOD_PRIORITY[current.evaluationMethod]
+  );
 }
 
 function calculateShortAnswerPoints(
@@ -361,74 +538,62 @@ export function evaluateShortAnswer(input: EvaluateShortAnswerInput): EvaluateSh
       continue;
     }
 
-    const evaluationMethod = resolveShortAnswerEvaluationMethod(
+    const evaluationMethods = resolveShortAnswerEvaluationMethods(
       normalizedModelAnswer,
       normalizedStudentAnswer,
       settings.evaluationMode,
     );
 
-    let distance: number | null = null;
-    let normalizedDistance: number | null = null;
+    for (const evaluationMethod of evaluationMethods) {
+      const { distance, normalizedDistance } = resolveShortAnswerDistance(
+        normalizedModelAnswer,
+        normalizedStudentAnswer,
+        evaluationMethod,
+      );
 
-    switch (evaluationMethod) {
-      case 'exact':
-        distance = normalizedModelAnswer === normalizedStudentAnswer ? 0 : 1;
-        normalizedDistance = distance;
-        break;
-      case 'hamming':
-        distance = calculateHammingDistance(normalizedModelAnswer, normalizedStudentAnswer);
-        normalizedDistance =
-          distance === null ? null : distance / Math.max(normalizedModelAnswer.length, 1);
-        break;
-      case 'levenshtein':
-        distance = calculateLevenshteinDistance(normalizedModelAnswer, normalizedStudentAnswer);
-        normalizedDistance =
-          distance / Math.max(normalizedModelAnswer.length, normalizedStudentAnswer.length, 1);
-        break;
-      case 'none':
-        break;
-    }
+      if (normalizedDistance === null) {
+        continue;
+      }
 
-    if (normalizedDistance === null) {
-      continue;
-    }
+      const threshold =
+        evaluationMethod === 'exact' ? 0 : SHORT_TEXT_TOLERANCE_THRESHOLDS[settings.toleranceLevel];
+      const similarity = Math.max(0, 1 - normalizedDistance);
+      const points = calculateShortAnswerPoints(
+        maxPoints,
+        normalizedDistance,
+        threshold,
+        settings.allowPartialCredit,
+      );
+      const feedbackCategory: ShortAnswerFeedbackCategory =
+        points <= 0
+          ? 'no_match'
+          : normalizedDistance === 0
+            ? 'exact_match'
+            : normalizedDistance <= 0.1
+              ? 'minor_typo'
+              : 'partial_match';
 
-    const threshold =
-      evaluationMethod === 'exact' ? 0 : SHORT_TEXT_TOLERANCE_THRESHOLDS[settings.toleranceLevel];
-    const similarity = Math.max(0, 1 - normalizedDistance);
-    const points = calculateShortAnswerPoints(
-      maxPoints,
-      normalizedDistance,
-      threshold,
-      settings.allowPartialCredit,
-    );
-    const feedbackCategory: ShortAnswerFeedbackCategory =
-      points <= 0
-        ? 'no_match'
-        : normalizedDistance === 0
-          ? 'exact_match'
-          : normalizedDistance <= 0.1
-            ? 'minor_typo'
-            : 'partial_match';
+      const result: EvaluateShortAnswerResult = {
+        points,
+        maxPoints,
+        matchedModelAnswer: modelAnswer,
+        distance,
+        normalizedDistance,
+        similarity,
+        evaluationMethod,
+        feedbackCategory,
+        explanation: createShortAnswerExplanation({
+          points,
+          maxPoints,
+          evaluationMethod,
+          feedbackCategory,
+          normalizedDistance,
+        }),
+      };
 
-    const result: EvaluateShortAnswerResult = {
-      points,
-      maxPoints,
-      matchedModelAnswer: modelAnswer,
-      distance,
-      normalizedDistance,
-      similarity,
-      evaluationMethod,
-      feedbackCategory,
-    };
-
-    if (
-      result.points > bestResult.points ||
-      (result.points === bestResult.points &&
-        (result.normalizedDistance ?? Number.POSITIVE_INFINITY) <
-          (bestResult.normalizedDistance ?? Number.POSITIVE_INFINITY))
-    ) {
-      bestResult = result;
+      if (isBetterShortAnswerResult(result, bestResult)) {
+        bestResult = result;
+      }
     }
   }
 

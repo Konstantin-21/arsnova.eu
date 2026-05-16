@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Smoke test for fuzzy SHORT_TEXT scoring with partial credit.
+ * Smoke test for deterministic SHORT_TEXT typo scoring with partial credit.
  *
  * Run:
  *   BASE_URL=http://localhost:4200/de TRPC_URL=http://localhost:3000/trpc npm run smoke:short-text -w @arsnova/frontend
@@ -26,7 +26,7 @@ const PARTIAL_RESULT_RE = /(teilweise gewertet|partially scored)\s*\((\d{1,3})\s
 const SHORT_TEXT_PROMPT =
   'Which teaching method lets learners vote, discuss briefly, and vote again?';
 const MODEL_ANSWER = 'Peer Instruction';
-const PARTIAL_ANSWER = 'Peer Instrction';
+const PARTIAL_ANSWER = 'Peer Instrcution';
 const PARTICIPANT_NAME = 'SmokeTester';
 
 const QUIZ_PAYLOAD = {
@@ -303,12 +303,12 @@ async function submitPartialAnswer(participant, hardFailures) {
 
   const confirmation = await waitForText(participant, /antwort gesendet|answer submitted/i, 10_000);
   if (confirmation) {
-    logStep(true, 'Participant submits partial-match answer', PARTIAL_ANSWER);
+    logStep(true, 'Participant submits transposed SHORT_TEXT answer', PARTIAL_ANSWER);
     return;
   }
 
   hardFailures.push('Participant did not receive a submit confirmation for the SHORT_TEXT answer.');
-  logStep(false, 'Participant submits partial-match answer');
+  logStep(false, 'Participant submits transposed SHORT_TEXT answer');
 }
 
 async function revealResults(host, participant, hardFailures) {

@@ -260,23 +260,23 @@ export class QuizEditComponent implements OnDestroy {
     {
       value: 'auto',
       label: $localize`:@@quizEdit.shortTextModeAutoLabel:Kleine Tippfehler erlauben`,
-      hint: $localize`:@@quizEdit.shortTextModeAutoHint:Wählt automatisch die passende Fehlertoleranz für Ersetzungen oder fehlende Zeichen.`,
+      hint: $localize`:@@quizEdit.shortTextModeAutoHint:Für die meisten Fachbegriffe: berücksichtigt exakte Treffer, kleine Tippfehler, Buchstabendreher und fehlende Zeichen.`,
     },
     {
       value: 'hamming',
       label: $localize`:@@quizEdit.shortTextModeHammingLabel:Gleiche Länge, kleine Buchstabendreher`,
-      hint: $localize`:@@quizEdit.shortTextModeHammingHint:Gut für einzelne falsche Zeichen bei gleicher Wortlänge.`,
+      hint: $localize`:@@quizEdit.shortTextModeHammingHint:Für gleich lange Begriffe mit einem falschen oder vertauschten Buchstaben.`,
     },
     {
       value: 'levenshtein',
       label: $localize`:@@quizEdit.shortTextModeLevenshteinLabel:Auch fehlende oder zusätzliche Zeichen erlauben`,
-      hint: $localize`:@@quizEdit.shortTextModeLevenshteinHint:Geeignet für Auslassungen oder zusätzliche Buchstaben.`,
+      hint: $localize`:@@quizEdit.shortTextModeLevenshteinHint:Für Begriffe mit einem fehlenden oder zusätzlichen Zeichen.`,
     },
   ];
 
   readonly shortTextToleranceOptions: Array<{ value: ToleranceLevel; label: string }> = [
     { value: 'none', label: $localize`:@@quizEdit.shortTextToleranceNone:Keine Toleranz` },
-    { value: 'low', label: $localize`:@@quizEdit.shortTextToleranceLow:Wenig` },
+    { value: 'low', label: $localize`:@@quizEdit.shortTextToleranceLow:Niedrig` },
     { value: 'medium', label: $localize`:@@quizEdit.shortTextToleranceMedium:Mittel` },
     { value: 'high', label: $localize`:@@quizEdit.shortTextToleranceHigh:Großzügig` },
   ];
@@ -724,7 +724,7 @@ export class QuizEditComponent implements OnDestroy {
     ];
     if ((question.shortTextEvaluationMode ?? SHORT_TEXT_DEFAULT_EVALUATION_MODE) !== 'exact') {
       parts.push(
-        $localize`:@@quizEdit.shortTextToleranceSummary:${this.shortTextToleranceLabel(question.shortTextToleranceLevel)}:tolerance: Toleranz`,
+        $localize`:@@quizEdit.shortTextToleranceSummary:Toleranz: ${this.shortTextToleranceLabel(question.shortTextToleranceLevel)}:tolerance:`,
       );
     }
     if (question.shortTextCaseSensitive) {
@@ -767,8 +767,8 @@ export class QuizEditComponent implements OnDestroy {
         studentAnswer: baseAnswer,
       },
       {
-        label: $localize`:@@quizEdit.shortTextPreviewTypoLabel:Kleiner Tippfehler`,
-        studentAnswer: this.createShortTextMinorTypo(baseAnswer),
+        label: this.shortTextEvaluationModeLabel('hamming'),
+        studentAnswer: this.createShortTextTranspositionExample(baseAnswer),
       },
       {
         label: $localize`:@@quizEdit.shortTextPreviewLengthLabel:Fehlendes oder zusätzliches Zeichen`,
@@ -830,15 +830,33 @@ export class QuizEditComponent implements OnDestroy {
       });
   }
 
-  private createShortTextMinorTypo(value: string): string {
-    if (value.length === 0) {
+  private createShortTextTranspositionExample(value: string): string {
+    if (value.length < 2) {
       return value;
     }
 
-    const index = Math.min(1, value.length - 1);
-    const currentChar = value[index] ?? 'x';
-    const replacement = currentChar.toLowerCase() === 'x' ? 'z' : 'x';
-    return `${value.slice(0, index)}${replacement}${value.slice(index + 1)}`;
+    const characters = [...value];
+    let swapIndex = -1;
+
+    for (let index = 1; index < characters.length - 1; index += 1) {
+      const current = characters[index];
+      const next = characters[index + 1];
+      if (current && next && /\S/u.test(current) && /\S/u.test(next) && current !== next) {
+        swapIndex = index;
+        break;
+      }
+    }
+
+    if (swapIndex === -1) {
+      swapIndex = 0;
+    }
+
+    [characters[swapIndex], characters[swapIndex + 1]] = [
+      characters[swapIndex + 1]!,
+      characters[swapIndex]!,
+    ];
+
+    return characters.join('');
   }
 
   private createShortTextLengthVariation(value: string): string {

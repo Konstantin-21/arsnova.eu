@@ -1364,7 +1364,114 @@ describe('SessionVoteComponent', () => {
     fixture.destroy();
   });
 
-  it('zeigt in RESULTS bei SHORT_TEXT die akzeptierten Lösungen statt Antwort-Buttons', async () => {
+  it('zaehlt bei normalisierten SHORT_TEXT-Eingaben dieselbe Laenge wie die Validierung', async () => {
+    getInfoQueryMock.mockResolvedValue({
+      id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
+      serverTime: MOCK_SERVER_TIME,
+      code: 'ABC123',
+      type: 'QUIZ',
+      status: 'ACTIVE',
+      quizName: 'Q',
+      title: null,
+      participantCount: 2,
+      teamMode: false,
+      enableRewardEffects: false,
+      preset: 'SERIOUS',
+      enableEmojiReactions: false,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: false, open: false, title: null, moderationMode: false },
+        quickFeedback: { enabled: false, open: false },
+      },
+    });
+    currentQuestionQueryMock.mockResolvedValue({
+      id: 'short-text-question-counter',
+      text: 'Nenne den Fachbegriff.',
+      type: 'SHORT_TEXT',
+      difficulty: 'MEDIUM',
+      order: 0,
+      totalQuestions: 1,
+      answers: [],
+      currentRound: 1,
+      shortTextMaxLength: 3,
+      shortTextCaseSensitive: false,
+      shortTextTrimWhitespace: true,
+      shortTextNormalizeWhitespace: true,
+      totalVotes: 0,
+      participantCount: 2,
+    });
+
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const component = fixture.componentInstance;
+    component.onTextVoteInput('  a   b  ');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const counter = host.querySelector('.vote-freetext__counter');
+    const input = host.querySelector('.vote-freetext__input--short');
+
+    expect(component.shortTextValidationError()).toBeNull();
+    expect(counter?.textContent).toContain('3/3');
+    expect(input?.getAttribute('maxlength')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('setzt bei strenger SHORT_TEXT-Laengenpruefung weiterhin eine native maxlength-Grenze', async () => {
+    getInfoQueryMock.mockResolvedValue({
+      id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
+      serverTime: MOCK_SERVER_TIME,
+      code: 'ABC123',
+      type: 'QUIZ',
+      status: 'ACTIVE',
+      quizName: 'Q',
+      title: null,
+      participantCount: 2,
+      teamMode: false,
+      enableRewardEffects: false,
+      preset: 'SERIOUS',
+      enableEmojiReactions: false,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: false, open: false, title: null, moderationMode: false },
+        quickFeedback: { enabled: false, open: false },
+      },
+    });
+    currentQuestionQueryMock.mockResolvedValue({
+      id: 'short-text-question-native-maxlength',
+      text: 'Nenne den Fachbegriff.',
+      type: 'SHORT_TEXT',
+      difficulty: 'MEDIUM',
+      order: 0,
+      totalQuestions: 1,
+      answers: [],
+      currentRound: 1,
+      shortTextMaxLength: 3,
+      shortTextCaseSensitive: false,
+      shortTextTrimWhitespace: false,
+      shortTextNormalizeWhitespace: false,
+      totalVotes: 0,
+      participantCount: 2,
+    });
+
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 50));
+    fixture.detectChanges();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector(
+      '.vote-freetext__input--short',
+    );
+
+    expect(input?.getAttribute('maxlength')).toBe('3');
+    fixture.destroy();
+  });
+
+  it('zeigt in RESULTS bei SHORT_TEXT die Musterlösungen statt Antwort-Buttons', async () => {
     getInfoQueryMock.mockResolvedValue({
       id: '6a8edced-5f8f-4cfa-9176-454fac9570ad',
       serverTime: MOCK_SERVER_TIME,
@@ -1415,6 +1522,7 @@ describe('SessionVoteComponent', () => {
     expect(host.querySelector('.vote-freetext__solutions')).not.toBeNull();
     expect(host.querySelector('.vote-answer')).toBeNull();
     expect(host.textContent).toContain('Paris');
+    expect(host.textContent).toContain('Musterlösungen');
     fixture.destroy();
   });
 
@@ -1468,6 +1576,10 @@ describe('SessionVoteComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('.vote-freetext__own--partial')).not.toBeNull();
     expect(host.textContent).toContain('Teilweise gewertet');
+    expect(host.textContent).toContain('Gewertet als Musterlösung „Paris“.');
+    expect(host.textContent).toContain(
+      'Ein fehlendes oder zusätzliches Zeichen lag noch innerhalb der Toleranz.',
+    );
     fixture.destroy();
   });
 

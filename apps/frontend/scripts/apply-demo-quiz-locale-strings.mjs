@@ -10,8 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const demoDir = path.join(__dirname, '../src/assets/demo');
 const md = String.raw;
 
-const EXPORT_VERSION = 22;
-const EXPORTED_AT = '2026-05-16T09:15:00.000Z';
+const EXPORT_VERSION = 23;
+const EXPORTED_AT = '2026-05-16T13:40:00.000Z';
 
 const EMOTION_IMAGE_URL =
   'https://upload.wikimedia.org/wikipedia/commons/b/b4/Sixteen_faces_expressing_the_human_passions._Wellcome_L0068375_%28cropped%29.jpg';
@@ -271,13 +271,14 @@ ${CODE_FENCE}`,
       {
         text: md`### Wie heißt die Methode, bei der Lernende erst individuell abstimmen, dann kurz diskutieren und anschließend erneut abstimmen?
 
-> **Unterrichtsidee:** Nutze das als anspruchsvolle Fachbegriffsfrage, um tolerante Kurzantworten mit kleinen Tippfehlern und Teilpunkten zu demonstrieren.
+> **Unterrichtsidee:** Nutze das als anspruchsvolle Fachbegriffsfrage, um explizite Varianten, kleine Buchstabendreher und transparente Kurzantwort-Bewertung mit Teilpunkten zu demonstrieren.
 
 Gesucht ist der etablierte didaktische Begriff für diesen Ablauf.`,
         answers: [
           { text: 'Peer Instruction', isCorrect: true },
           { text: 'Peer-Instruction', isCorrect: true },
           { text: 'Mazur-Methode', isCorrect: true },
+          { text: 'Mazur Methode', isCorrect: true },
         ],
       },
       {
@@ -402,13 +403,14 @@ ${CODE_FENCE}`,
       {
         text: md`### What is the teaching method called in which learners vote individually, discuss briefly, and then vote again?
 
-> **Teaching move:** Use this as a challenging term-recall prompt to demonstrate typo-tolerant short answers with partial credit.
+> **Teaching move:** Use this as a challenging term-recall prompt to demonstrate explicit variants, adjacent letter swaps, and transparent short-answer feedback with partial credit.
 
 We are looking for the established instructional term for this sequence.`,
         answers: [
           { text: 'Peer Instruction', isCorrect: true },
           { text: 'Peer-Instruction', isCorrect: true },
           { text: 'Mazur method', isCorrect: true },
+          { text: "Mazur's method", isCorrect: true },
         ],
       },
       {
@@ -533,13 +535,14 @@ ${CODE_FENCE}`,
       {
         text: md`### Comment appelle-t-on la méthode pédagogique où les apprenant·es votent d’abord individuellement, discutent brièvement, puis votent à nouveau ?
 
-> **Usage pédagogique :** Utilise cela comme question de rappel d’un terme spécialisé pour montrer la tolérance aux petites fautes de frappe et les points partiels en réponse courte.
+> **Usage pédagogique :** Utilise cela comme question de rappel d’un terme spécialisé pour montrer les variantes explicites, les petites inversions de lettres et un retour transparent en réponse courte avec points partiels.
 
 On cherche le terme didactique établi pour cette séquence.`,
         answers: [
           { text: 'Peer Instruction', isCorrect: true },
           { text: 'instruction par les pairs', isCorrect: true },
           { text: 'méthode Mazur', isCorrect: true },
+          { text: 'méthode de Mazur', isCorrect: true },
         ],
       },
       {
@@ -664,13 +667,14 @@ ${CODE_FENCE}`,
       {
         text: md`### ¿Cómo se llama el método didáctico en el que el alumnado vota primero de forma individual, luego debate brevemente y después vuelve a votar?
 
-> **Uso didáctico:** Úsalo como una pregunta exigente de recuerdo de conceptos para mostrar respuestas cortas tolerantes a pequeños errores y con puntos parciales.
+> **Uso didáctico:** Úsalo como una pregunta exigente de recuerdo de conceptos para mostrar variantes explícitas, letras vecinas intercambiadas y retroalimentación transparente en respuestas cortas con puntos parciales.
 
 Buscamos el término pedagógico establecido para esta secuencia.`,
         answers: [
           { text: 'Peer Instruction', isCorrect: true },
           { text: 'instrucción entre pares', isCorrect: true },
           { text: 'método Mazur', isCorrect: true },
+          { text: 'método de Mazur', isCorrect: true },
         ],
       },
       {
@@ -795,13 +799,14 @@ ${CODE_FENCE}`,
       {
         text: md`### Come si chiama il metodo didattico in cui chi apprende vota prima individualmente, poi discute brevemente e infine vota di nuovo?
 
-> **Uso didattico:** Usalo come domanda impegnativa di richiamo terminologico per mostrare risposte brevi tolleranti ai piccoli errori e con punti parziali.
+> **Uso didattico:** Usalo come domanda impegnativa di richiamo terminologico per mostrare varianti esplicite, piccole inversioni di lettere adiacenti e feedback trasparente nelle risposte brevi con punti parziali.
 
 Cerchiamo il termine didattico consolidato per questa sequenza.`,
         answers: [
           { text: 'Peer Instruction', isCorrect: true },
           { text: 'istruzione tra pari', isCorrect: true },
           { text: 'metodo Mazur', isCorrect: true },
+          { text: 'metodo di Mazur', isCorrect: true },
         ],
       },
       {

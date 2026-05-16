@@ -636,7 +636,7 @@ export class QuizPreviewComponent implements OnDestroy {
     ];
     if ((question.shortTextEvaluationMode ?? SHORT_TEXT_DEFAULT_EVALUATION_MODE) !== 'exact') {
       parts.push(
-        $localize`:@@quizEdit.shortTextToleranceSummary:${this.shortTextToleranceLabel(question.shortTextToleranceLevel)}:tolerance: Toleranz`,
+        $localize`:@@quizEdit.shortTextToleranceSummary:Toleranz: ${this.shortTextToleranceLabel(question.shortTextToleranceLevel)}:tolerance:`,
       );
     }
     if (question.shortTextCaseSensitive) {

@@ -4,7 +4,7 @@
 >
 > **Abhängigkeiten (Kernpfad):** Epic 0 → Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 ✅
 >
-> **Nächster Fokus (Auswahl offener Stories):** u. a. **0.7** (Last- & Performance-Tests), **0.8** (Komplexitätsabbau / McCabe-Refactor), **6.5**/**6.6** (Barrierefreiheit / UX-Testreihen), **1.2d–1.2i** (neue Fragentypen & Confidence), **1.6c** (Sync-Sicherheit), **8.5–8.8** (Q&A-Erweiterungen + Tempo-Livekanal) — **Epic 6** im Kern (6.1–6.4: Theme, i18n, Legal, Responsive) ist umgesetzt ✅. **Lehre:** Greenfield-Demo **1.7a** in **3×45 Min.** — [`docs/didaktik/greenfield-demo-1-7a-vorlesung.md`](docs/didaktik/greenfield-demo-1-7a-vorlesung.md).
+> **Nächster Fokus (Auswahl offener Stories):** u. a. **0.7** (Last- & Performance-Tests), **0.8** (Komplexitätsabbau / McCabe-Refactor), **6.5**/**6.6** (Barrierefreiheit / UX-Testreihen), **1.2d**, **1.2ea–1.2ed**, **1.2f–1.2i** (neue Fragentypen & deterministischer Kurzantwort-Ausbau), **1.6c** (Sync-Sicherheit), **8.5–8.8** (Q&A-Erweiterungen + Tempo-Livekanal) — **Epic 6** im Kern (6.1–6.4: Theme, i18n, Legal, Responsive) ist umgesetzt ✅. **Lehre:** Greenfield-Demo **1.7a** in **3×45 Min.** — [`docs/didaktik/greenfield-demo-1-7a-vorlesung.md`](docs/didaktik/greenfield-demo-1-7a-vorlesung.md).
 >
 > **Weitere Parallelpfade:** Epic 9 ✅ (Admin: Inspektion, Löschen, Auszug für Behörden) · Epic 10 ✅ (MOTD / Plattform-Kommunikation — ADR-0018, `docs/features/motd.md`)
 
@@ -28,7 +28,11 @@
 | 1    | 1.2b  | Fragentypen: Freitext & Umfrage                             | 🟡   | ✅ Fertig    |
 | 1    | 1.2c  | Fragentyp: Rating-Skala                                     | 🟡   | ✅ Fertig    |
 | 1    | 1.2d  | Numerische Schätzfrage (Toleranz, 2 Runden, Statistik)      | 🟡   | ⬜ Offen     |
-| 1    | 1.2e  | Fragentyp: Kurzantwort / Short Answer mit Musterlösung      | 🟡   | ⬜ Offen     |
+| 1    | 1.2e  | Fragentyp: Kurzantwort / Short Answer mit Musterlösung      | 🟡   | ✅ Fertig    |
+| 1    | 1.2ea | Kurzantwort: Textbewertung 2.0                              | 🟡   | ⬜ Offen     |
+| 1    | 1.2eb | Kurzantwort: Zahlen, Toleranz & Einheiten                   | 🟡   | ⬜ Offen     |
+| 1    | 1.2ec | Kurzantwort: Schlüsselwort-Gruppen & Teilpunkte             | 🟡   | ⬜ Offen     |
+| 1    | 1.2ed | Kurzantwort: Token-Ähnlichkeit & UX-Abschluss               | 🟡   | ⬜ Offen     |
 | 1    | 1.2f  | Fragentyp: Hotspot auf Bild                                 | 🟡   | ⬜ Offen     |
 | 1    | 1.2g  | Fragentyp: Zuordnung / Matching                             | 🟡   | ⬜ Offen     |
 | 1    | 1.2h  | Fragentyp: Reihenfolge / Sortieren                          | 🟡   | ⬜ Offen     |
@@ -117,7 +121,7 @@
 | 10   | 10.7  | MOTD: Header-Icon, Archiv, Lazy Load, i18n-Inhalte          | 🟡   | ✅ Fertig    |
 | 10   | 10.8  | MOTD: Härtung (Sanitize, A11y, Audit, Tests)                | 🟡   | ✅ Fertig    |
 
-> **Repo-Abgleich (Codebase 2026-05-13):** Die weiterhin **offenen bzw. laufenden** Stories sind durch den Stand im Monorepo begründet: u. a. kein Fragentyp numerische Schätzung und kein eigener Typ für bewertbare Kurzantwort in `QuestionTypeEnum` (`libs/shared-types`); Q&A-`moderatorView` ist weiterhin an Host-Authentifizierung gebunden, **kein** eigener Moderator-Token/-Rollenpfad; noch **kein** vierter Session-Kanal für kontinuierliches Tempo-Feedback im Session-Modell. **Teilweise umgesetzt** ist inzwischen **0.7**: ausführbare protokollnahe Lasttest-Skripte liegen unter `scripts/load/` (u. a. `k6-trpc-health-50vu.js`, `k6-trpc-session-50vu.js`), zusätzlich existieren Frontend-Smoke-Flows wie `smoke:unified-session`; offen bleiben aber das vollständige Artillery-/Realtime-E2E-Setup, CI-Anbindung, maschinenlesbare Ergebnisaggregation und die breite Szenarioabdeckung gemäß Story 0.7. **Umgesetzt** sind jetzt u. a. **0.4a** (Session-Tagesrekord-Verlauf im Server-Status-Hilfedialog mit `DailyStatistic`, `dailyHighscores` und Chart im Hilfe-Dialog), **1.14** (interaktive Freitext-Wortwolke mit `d3-cloud`-Layout und Export), **2.1c** (Host-/Presenter-Härtung via Host-Token und `hostProcedure`), **8.6/8.7** (Q&A-Sortiermodi `Top` / `Beste Fragen` / `Umstritten` inklusive Wilson-/Kontroversitätsberechnung im Router) sowie die besitzgebundene Quiz-Historie per `accessProof` ohne eigene Story-ID. Die **✅-Einträge** wurden stichprobenartig nicht widerlegt. _Ohne eigene Story-ID:_ Rekord **max. Teilnehmende pro Session** in `health.stats` / Hilfe-Seite (`PlatformStatistic`, u. a. Migration `platform_statistic_max_participants`).
+> **Repo-Abgleich (Codebase 2026-05-16):** Die weiterhin **offenen bzw. laufenden** Stories sind durch den Stand im Monorepo begründet: u. a. **kein** Fragentyp numerische Schätzung; `SHORT_TEXT` ist inzwischen als **eigener bewertbarer Typ** in `QuestionTypeEnum` (`libs/shared-types`) vorhanden, offen bleiben dort aber der **weiterführende deterministische Ausbau** für Zahlen/Einheiten, Schlüsselwort-Gruppen, token-basierte Mehrwortbewertung und die dazugehörige UX-Vervollständigung; Q&A-`moderatorView` ist weiterhin an Host-Authentifizierung gebunden, **kein** eigener Moderator-Token/-Rollenpfad; noch **kein** vierter Session-Kanal für kontinuierliches Tempo-Feedback im Session-Modell. **Teilweise umgesetzt** ist inzwischen **0.7**: ausführbare protokollnahe Lasttest-Skripte liegen unter `scripts/load/` (u. a. `k6-trpc-health-50vu.js`, `k6-trpc-session-50vu.js`), zusätzlich existieren Frontend-Smoke-Flows wie `smoke:unified-session`; offen bleiben aber das vollständige Artillery-/Realtime-E2E-Setup, CI-Anbindung, maschinenlesbare Ergebnisaggregation und die breite Szenarioabdeckung gemäß Story 0.7. **Umgesetzt** sind jetzt u. a. **0.4a** (Session-Tagesrekord-Verlauf im Server-Status-Hilfedialog mit `DailyStatistic`, `dailyHighscores` und Chart im Hilfe-Dialog), **1.2e** (`SHORT_TEXT` mit deterministischer Textbewertung, Teilpunkten und Editor-/Host-Flows), **1.14** (interaktive Freitext-Wortwolke mit `d3-cloud`-Layout und Export), **2.1c** (Host-/Presenter-Härtung via Host-Token und `hostProcedure`), **8.6/8.7** (Q&A-Sortiermodi `Top` / `Beste Fragen` / `Umstritten` inklusive Wilson-/Kontroversitätsberechnung im Router) sowie die besitzgebundene Quiz-Historie per `accessProof` ohne eigene Story-ID. Die **✅-Einträge** wurden stichprobenartig nicht widerlegt. _Ohne eigene Story-ID:_ Rekord **max. Teilnehmende pro Session** in `health.stats` / Hilfe-Seite (`PlatformStatistic`, u. a. Migration `platform_statistic_max_participants`).
 >
 > **Legende Status:** ⬜ Offen · 🔨 In Arbeit · ✅ Fertig (DoD erfüllt) · ❌ Blockiert
 >
@@ -304,7 +308,7 @@ Eine Story gilt als **fertig**, wenn **alle** folgenden Kriterien erfüllt sind:
 
 ## Epic 1: Quiz-Verwaltung (Rolle: Lehrperson / Ersteller:in)
 
-> **Verifizierung Epic 1 (2026-03-09, ergänzt 2026-04-01, 2026-04-07, 2026-04-17):** Die umgesetzten Kern-Stories in Epic 1 sind auf **✅ Fertig** gesetzt — siehe Übersichtstabelle. **Offen** bleiben aktuell **1.2d**, **1.2e**, **1.6c**, **1.6d**, **1.14a** (dort ⬜). **Story 1.7a** und **Story 1.7b** sind umgesetzt und auf **✅ Fertig** gesetzt.
+> **Verifizierung Epic 1 (2026-03-09, ergänzt 2026-04-01, 2026-04-07, 2026-04-17, 2026-05-16):** Die umgesetzten Kern-Stories in Epic 1 sind auf **✅ Fertig** gesetzt — siehe Übersichtstabelle. **Offen** bleiben aktuell **1.2d**, **1.2ea–1.2ed**, **1.2f–1.2i**, **1.6c**, **1.6d**, **1.14a** (dort ⬜). **Story 1.2e**, **Story 1.7a** und **Story 1.7b** sind umgesetzt und auf **✅ Fertig** gesetzt.
 > Frontend-Checks: `npm run typecheck -w @arsnova/frontend` ✅, `npm run test -w @arsnova/frontend -- src/app/features/quiz` ✅ (54/54).  
 > Ergänzend abgeschlossen: Styleguide-/DoD-Nacharbeiten (Lesbarkeit/Spacing, Wording-Konsistenz, deutsches Datumsformat `de-DE`, Fehlerfokus auf erstes ungültiges Feld, Entfernung fragiler `::ng-deep`-Selektoren im Quiz-Feature, Preview-Interaktions- und Markdown/KaTeX-Rendering-Korrekturen).
 
@@ -350,36 +354,91 @@ Eine Story gilt als **fertig**, wenn **alle** folgenden Kriterien erfüllt sind:
     - **Tests:** Unit-Tests für Toleranzlogik, Parsing, Rundung/Grenzfälle (\(V=0\), leere Runde 2); mindestens ein Integrationstest-Pfad für Zwei-Runden-Speicherung; Frontend-Specs für kritische Validierung wo sinnvoll.
     - **i18n (ADR-0008):** Alle neuen UI-Strings (Lehrperson, Host, Teilnehmende, Fehlermeldungen) in **de, en, fr, es, it**.
   - **Abhängigkeiten:** Story **1.7** (Markdown/KaTeX), Story **1.3** (Antwortlogik ggf. erweitern; klären ob Antwortoptionen entfallen), Story **2.7** (Peer-Instruction-/Zweirunden-Flow als fachliches Vorbild), Story **3.3b** (Abstimmung), Story **4.1** / **4.4** (Scoring & Visualisierung), Story **2.4** (Data-Stripping).
-- **Story 1.2e (Fragentyp: Kurzantwort / Short Answer mit Musterlösung):** 🟡 Als Lehrperson möchte ich **bewertbare Kurzantwort-Fragen** stellen können, bei denen Teilnehmende ein **kurzes Wort oder eine kurze Phrase** eingeben und das System diese Antwort anhand von **vordefinierten Musterlösungen** automatisch als richtig oder falsch bewertet.
+- **Story 1.2e (Fragentyp: Kurzantwort / Short Answer mit Musterlösung):** 🟡 Als Lehrperson möchte ich **bewertbare Kurzantwort-Fragen** stellen können, bei denen Teilnehmende ein **kurzes Wort oder eine kurze Phrase** eingeben und das System diese Antwort anhand von **vordefinierten Musterlösungen** sowie einer **deterministischen Textbewertung ohne KI/LLM** automatisch bewertet.
   - **Akzeptanzkriterien:**
     - **Neuer Fragentyp:** Neuer Typ `SHORT_TEXT` (oder fachlich gleichwertige Benennung) in `@arsnova/shared-types`, klar getrennt von `FREETEXT`.
-    - **Abgrenzung zu Freitext:** `FREETEXT` bleibt **offen, unbewertet und ohne Musterlösung**. Der neue Typ ist **bewertbar** und für kurze, erwartbare Antworten gedacht.
+    - **Abgrenzung zu Freitext:** `FREETEXT` bleibt **offen, unbewertet und ohne Musterlösung**. `SHORT_TEXT` ist **bewertbar** und für kurze, erwartbare Antworten gedacht.
     - **Editor (Lehrperson):** Im Quiz-Editor kann die Lehrperson für eine Kurzantwort-Frage
       - eine oder mehrere **gültige Musterlösungen** hinterlegen,
       - optional **alternative Schreibweisen** ergänzen,
       - die **maximale Antwortlänge** konfigurieren oder einen sinnvollen Standardwert übernehmen,
-      - festlegen, ob **Groß-/Kleinschreibung relevant** ist.
+      - festlegen, ob **Groß-/Kleinschreibung relevant** ist,
+      - einen **deterministischen Bewertungsmodus** mit lehrkraftfreundlicher Beschriftung wählen.
+    - **Deterministische Bewertung:** Die erste Ausbaustufe unterstützt mindestens **exakten Vergleich**, **Hamming**, **Levenshtein** und einen **Auto-Modus** (oder fachlich gleichwertige Benennung) sowie **Toleranzstufen** für kleine Schreibfehler.
     - **Normalisierung:** Vor dem Vergleich werden Eingaben auf Client und Server nach denselben Regeln normalisiert. Mindestens:
       - führende und nachgestellte Leerzeichen entfernen,
       - Mehrfach-Leerzeichen im Inneren vereinheitlichen,
       - optional Groß-/Kleinschreibung ignorieren.
-    - **Nicht-Ziel im ersten Schritt:** Kein semantisches Matching, keine KI-Auswertung, keine Fuzzy-Suche, keine automatische Tippfehler-Toleranz.
+    - **Teilpunkte:** Kleine, innerhalb der konfigurierten Toleranz liegende Abweichungen können **Teilpunkte** erhalten; außerhalb der Toleranz gibt es **0 Punkte**.
+    - **Nicht-Ziel im ersten Schritt:** Kein semantisches Matching, keine KI-Auswertung, keine Embeddings und keine freie inhaltliche Interpretation fachlich ähnlicher Aussagen.
     - **Teilnehmenden-UI:** Die Antwort erfolgt über ein kompaktes Texteingabefeld für kurze Antworten, nicht über eine große Freitextbox.
     - **Validierung:** Leere Eingaben werden abgewiesen. Antworten oberhalb der zulässigen Länge werden mit einer **lokalisierten** Fehlermeldung abgewiesen; es wird kein Vote gespeichert/gesendet.
-    - **Wertung:** Die Antwort gilt als **richtig**, wenn sie nach Normalisierung exakt einer hinterlegten Musterlösung entspricht; sonst falsch.
+    - **Lehrkraft-UX:** Der Editor bietet eine **Bewertungsvorschau** mit Beispielantworten sowie einen **didaktischen Warnhinweis**, dass die automatische Bewertung Schreibähnlichkeit erkennt, aber keine semantisch gleichwertigen Antworten versteht.
+    - **Teilnehmenden-Feedback:** Nach der Ergebnisfreigabe erhalten Teilnehmende ein **verständliches Ergebnislabel**; technische Begriffe erscheinen nur in einem aufklappbaren Bereich **„Technische Details“**.
     - **Scoring:** Kurzantwort-Fragen nehmen regulär am Quiz-Scoring teil wie andere bewertbare Fragetypen.
     - **Data Stripping:** Während `ACTIVE` erhalten Teilnehmende **keine** Information über Musterlösungen oder Korrektheit. `isCorrect` und richtige Lösungen werden erst in `RESULTS` offengelegt.
     - **Ergebnis-Visualisierung:** In der Host-/Presenter-Ansicht werden mindestens angezeigt:
-      - Anzahl richtiger und falscher Antworten,
+      - Anzahl richtiger, teilkorrekter und falscher Antworten,
       - die hinterlegten Musterlösungen,
-      - optional aggregierte falsche Eingaben in gekürzter Form, soweit datenschutz- und UX-seitig vertretbar.
-    - **Import/Export:** Der Fragetyp samt Musterlösungen ist im Quiz-JSON vollständig serialisierbar. Der Ergebnisexport behandelt Kurzantworten getrennt von offenem Freitext; mindestens richtige/falsche Anzahl und Musterlösungen sind exportierbar.
-    - **Tests:** Es gibt Unit-/Komponententests für
-      - Normalisierung,
-      - korrekte/falsche Bewertung,
-      - Data-Stripping im aktiven Zustand,
-      - Editor-Validierung,
-      - Import/Export des Fragetypen.
+      - aggregierte Teilnehmenden-Antworten unter einer kanonischen Musterlösung, soweit datenschutz- und UX-seitig vertretbar.
+    - **Import/Export:** Der Fragetyp samt Bewertungsoptionen ist im Quiz-JSON vollständig serialisierbar. Der Ergebnisexport behandelt Kurzantworten getrennt von offenem Freitext.
+    - **Tests:** Es gibt Unit-/Komponententests für Normalisierung, korrekte/teilkorrekte/falsche Bewertung, Data-Stripping im aktiven Zustand, Editor-Vorschau und Import/Export des Fragetypen.
+  - **Abhängigkeiten:** Story **1.3** (Antwortlogik), Story **2.4** (Data-Stripping), Story **3.3a/b** (Teilnehmenden-Flow), Story **4.1** / **4.4** (Scoring & Ergebnisvisualisierung), Story **4.7** (Ergebnisexport), Story **6.2** (i18n).
+- **Story 1.2ea (Kurzantwort: Textbewertung 2.0):** 🟡 Als Lehrperson möchte ich die bestehende Kurzantwort-Bewertung um **robustere deterministische Textregeln** erweitern, damit **Buchstabendreher**, kleine Varianten und reproduzierbare Erklärtexte ohne semantische KI fairer behandelt werden.
+  - **Akzeptanzkriterien:**
+    - **Aufbau auf Story 1.2e:** Die vorhandenen Modi aus Story **1.2e** bleiben erhalten; die Erweiterung ergänzt sie, statt eine zweite parallele Bewertungslogik einzuführen.
+    - **Buchstabendreher:** Die deterministische Bewertung unterstützt zusätzlich **Damerau-Levenshtein** oder ein fachlich gleichwertiges transpositionssensitives Verfahren, damit vertauschte benachbarte Buchstaben nicht wie ein vollständig falscher Begriff behandelt werden.
+    - **Explizite Varianten zuerst:** Hinterlegte Musterlösungen und alternative Schreibweisen werden **vor** jeder Distanzbewertung geprüft; ein exakter Variantentreffer ergibt stets die volle Punktzahl.
+    - **Feste Bewertungs-Pipeline:** Die Reihenfolge der Textbewertung ist dokumentiert und stabil, mindestens: Normalisierung, exakter Treffer, Varianten, Distanzverfahren, Punktzuordnung.
+    - **Deterministisches Tie-Breaking:** Liefern mehrere Verfahren dasselbe Ergebnis, entscheidet eine feste Priorität, damit die Bewertung reproduzierbar bleibt.
+    - **Ergebnisstruktur:** Die Bewertungsfunktion liefert zusätzlich mindestens `matchedModelAnswer`, verwendete Methode, Distanz bzw. Ähnlichkeit, Feedback-Kategorie und einen kurzen Erklärtext.
+    - **Bewertungsvorschau:** Der Editor zeigt Beispielantworten für mindestens exakten Treffer, Buchstabendreher, fehlenden/zusätzlichen Buchstaben und klar falschen Begriff.
+    - **Teilnehmenden-Feedback:** Die Standardansicht bleibt lehr-/lernfreundlich; technische Begriffe wie Hamming, Levenshtein oder Damerau-Levenshtein erscheinen nur in **„Technische Details“**.
+    - **Import/Export:** Die zusätzlichen Textbewertungsoptionen bleiben beim Quiz-Import/-Export vollständig erhalten.
+    - **Tests:** Es gibt Tests für Transpositionen, stabile Tie-Breaks, Erklärtexte und Vorschau-Beispiele.
+  - **Abhängigkeiten:** Story **1.2e**, Story **1.3**, Story **2.4**, Story **4.1**, Story **4.4**, Story **6.2**.
+- **Story 1.2eb (Kurzantwort: Zahlen, Toleranz & Einheiten):** 🟡 Als Lehrperson möchte ich **numerische Kurzantworten mit Toleranzen und einfachen Einheiten** automatisch bewerten können, damit Rechen- und Fachantworten nicht nur als Zeichenkette behandelt werden.
+  - **Akzeptanzkriterien:**
+    - **Zusätzliche Bewertungsmodi:** Im Bereich **„Antwortbewertung“** gibt es zusätzlich mindestens die Modi **„Zahlen bewerten“** und **„Zahlen und Einheiten bewerten“**.
+    - **Numerisches Parsing:** Wenn ein numerischer Modus aktiv ist, erfolgt die Bewertung primär über geparste Zahlenwerte, **nicht** über Zeichenähnlichkeit.
+    - **Toleranzarten:** Die Lehrperson kann mindestens wählen zwischen **exakter Zahl**, **absoluter Toleranz** und **relativer Toleranz in Prozent**.
+    - **Zahlenformat:** Dezimalzahlen mit im Unterricht üblichen Schreibweisen werden robust verarbeitet; die zulässigen Formate sind dokumentiert und durch Tests abgesichert.
+    - **Einheitenmodus:** Bei aktivierter Einheitenbewertung kann die Lehrperson festlegen,
+      - ob **gleichwertige Einheiten** akzeptiert werden,
+      - ob eine Einheit **verpflichtend** ist.
+    - **Kuratiertes Einheitenset:** Die erste Version unterstützt eine dokumentierte, begrenzte Menge einfacher Einheitenfamilien (z. B. Länge, Masse, Zeit, Volumen); es gibt keine freie semantische Einheiteninterpretation.
+    - **Umrechnung:** Gleichwertige Einheiten werden vor der Bewertung in eine gemeinsame Basiseinheit überführt.
+    - **Teilpunkte / Fehlende Einheit:** Wenn `requireUnit` aktiv ist und der Zahlenwert stimmt, aber die Einheit fehlt oder falsch ist, erhält die Antwort **nicht** die volle Punktzahl; die Abweichung wird im Ergebnis erklärt.
+    - **Bewertungsvorschau:** Der Editor zeigt Beispielantworten für Treffer innerhalb der Toleranz, äquivalente Einheit, fehlende Einheit und klar falschen Zahlenwert.
+    - **Data Stripping & Export:** Während `ACTIVE` bleiben Musterwerte und interne Bewertungsdetails verborgen; Toleranz- und Einheitenoptionen sind vollständig serialisierbar.
+    - **Tests:** Es gibt Tests für exakte Zahl, absolute Toleranz, relative Toleranz, äquivalente Einheit, fehlende Einheit und nicht unterstützte Einheit.
+  - **Abhängigkeiten:** Story **1.2e**, Story **1.3**, Story **2.4**, Story **3.3b**, Story **4.1**, Story **4.4**, Story **4.7**, Story **6.2**.
+- **Story 1.2ec (Kurzantwort: Schlüsselwort-Gruppen & Teilpunkte):** 🟡 Als Lehrperson möchte ich **Kurzantworten über hinterlegte Schlüsselwort-Gruppen** teilweise bewerten können, damit kurze offene Fachantworten **ohne KI** nachvollziehbar und fairer bepunktet werden.
+  - **Akzeptanzkriterien:**
+    - **Neuer Bewertungsmodus:** Im Bereich **„Antwortbewertung“** gibt es den Modus **„Mit Schlüsselbegriffen bewerten“**.
+    - **Keyword-Gruppen im Editor:** Die Lehrperson kann **Schlüsselwort-Gruppen** anlegen; jede Gruppe enthält mindestens einen Anzeigenamen, eine oder mehrere akzeptierte Formulierungen und optional eine Punktezahl.
+    - **Maximal ein Treffer pro Gruppe:** Innerhalb einer Gruppe zählt höchstens **ein** Treffer, auch wenn mehrere Varianten derselben Gruppe in der Antwort vorkommen.
+    - **Teilpunkte:** Die Gesamtpunktzahl ergibt sich aus den erkannten Gruppen; doppelte Nennungen derselben Gruppe bringen keine Zusatzpunkte.
+    - **Gemeinsame Normalisierung:** Schlüsselwörter und Teilnehmenden-Antworten werden mit denselben Normalisierungsregeln verarbeitet wie andere Kurzantwort-Modi.
+    - **Keine semantische Ableitung:** Es werden ausschließlich explizit hinterlegte Begriffe und Formulierungen erkannt; freie, nicht hinterlegte Paraphrasen führen nicht automatisch zu Punkten.
+    - **Ergebnisstruktur:** Die Bewertung liefert mindestens erkannte Gruppen, fehlende Gruppen, verwendete Methode und einen kurzen Erklärtext.
+    - **Bewertungsvorschau:** Der Editor zeigt Beispielantworten mit vollständigem, teilweisem und fehlendem Trefferbild.
+    - **Import/Export & Ergebnisexport:** Schlüsselwort-Gruppen bleiben im Quiz-JSON vollständig erhalten; der Ergebnisexport behandelt keyword-basierte Kurzantworten nachvollziehbar getrennt von offenem Freitext.
+    - **Tests:** Es gibt Tests für Einzeltreffer, mehrere Gruppen, doppelte Begriffe in einer Gruppe und Ergebnis-Erklärtexte.
+  - **Abhängigkeiten:** Story **1.2e**, Story **1.3**, Story **2.4**, Story **4.1**, Story **4.4**, Story **4.7**, Story **6.2**.
+- **Story 1.2ed (Kurzantwort: Token-Ähnlichkeit & UX-Abschluss):** 🟡 Als Lehrperson möchte ich **Mehrwort-Kurzantworten mit optional weniger strenger Wortreihenfolge** bewerten können und eine **konsistente, didaktisch verständliche UI** für alle deterministischen Kurzantwort-Modi erhalten.
+  - **Akzeptanzkriterien:**
+    - **Erweiterte Option:** Unter **„Weitere Einstellungen anzeigen“** gibt es die Option **„Wortreihenfolge weniger streng bewerten“**.
+    - **Deterministische Token-Bewertung:** Wenn die Option aktiv ist, wird für Mehrwortantworten zusätzlich eine deterministische Token-Ähnlichkeit verwendet, mindestens über **Token-Overlap** oder **Jaccard**.
+    - **Kein verstecktes Semantik-Matching:** Eine umgestellte Wortreihenfolge oder teilweise Token-Überdeckung darf nur dann zu Punkten führen, wenn die Option explizit aktiviert ist; es gibt keine semantische Begriffsableitung.
+    - **Gemeinsame Bewertungs-Pipeline:** Die Gesamtpipeline für Kurzantworten ist dokumentiert und stabil. Mindestens: Normalisierung, exakter Treffer, Varianten, numerische Prüfung, Einheitenprüfung, Zeichenähnlichkeit, Token-Ähnlichkeit, Schlüsselwortbewertung.
+    - **Stabiles Tie-Breaking:** Wenn mehrere Verfahren dieselbe Punktzahl liefern, wird das Ergebnis deterministisch nach einer festen Priorität ausgewählt.
+    - **Lehrkraftfreundliche Standardansicht:** Technische Begriffe wie Hamming, Levenshtein, Damerau-Levenshtein, Jaccard oder Token-Overlap erscheinen nur in **„Technische Details“**.
+    - **Warnhinweis:** Unterhalb der erweiterten Einstellungen steht ein lokalisierter Hinweis, dass die automatische Bewertung Schreibähnlichkeit, Zahlen, Einheiten und hinterlegte Schlüsselbegriffe erkennt, aber **nicht zuverlässig fachlich gleichwertige Aussagen** versteht.
+    - **Vorschauausbau:** Die Vorschau deckt zusätzlich Mehrwortfälle mit veränderter Reihenfolge und überlappenden Tokens ab.
+    - **Lokalisierung:** Alle neuen UI-Texte, Warnhinweise, Vorschautexte und technischen Detailtexte sind in **de, en, fr, es, it** vorhanden.
+    - **Smoke-/Regression-Checks:** Bestehende fokussierte Tests und Smoke-Flows für `SHORT_TEXT` werden so erweitert, dass Multiword-, Preview- und Ergebnispfade abgesichert sind.
+  - **Abhängigkeiten:** Story **1.2e**, Story **1.2ea**, Story **1.2eb**, Story **1.2ec**, Story **2.4**, Story **4.1**, Story **4.4**, Story **6.2**.
 - **Story 1.2f (Fragentyp: Hotspot auf Bild):** 🟡 Als Lehrperson möchte ich **Hotspot-Fragen auf Bildern** stellen können, damit Teilnehmende eine **Position oder Region auf einem Bild** markieren können, z. B. in Karten, Diagrammen, anatomischen Abbildungen, Fotos oder technischen Skizzen. Als Host möchte ich nach der Ergebnisfreigabe eine **aggregierte, beamer-taugliche Visualisierung** der Klicks/Taps sehen, um typische Fehlwahrnehmungen und Cluster schnell zu erkennen – **ohne** dass während der laufenden Antwortphase ein Herdeneffekt entsteht.
   - **Akzeptanzkriterien:**
     - **Neuer Fragentyp:** Neuer Typ `IMAGE_HOTSPOT` (oder fachlich gleichwertige Benennung) in `@arsnova/shared-types`, klar getrennt von textbasierten Antwortformaten.

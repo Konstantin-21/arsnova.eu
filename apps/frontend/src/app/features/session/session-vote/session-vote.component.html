@@ -1022,7 +1022,7 @@
                 [value]="freeTextValue()"
                 (input)="onTextVoteInput($any($event.target).value)"
                 [placeholder]="vpc.voteShortTextPlaceholder(isPlayfulPreset())"
-                [attr.maxlength]="shortTextMaxLength()"
+                [attr.maxlength]="shortTextNativeMaxLength()"
                 [disabled]="voteSent() || timerExpired()"
               />
               <div class="vote-freetext__meta">
@@ -1030,7 +1030,7 @@
                   class="vote-freetext__counter"
                   [class.vote-freetext__counter--warn]="shortTextValidationError() !== null"
                 >
-                  {{ freeTextValue().trim().length }}/{{ shortTextMaxLength() }}
+                  {{ shortTextNormalizedValue().length }}/{{ shortTextMaxLength() }}
                 </span>
               </div>
             </div>
@@ -1048,6 +1048,9 @@
                 </p>
                 @if (shortTextResultLabel()) {
                   <p class="vote-freetext__solutions-label">{{ shortTextResultLabel() }}</p>
+                }
+                @if (shortTextResultDetail()) {
+                  <p class="vote-freetext__result-detail">{{ shortTextResultDetail() }}</p>
                 }
               } @else {
                 <p class="vote-freetext__own vote-freetext__own--empty">

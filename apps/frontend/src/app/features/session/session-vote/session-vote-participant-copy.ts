@@ -367,9 +367,9 @@ export function voteFreetextEmpty(playful: boolean): string {
 
 export function voteShortTextSolutionsLabel(playful: boolean): string {
   if (playful) {
-    return $localize`:@@sessionVote.shortTextSolutionsPlayful:Gültige Lösungen:`;
+    return $localize`:@@sessionVote.shortTextSolutionsPlayful:Musterlösungen:`;
   }
-  return $localize`:@@sessionVote.shortTextSolutionsSerious:Akzeptierte Lösungen:`;
+  return $localize`:@@sessionVote.shortTextSolutionsSerious:Musterlösungen:`;
 }
 
 export function voteRatingResultPrefix(playful: boolean): string {

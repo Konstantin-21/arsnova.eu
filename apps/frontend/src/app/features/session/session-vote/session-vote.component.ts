@@ -1026,6 +1026,28 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
 
     return resolveShortTextMaxLength(q.shortTextMaxLength);
   });
+  readonly shortTextNormalizedValue = computed(() => {
+    const q = this.currentQuestion();
+    if (!q || !('type' in q) || q.type !== 'SHORT_TEXT') {
+      return this.freeTextValue();
+    }
+
+    return normalizeShortTextValue(this.freeTextValue(), {
+      caseSensitive: true,
+      trimWhitespace: q.shortTextTrimWhitespace ?? true,
+      normalizeWhitespace: q.shortTextNormalizeWhitespace ?? true,
+    });
+  });
+  readonly shortTextNativeMaxLength = computed(() => {
+    const q = this.currentQuestion();
+    if (!q || !('type' in q) || q.type !== 'SHORT_TEXT') {
+      return this.shortTextMaxLength();
+    }
+
+    const trimsWhitespace = q.shortTextTrimWhitespace ?? true;
+    const normalizesWhitespace = q.shortTextNormalizeWhitespace ?? true;
+    return trimsWhitespace || normalizesWhitespace ? null : this.shortTextMaxLength();
+  });
   readonly shortTextSolutions = computed(() => {
     const q = this.currentQuestion();
     if (!q || !('type' in q) || q.type !== 'SHORT_TEXT' || !('answers' in q)) {
@@ -1040,11 +1062,7 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
       return null;
     }
 
-    const value = normalizeShortTextValue(this.freeTextValue(), {
-      caseSensitive: true,
-      trimWhitespace: q.shortTextTrimWhitespace ?? true,
-      normalizeWhitespace: q.shortTextNormalizeWhitespace ?? true,
-    });
+    const value = this.shortTextNormalizedValue();
     const maxLength = this.shortTextMaxLength();
     if (value.length > maxLength) {
       return $localize`:@@sessionVote.shortTextTooLong:Maximal ${maxLength}:maxLength: Zeichen erlaubt.`;
@@ -1120,6 +1138,41 @@ export class SessionVoteComponent implements OnInit, OnDestroy {
     }
 
     return $localize`:@@sessionVote.shortTextResultRejected:Nicht akzeptiert`;
+  }
+
+  shortTextResultDetail(): string | null {
+    const result = this.shortTextEvaluationResult();
+    if (!result) {
+      return null;
+    }
+
+    if (result.points <= 0) {
+      return $localize`:@@sessionVote.shortTextResultReasonNoMatch:Keine Musterlösung lag innerhalb der eingestellten Toleranz.`;
+    }
+
+    if (result.normalizedDistance === 0) {
+      return null;
+    }
+
+    const matchedSolution = result.matchedModelAnswer
+      ? $localize`:@@sessionVote.shortTextResultMatchedSolution:Gewertet als Musterlösung „${result.matchedModelAnswer}:matchedModelAnswer:“.`
+      : null;
+    const reason = this.shortTextResultReason(result);
+
+    return matchedSolution ? `${matchedSolution} ${reason}` : reason;
+  }
+
+  private shortTextResultReason(result: ReturnType<typeof evaluateShortAnswer>): string {
+    switch (result.evaluationMethod) {
+      case 'hamming':
+        return $localize`:@@sessionVote.shortTextResultReasonHamming:Kleiner Tippfehler bei gleicher Länge lag noch innerhalb der Toleranz.`;
+      case 'damerau_levenshtein':
+        return $localize`:@@sessionVote.shortTextResultReasonDamerau:Ein Buchstabendreher lag noch innerhalb der Toleranz.`;
+      case 'levenshtein':
+        return $localize`:@@sessionVote.shortTextResultReasonLevenshtein:Ein fehlendes oder zusätzliches Zeichen lag noch innerhalb der Toleranz.`;
+      default:
+        return $localize`:@@sessionVote.shortTextResultReasonNoMatch:Keine Musterlösung lag innerhalb der eingestellten Toleranz.`;
+    }
   }
 
   private evaluateShortTextResponse(question: CurrentQuestion) {

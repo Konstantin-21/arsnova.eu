@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { evaluateShortAnswer } from '@arsnova/shared-types';
 import {
   calculateVoteScore,
   getStreakMultiplier,
@@ -132,6 +133,58 @@ describe('quizScoring', () => {
         shortTextAllowPartialCredit: false,
       }),
     ).toBe(2000);
+  });
+
+  it('erkennt benachbarte Buchstabendreher deterministisch im Auto-Modus', () => {
+    const result = evaluateShortAnswer({
+      modelAnswers: ['Photosynthese'],
+      studentAnswer: 'Photosynthees',
+      maxPoints: 100,
+      settings: {
+        evaluationMode: 'auto',
+        toleranceLevel: 'low',
+        allowPartialCredit: true,
+      },
+    });
+
+    expect(result.points).toBeGreaterThan(0);
+    expect(result.evaluationMethod).toBe('damerau_levenshtein');
+    expect(result.feedbackCategory).toBe('minor_typo');
+    expect(result.explanation).toContain('transposition');
+  });
+
+  it('bevorzugt exakte Varianten vor fuzzy Treffern auf andere Musterloesungen', () => {
+    const result = evaluateShortAnswer({
+      modelAnswers: ['Photosynthese', 'Photsosynthese'],
+      studentAnswer: 'Photsosynthese',
+      maxPoints: 100,
+      settings: {
+        evaluationMode: 'auto',
+        toleranceLevel: 'low',
+        allowPartialCredit: true,
+      },
+    });
+
+    expect(result.points).toBe(100);
+    expect(result.evaluationMethod).toBe('exact');
+    expect(result.matchedModelAnswer).toBe('Photsosynthese');
+    expect(result.explanation).toContain('Exact match');
+  });
+
+  it('nutzt bei gleichem Abstand eine stabile Methoden-Prioritaet', () => {
+    const result = evaluateShortAnswer({
+      modelAnswers: ['Paris'],
+      studentAnswer: 'Parix',
+      maxPoints: 100,
+      settings: {
+        evaluationMode: 'auto',
+        toleranceLevel: 'medium',
+        allowPartialCredit: true,
+      },
+    });
+
+    expect(result.evaluationMethod).toBe('hamming');
+    expect(result.explanation).toContain('same-length');
   });
 
   it('erkennt vollständig korrekte Auswahl auch bei gleicher Reihenfolge-unabhängiger Menge', () => {

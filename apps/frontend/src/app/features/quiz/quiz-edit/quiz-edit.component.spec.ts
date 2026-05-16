@@ -283,6 +283,58 @@ describe('QuizEditComponent', () => {
     expect(plainPreviewBadges).toHaveLength(0);
   });
 
+  it('erzeugt fuer SHORT_TEXT-Vorschauen ein Buchstabendreher-Beispiel', () => {
+    const fixture = TestBed.createComponent(QuizEditComponent);
+    const component = fixture.componentInstance;
+
+    component.form.controls.type.setValue('SHORT_TEXT');
+    component.onTypeChanged();
+    component.form.controls.shortTextToleranceLevel.setValue('high');
+    component.answersArray.at(0).controls.text.setValue('Paris');
+
+    const examples = component.shortTextPreviewExamples();
+    const transpositionExample = examples[1];
+
+    expect(transpositionExample).toBeDefined();
+    expect(transpositionExample?.label).toBe(component.shortTextEvaluationModeLabel('hamming'));
+    expect(transpositionExample?.studentAnswer).toBe('Prais');
+    expect(transpositionExample?.outcome).not.toContain('Nicht akzeptiert');
+  });
+
+  it('erklaert die SHORT_TEXT-Hinweise intuitiver', () => {
+    const fixture = TestBed.createComponent(QuizEditComponent);
+    const component = fixture.componentInstance;
+
+    component.questionFormPanelOpen.set(true);
+    component.form.controls.type.setValue('SHORT_TEXT');
+    component.onTypeChanged();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(component.shortTextToleranceLabel('low')).toBe('Niedrig');
+    expect(
+      component.shortTextEvaluationModeOptions.find((option) => option.value === 'auto')?.hint,
+    ).toContain('Für die meisten Fachbegriffe');
+    expect(host.textContent).toContain('Niedrig ≈ 10 %');
+    expect(host.textContent).toContain('Mittel ≈ 20 %');
+    expect(host.textContent).toContain('Großzügig ≈ 30 %');
+    expect(host.textContent).toContain('nicht die Punktzahl');
+    expect(host.textContent).toContain('Bei kurzen Begriffen wirkt dieselbe Stufe strenger');
+    expect(host.textContent).toContain('volle Punkte, Teilpunkte oder keine Wertung');
+    expect(
+      component.shortTextConfigSummary({
+        shortTextMaxLength: 32,
+        shortTextCaseSensitive: false,
+        shortTextEvaluationMode: 'auto',
+        shortTextToleranceLevel: 'medium',
+        shortTextAllowPartialCredit: true,
+        shortTextTrimWhitespace: true,
+        shortTextNormalizeWhitespace: true,
+      }),
+    ).toContain('Toleranz: Mittel');
+  });
+
   it('speichert eine FREETEXT-Frage ohne Antwortoptionen', () => {
     const fixture = TestBed.createComponent(QuizEditComponent);
     const component = fixture.componentInstance;

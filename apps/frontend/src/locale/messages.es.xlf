@@ -5522,8 +5522,8 @@
         </context-group>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextConfigHint" datatype="html">
-        <source>Lege fest, wie tolerant Kurzantworten bewertet werden und wann kleine Abweichungen noch zählen.</source>
-        <target>Define cuánta tolerancia debe tener la evaluación de respuestas cortas y cuándo pequeñas diferencias siguen contando.</target>
+        <source>Lege fest, welche Tippfehler noch zählen. Die Vorschau unten zeigt, ob daraus volle Punkte, Teilpunkte oder keine Wertung werden.</source>
+        <target>Decide qué errores tipográficos siguen contando. La vista previa de abajo muestra si eso da puntuación completa, puntos parciales o ningún punto.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/quiz/quiz-edit/quiz-edit.component.html</context>
           <context context-type="linenumber">662</context>
@@ -5664,16 +5664,16 @@
       <trans-unit id="quizEdit.shortTextModeExactLabel" datatype="html"><source>Nur exakt gleich</source><target>Solo coincidencia exacta</target></trans-unit>
       <trans-unit id="quizEdit.shortTextModeExactHint" datatype="html"><source>Akzeptiert nur identische Schreibweisen.</source><target>Solo acepta escrituras idénticas.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextModeAutoLabel" datatype="html"><source>Kleine Tippfehler erlauben</source><target>Permitir pequeños errores tipográficos</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextModeAutoHint" datatype="html"><source>Wählt automatisch die passende Fehlertoleranz für Ersetzungen oder fehlende Zeichen.</source><target>Elige automáticamente la tolerancia adecuada para sustituciones o caracteres faltantes.</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextModeAutoHint" datatype="html"><source>Für die meisten Fachbegriffe: berücksichtigt exakte Treffer, kleine Tippfehler, Buchstabendreher und fehlende Zeichen.</source><target>Para la mayoría de los términos técnicos: tiene en cuenta coincidencias exactas, pequeños errores tipográficos, letras transpuestas y caracteres faltantes.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextModeHammingLabel" datatype="html"><source>Gleiche Länge, kleine Buchstabendreher</source><target>Misma longitud, pequeños cambios de letras</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextModeHammingHint" datatype="html"><source>Gut für einzelne falsche Zeichen bei gleicher Wortlänge.</source><target>Adecuado para un solo carácter incorrecto si la longitud se mantiene.</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextModeHammingHint" datatype="html"><source>Für gleich lange Begriffe mit einem falschen oder vertauschten Buchstaben.</source><target>Para términos de la misma longitud con una letra incorrecta o intercambiada.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextModeLevenshteinLabel" datatype="html"><source>Auch fehlende oder zusätzliche Zeichen erlauben</source><target>Permitir también caracteres faltantes o adicionales</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextModeLevenshteinHint" datatype="html"><source>Geeignet für Auslassungen oder zusätzliche Buchstaben.</source><target>Adecuado para omisiones o letras adicionales.</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextModeLevenshteinHint" datatype="html"><source>Für Begriffe mit einem fehlenden oder zusätzlichen Zeichen.</source><target>Para términos con un carácter faltante o adicional.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceNone" datatype="html"><source>Keine Toleranz</source><target>Sin tolerancia</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextToleranceLow" datatype="html"><source>Wenig</source><target>Baja</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextToleranceLow" datatype="html"><source>Niedrig</source><target>Baja</target></trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceMedium" datatype="html"><source>Mittel</source><target>Media</target></trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceHigh" datatype="html"><source>Großzügig</source><target>Amplia</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextToleranceSummary" datatype="html"><source><x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/> Toleranz</source><target>Tolerancia <x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/></target></trans-unit>
+      <trans-unit id="quizEdit.shortTextToleranceSummary" datatype="html"><source>Toleranz: <x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/></source><target>Tolerancia: <x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/></target></trans-unit>
       <trans-unit id="quizEdit.shortTextFullCreditOnlySummary" datatype="html"><source>Nur volle Punkte</source><target>Solo puntos completos</target></trans-unit>
       <trans-unit id="quizEdit.shortTextWhitespaceStrictSummary" datatype="html"><source>Leerzeichen werden streng geprüft</source><target>Los espacios se comprueban estrictamente</target></trans-unit>
       <trans-unit id="quizEdit.shortTextDidacticWarning" datatype="html"><source>Verwende tolerante Bewertung nur bei eindeutigen Fachbegriffen. Für offene Formulierungen sind mehrere Musterlösungen meist fairer als hohe Toleranz.</source><target>Usa la evaluación tolerante solo con términos técnicos claramente definidos. Para formulaciones abiertas, varias soluciones modelo suelen ser más justas que una tolerancia alta.</target></trans-unit>
@@ -5687,12 +5687,12 @@
       <trans-unit id="quizEdit.shortTextPreviewOutcomeRejected" datatype="html"><source>Nicht akzeptiert</source><target>No aceptada</target></trans-unit>
       <trans-unit id="quizEdit.shortTextEvaluationModeFieldLabel" datatype="html"><source>Bewertung</source><target>Evaluación</target></trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceFieldLabel" datatype="html"><source>Toleranz</source><target>Tolerancia</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextToleranceHint" datatype="html"><source>Wirkt nur bei toleranter Bewertung.</source><target>Solo tiene efecto con evaluación tolerante.</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextToleranceHint" datatype="html"><source>Die Prozentwerte beschreiben die erlaubte Abweichung zur Musterlösung, nicht die Punktzahl. Niedrig ≈ 10 %, Mittel ≈ 20 %, Großzügig ≈ 30 %. Bei kurzen Begriffen wirkt dieselbe Stufe strenger.</source><target>Los porcentajes describen la desviación permitida respecto a la solución modelo, no la puntuación. Baja ≈ 10 %, media ≈ 20 %, amplia ≈ 30 %. En términos cortos, el mismo nivel resulta más estricto.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextAllowPartialCreditToggle" datatype="html"><source>Teilpunkte vergeben</source><target>Conceder puntos parciales</target></trans-unit>
       <trans-unit id="quizEdit.shortTextPreviewLegend" datatype="html"><source>So wirkt die Bewertung</source><target>Así actúa la evaluación</target></trans-unit>
       <trans-unit id="quizEdit.shortTextDidacticWarningLabel" datatype="html"><source>Didaktischer Hinweis:</source><target>Nota didáctica:</target></trans-unit>
       <trans-unit id="quizEdit.shortTextTechnicalDetailsToggle" datatype="html"><source>Technische Details anzeigen</source><target>Mostrar detalles técnicos</target></trans-unit>
-      <trans-unit id="quizEdit.shortTextTechnicalDetailsIntro" datatype="html"><source>Auto wählt passend zwischen Hamming und Levenshtein. Hamming eignet sich für einzelne falsche Zeichen bei gleicher Länge, Levenshtein zusätzlich für fehlende oder extra Zeichen.</source><target>El modo automático elige entre Hamming y Levenshtein. Hamming sirve para errores de un carácter con la misma longitud; Levenshtein también cubre caracteres faltantes o extra.</target></trans-unit>
+      <trans-unit id="quizEdit.shortTextTechnicalDetailsIntro" datatype="html"><source>Auto kombiniert exakte Treffer, Hamming, Damerau-Levenshtein und Levenshtein. Hamming eignet sich für einzelne falsche Zeichen bei gleicher Länge, Damerau-Levenshtein zusätzlich für vertauschte Nachbarbuchstaben, Levenshtein außerdem für fehlende oder extra Zeichen.</source><target>El modo automático combina coincidencia exacta, Hamming, Damerau-Levenshtein y Levenshtein. Hamming sirve para un solo carácter incorrecto con la misma longitud, Damerau-Levenshtein además maneja letras vecinas intercambiadas, y Levenshtein también cubre caracteres faltantes o extra.</target></trans-unit>
       <trans-unit id="quizEdit.shortTextTrimWhitespaceToggle" datatype="html"><source>Leerzeichen am Anfang und Ende ignorieren</source><target>Ignorar espacios al principio y al final</target></trans-unit>
       <trans-unit id="quizEdit.shortTextNormalizeWhitespaceToggle" datatype="html"><source>Mehrfache Leerzeichen zusammenfassen</source><target>Unir espacios repetidos</target></trans-unit>
       <trans-unit id="quizEdit.addShortTextSolution" datatype="html">
@@ -11288,16 +11288,16 @@
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.shortTextSolutionsPlayful" datatype="html">
-        <source>Gültige Lösungen:</source>
-        <target>Soluciones válidas:</target>
+        <source>Musterlösungen:</source>
+        <target>Respuestas modelo:</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">370</context>
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.shortTextSolutionsSerious" datatype="html">
-        <source>Akzeptierte Lösungen:</source>
-        <target>Respuestas aceptadas:</target>
+        <source>Musterlösungen:</source>
+        <target>Respuestas modelo:</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">372</context>
@@ -11315,6 +11315,11 @@
       <trans-unit id="sessionVote.shortTextResultAccepted" datatype="html"><source>Akzeptiert</source><target>Aceptada</target></trans-unit>
       <trans-unit id="sessionVote.shortTextResultPartial" datatype="html"><source>Teilweise gewertet (<x id="points" equiv-text="result.points"/> %)</source><target>Valorada parcialmente (<x id="points" equiv-text="result.points"/> %)</target></trans-unit>
       <trans-unit id="sessionVote.shortTextResultRejected" datatype="html"><source>Nicht akzeptiert</source><target>No aceptada</target></trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonNoMatch" datatype="html"><source>Keine Musterlösung lag innerhalb der eingestellten Toleranz.</source><target>Ninguna respuesta modelo quedó dentro de la tolerancia configurada.</target></trans-unit>
+      <trans-unit id="sessionVote.shortTextResultMatchedSolution" datatype="html"><source>Gewertet als Musterlösung „<x id="matchedModelAnswer" equiv-text="result.matchedModelAnswer"/>“.</source><target>Se ha asociado a la respuesta modelo « <x id="matchedModelAnswer" equiv-text="result.matchedModelAnswer"/> ».</target></trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonHamming" datatype="html"><source>Kleiner Tippfehler bei gleicher Länge lag noch innerhalb der Toleranz.</source><target>Un pequeño error tipográfico con la misma longitud seguía dentro de la tolerancia.</target></trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonDamerau" datatype="html"><source>Ein Buchstabendreher lag noch innerhalb der Toleranz.</source><target>Una transposición de letras seguía dentro de la tolerancia.</target></trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonLevenshtein" datatype="html"><source>Ein fehlendes oder zusätzliches Zeichen lag noch innerhalb der Toleranz.</source><target>Un carácter faltante o adicional seguía dentro de la tolerancia.</target></trans-unit>
       <trans-unit id="sessionVote.ratingResultPrefixPlayful" datatype="html">
         <source>Deine Wahl:</source>
         <target>Tu elección:</target>

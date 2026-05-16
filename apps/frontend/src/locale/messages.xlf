@@ -4933,7 +4933,7 @@
         </context-group>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextConfigHint" datatype="html">
-        <source>Lege fest, wie tolerant Kurzantworten bewertet werden und wann kleine Abweichungen noch zählen.</source>
+        <source>Lege fest, welche Tippfehler noch zählen. Die Vorschau unten zeigt, ob daraus volle Punkte, Teilpunkte oder keine Wertung werden.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/quiz/quiz-edit/quiz-edit.component.html</context>
           <context context-type="linenumber">662</context>
@@ -5066,25 +5066,25 @@
         <source>Kleine Tippfehler erlauben</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextModeAutoHint" datatype="html">
-        <source>Wählt automatisch die passende Fehlertoleranz für Ersetzungen oder fehlende Zeichen.</source>
+        <source>Für die meisten Fachbegriffe: berücksichtigt exakte Treffer, kleine Tippfehler, Buchstabendreher und fehlende Zeichen.</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextModeHammingLabel" datatype="html">
         <source>Gleiche Länge, kleine Buchstabendreher</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextModeHammingHint" datatype="html">
-        <source>Gut für einzelne falsche Zeichen bei gleicher Wortlänge.</source>
+        <source>Für gleich lange Begriffe mit einem falschen oder vertauschten Buchstaben.</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextModeLevenshteinLabel" datatype="html">
         <source>Auch fehlende oder zusätzliche Zeichen erlauben</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextModeLevenshteinHint" datatype="html">
-        <source>Geeignet für Auslassungen oder zusätzliche Buchstaben.</source>
+        <source>Für Begriffe mit einem fehlenden oder zusätzlichen Zeichen.</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceNone" datatype="html">
         <source>Keine Toleranz</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceLow" datatype="html">
-        <source>Wenig</source>
+        <source>Niedrig</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceMedium" datatype="html">
         <source>Mittel</source>
@@ -5093,7 +5093,7 @@
         <source>Großzügig</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceSummary" datatype="html">
-        <source><x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/> Toleranz</source>
+        <source>Toleranz: <x id="tolerance" equiv-text="this.shortTextToleranceLabel(question.shortTextToleranceLevel)"/></source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextFullCreditOnlySummary" datatype="html">
         <source>Nur volle Punkte</source>
@@ -5135,7 +5135,7 @@
         <source>Toleranz</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextToleranceHint" datatype="html">
-        <source>Wirkt nur bei toleranter Bewertung.</source>
+        <source>Die Prozentwerte beschreiben die erlaubte Abweichung zur Musterlösung, nicht die Punktzahl. Niedrig ≈ 10 %, Mittel ≈ 20 %, Großzügig ≈ 30 %. Bei kurzen Begriffen wirkt dieselbe Stufe strenger.</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextAllowPartialCreditToggle" datatype="html">
         <source>Teilpunkte vergeben</source>
@@ -5150,7 +5150,7 @@
         <source>Technische Details anzeigen</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextTechnicalDetailsIntro" datatype="html">
-        <source>Auto wählt passend zwischen Hamming und Levenshtein. Hamming eignet sich für einzelne falsche Zeichen bei gleicher Länge, Levenshtein zusätzlich für fehlende oder extra Zeichen.</source>
+        <source>Auto kombiniert exakte Treffer, Hamming, Damerau-Levenshtein und Levenshtein. Hamming eignet sich für einzelne falsche Zeichen bei gleicher Länge, Damerau-Levenshtein zusätzlich für vertauschte Nachbarbuchstaben, Levenshtein außerdem für fehlende oder extra Zeichen.</source>
       </trans-unit>
       <trans-unit id="quizEdit.shortTextTrimWhitespaceToggle" datatype="html">
         <source>Leerzeichen am Anfang und Ende ignorieren</source>
@@ -10108,14 +10108,14 @@
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.shortTextSolutionsPlayful" datatype="html">
-        <source>Gültige Lösungen:</source>
+        <source>Musterlösungen:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">370</context>
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.shortTextSolutionsSerious" datatype="html">
-        <source>Akzeptierte Lösungen:</source>
+        <source>Musterlösungen:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">372</context>
@@ -10139,6 +10139,21 @@
       </trans-unit>
       <trans-unit id="sessionVote.shortTextResultRejected" datatype="html">
         <source>Nicht akzeptiert</source>
+      </trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonNoMatch" datatype="html">
+        <source>Keine Musterlösung lag innerhalb der eingestellten Toleranz.</source>
+      </trans-unit>
+      <trans-unit id="sessionVote.shortTextResultMatchedSolution" datatype="html">
+        <source>Gewertet als Musterlösung „<x id="matchedModelAnswer" equiv-text="result.matchedModelAnswer"/>“.</source>
+      </trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonHamming" datatype="html">
+        <source>Kleiner Tippfehler bei gleicher Länge lag noch innerhalb der Toleranz.</source>
+      </trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonDamerau" datatype="html">
+        <source>Ein Buchstabendreher lag noch innerhalb der Toleranz.</source>
+      </trans-unit>
+      <trans-unit id="sessionVote.shortTextResultReasonLevenshtein" datatype="html">
+        <source>Ein fehlendes oder zusätzliches Zeichen lag noch innerhalb der Toleranz.</source>
       </trans-unit>
       <trans-unit id="sessionVote.ratingResultPrefixPlayful" datatype="html">
         <source>Deine Wahl:</source>
