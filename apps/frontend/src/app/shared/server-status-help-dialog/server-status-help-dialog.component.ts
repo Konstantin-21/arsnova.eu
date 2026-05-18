@@ -164,20 +164,6 @@ export interface ServerStatusHelpDialogData {
                 </article>
                 <article class="status-help-dialog__metric status-help-dialog__metric--wide">
                   <div class="status-help-dialog__metric-head">
-                    <mat-icon aria-hidden="true">insights</mat-icon>
-                    <span i18n="@@app.footer.statusMetricUsed">Genutzt</span>
-                  </div>
-                  <strong>{{ s.usedSessions }}</strong>
-                  <p
-                    class="status-help-dialog__metric-hint"
-                    i18n="@@app.footer.statusMetricUsedHint"
-                  >
-                    Alle je erkennbar genutzten Live-Sessions (kumulativ, auch ohne sauberes
-                    Beenden)
-                  </p>
-                </article>
-                <article class="status-help-dialog__metric status-help-dialog__metric--wide">
-                  <div class="status-help-dialog__metric-head">
                     <mat-icon aria-hidden="true">check_circle</mat-icon>
                     <span i18n="@@app.footer.statusMetricCompleted">Abgeschlossen</span>
                   </div>

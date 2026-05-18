@@ -38,7 +38,6 @@ describe('ServerStatusHelpDialogComponent', () => {
               sessionTransitionsLastMinute: 14,
               activeCountdownSessions: 5,
               completedSessions: 98,
-              usedSessions: 123,
               activeBlitzRounds: 3,
               maxParticipantsSingleSession: 412,
               dailyHighscores: buildDailyHighscores(),
@@ -73,9 +72,6 @@ describe('ServerStatusHelpDialogComponent', () => {
     expect(text).toContain('Neue Antworten im letzten Minutenfenster');
     expect(text).toContain('Sessions, die gerade sichtbar weiterlaufen');
     expect(text).toContain('Mit laufendem Countdown im aktuellen Aktivitätsfenster');
-    expect(text).toContain(
-      'Alle je erkennbar genutzten Live-Sessions (kumulativ, auch ohne sauberes Beenden)',
-    );
     expect(text).toContain('Alle je beendeten Live-Sessions (kumulativ)');
     expect(text).toContain('Rekordteilnahme');
     expect(text).toContain('Session-Tagesrekorde der letzten 30 Tage');
@@ -126,7 +122,6 @@ describe('ServerStatusHelpDialogComponent', () => {
               sessionTransitionsLastMinute: 3,
               activeCountdownSessions: 1,
               completedSessions: 12,
-              usedSessions: 15,
               activeBlitzRounds: 0,
               maxParticipantsSingleSession: 96,
               dailyHighscores: buildDailyHighscores(),

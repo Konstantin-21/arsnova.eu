@@ -218,7 +218,6 @@ Stand 2026-05-09:
 - `onParticipantJoined` wurde ebenfalls auf signalgetriebene Realtime-Updates mit seltenem Timeout-Resync umgestellt
 - Host- und Presenter-Ansichten pollen nur noch sichtbarkeits- und kontextabhaengig; Realtime-Pfade bleiben primaer
 - die internen Session-EventEmitter wurden fuer hohe Parallelitaet auf unlimitierte Listener umgestellt, damit 500 Subscription-Clients keine Warn- oder Nebeneffekte erzeugen
-- Reichweitenmetriken wurden bereits um `usedSessions` als zusaetzliche Nutzungskennzahl erweitert
 - am 2026-05-09 wurde ein realer lokaler 500er-Lastlauf fuer Join-Welle, Status-Fan-out, Active-Question-Pfad und Vote-Spike erfolgreich gefahren
 - fuer den teambasierten Host-Pfad wurde ausserdem festgezogen:
   - bei grossen Join-Wellen werden Teamfoyer-Animationen bewusst global unterdrueckt, um minutenlanges Nachzucken und unruhige Re-Renders zu vermeiden

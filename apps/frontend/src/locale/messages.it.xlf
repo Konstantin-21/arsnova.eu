@@ -14353,22 +14353,6 @@
           <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="app.footer.statusMetricUsed" datatype="html">
-        <source>Genutzt</source>
-        <target>Utilizzate</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/server-status-help-dialog/server-status-help-dialog.component.ts</context>
-          <context context-type="linenumber">168</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="app.footer.statusMetricUsedHint" datatype="html">
-        <source> Alle je erkennbar genutzten Live-Sessions (kumulativ, auch ohne sauberes Beenden)</source>
-        <target>Tutte le sessioni live chiaramente utilizzate (cumulativo, anche senza chiusura pulita)</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/shared/server-status-help-dialog/server-status-help-dialog.component.ts</context>
-          <context context-type="linenumber">174,177</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="app.footer.statusMetricCompleted" datatype="html">
         <source>Abgeschlossen</source>
         <target>Completate</target>

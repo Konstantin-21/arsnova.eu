@@ -41,7 +41,6 @@ describe('AppComponent', () => {
       sessionTransitionsLastMinute: 0,
       activeCountdownSessions: 0,
       completedSessions: 2,
-      usedSessions: 2,
       activeBlitzRounds: 0,
       maxParticipantsSingleSession: 5,
       dailyHighscores: Array.from({ length: 30 }, (_, index) => ({

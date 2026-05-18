@@ -24,8 +24,8 @@ export async function updateMaxParticipantsSingleSession(participantCount: numbe
   if (!Number.isFinite(participantCount) || participantCount < 1) return;
   try {
     await prisma.$executeRaw`
-      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "completedSessionsTotal", "usedSessionsTotal", "updatedAt")
-      VALUES (${PLATFORM_STATISTIC_ID}, ${participantCount}, 0, 0, NOW())
+      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "updatedAt")
+      VALUES (${PLATFORM_STATISTIC_ID}, ${participantCount}, NOW())
       ON CONFLICT ("id") DO UPDATE
       SET
         "maxParticipantsSingleSession" = GREATEST(
@@ -90,8 +90,8 @@ export async function updateCompletedSessionsTotal(completedSessions: number): P
   if (!Number.isFinite(completedSessions) || completedSessions < 0) return;
   try {
     await prisma.$executeRaw`
-      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "completedSessionsTotal", "usedSessionsTotal", "updatedAt")
-      VALUES (${PLATFORM_STATISTIC_ID}, 0, ${completedSessions}, 0, NOW())
+      INSERT INTO "PlatformStatistic" ("id", "completedSessionsTotal", "updatedAt")
+      VALUES (${PLATFORM_STATISTIC_ID}, ${completedSessions}, NOW())
       ON CONFLICT ("id") DO UPDATE
       SET
         "completedSessionsTotal" = GREATEST(
@@ -113,8 +113,8 @@ export async function incrementCompletedSessionsTotal(delta: number = 1): Promis
   if (!Number.isFinite(delta) || delta < 1) return;
   try {
     await prisma.$executeRaw`
-      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "completedSessionsTotal", "usedSessionsTotal", "updatedAt")
-      VALUES (${PLATFORM_STATISTIC_ID}, 0, ${delta}, 0, NOW())
+      INSERT INTO "PlatformStatistic" ("id", "completedSessionsTotal", "updatedAt")
+      VALUES (${PLATFORM_STATISTIC_ID}, ${delta}, NOW())
       ON CONFLICT ("id") DO UPDATE
       SET
         "completedSessionsTotal" = "PlatformStatistic"."completedSessionsTotal" + EXCLUDED."completedSessionsTotal",
@@ -122,31 +122,5 @@ export async function incrementCompletedSessionsTotal(delta: number = 1): Promis
     `;
   } catch (e) {
     logger.warn('PlatformStatistic: completedSessionsTotal konnte nicht inkrementiert werden', e);
-  }
-}
-
-/**
- * Persistiert eine monotone Gesamtzahl erkennbar genutzter Sessions, damit die
- * Kennzahl in health.stats trotz Session-Purge oder offen gelassener Sessions nicht sinkt.
- *
- * Wichtig: `updatedAt` bleibt unverändert, da es für den Rekord-Zeitstempel
- * (`maxParticipantsStatisticUpdatedAt`) reserviert ist.
- */
-export async function updateUsedSessionsTotal(usedSessions: number): Promise<void> {
-  if (!Number.isFinite(usedSessions) || usedSessions < 0) return;
-  try {
-    await prisma.$executeRaw`
-      INSERT INTO "PlatformStatistic" ("id", "maxParticipantsSingleSession", "completedSessionsTotal", "usedSessionsTotal", "updatedAt")
-      VALUES (${PLATFORM_STATISTIC_ID}, 0, 0, ${usedSessions}, NOW())
-      ON CONFLICT ("id") DO UPDATE
-      SET
-        "usedSessionsTotal" = GREATEST(
-          "PlatformStatistic"."usedSessionsTotal",
-          EXCLUDED."usedSessionsTotal"
-        ),
-        "updatedAt" = "PlatformStatistic"."updatedAt"
-    `;
-  } catch (e) {
-    logger.warn('PlatformStatistic: usedSessionsTotal konnte nicht aktualisiert werden', e);
   }
 }

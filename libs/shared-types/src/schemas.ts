@@ -2431,8 +2431,6 @@ export const ServerStatsDTOSchema = z.object({
   activeCountdownSessions: z.number(),
   /** Kumulativ: Anzahl Session-Zeilen mit Status FINISHED (lebenslang in dieser DB). */
   completedSessions: z.number(),
-  /** Kumulativ: erkennbar genutzte Sessions (z. B. Join oder Verlassen der reinen Lobby), auch ohne sauberes Ende. */
-  usedSessions: z.number(),
   activeBlitzRounds: z.number(),
   /** Höchste je in einer Session registrierte Teilnehmerzahl (Joins, plattformweit). */
   maxParticipantsSingleSession: z.number().int().min(0),

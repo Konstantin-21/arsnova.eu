@@ -16,7 +16,6 @@ import {
   formatUtcDate,
   getUtcDayStart,
   updateCompletedSessionsTotal,
-  updateUsedSessionsTotal,
 } from '../lib/platformStatistic';
 import {
   countActiveParticipantsForSessions,
@@ -29,9 +28,6 @@ import type { ServerStatsDTO, FooterStatusDTO } from '@arsnova/shared-types';
 const ACTIVE_SESSION_MIN_PARTICIPANTS = 5;
 const DAILY_HIGHSCORE_DAYS = 30;
 const SERVER_STATS_CACHE_TTL_MS = 30_000;
-const USED_SESSION_WHERE = {
-  OR: [{ status: { not: 'LOBBY' as const } }, { participants: { some: {} } }],
-};
 const SERVER_STATUS_SCORE_THRESHOLDS = {
   busy: 60,
   overloaded: 170,
@@ -223,11 +219,10 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
           Array<{
             maxParticipantsSingleSession: number | null;
             completedSessionsTotal: number | null;
-            usedSessionsTotal: number | null;
             updatedAt: Date | null;
           }>
         >`
-          SELECT "maxParticipantsSingleSession", "completedSessionsTotal", "usedSessionsTotal", "updatedAt"
+          SELECT "maxParticipantsSingleSession", "completedSessionsTotal", "updatedAt"
           FROM "PlatformStatistic"
           WHERE "id" = 'default'
           LIMIT 1
@@ -236,12 +231,11 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
         return {
           maxParticipantsSingleSession: row?.maxParticipantsSingleSession ?? 0,
           completedSessionsTotal: row?.completedSessionsTotal ?? null,
-          usedSessionsTotal: row?.usedSessionsTotal ?? null,
           updatedAtIso: row?.updatedAt?.toISOString() ?? null,
         };
       } catch {
         try {
-          // DB-Drift-Fallback: ältere Schemas ohne die neueren Total-Spalten weiterhin unterstützen.
+          // DB-Drift-Fallback: ältere Schemas ohne completedSessionsTotal weiterhin unterstützen.
           const rows = await prisma.$queryRaw<
             Array<{
               maxParticipantsSingleSession: number | null;
@@ -257,7 +251,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
           return {
             maxParticipantsSingleSession: row?.maxParticipantsSingleSession ?? 0,
             completedSessionsTotal: null,
-            usedSessionsTotal: null,
             updatedAtIso: row?.updatedAt?.toISOString() ?? null,
           };
         } catch {
@@ -267,14 +260,12 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
             select: {
               maxParticipantsSingleSession: true,
               completedSessionsTotal: true,
-              usedSessionsTotal: true,
               updatedAt: true,
             },
           });
           return {
             maxParticipantsSingleSession: row?.maxParticipantsSingleSession ?? 0,
             completedSessionsTotal: row?.completedSessionsTotal ?? null,
-            usedSessionsTotal: row?.usedSessionsTotal ?? null,
             updatedAtIso: row?.updatedAt?.toISOString() ?? null,
           };
         }
@@ -307,7 +298,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
       openSessions,
       activeSessionIds,
       completedSessionsNow,
-      usedSessionsNow,
       platformRow,
       dailyHighscoreRows,
       loadSignals,
@@ -320,7 +310,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
       }),
       // Momentan in DB vorhandene FINISHED-Sessions (kann durch Purge sinken).
       prisma.session.count({ where: { status: 'FINISHED' } }),
-      prisma.session.count({ where: USED_SESSION_WHERE }),
       platformStatisticPromise,
       dailyHighscoreRowsPromise,
       readLoadSignals(),
@@ -345,17 +334,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
     ) {
       void updateCompletedSessionsTotal(completedSessionsNow);
     }
-    const persistedUsedSessionsTotal = platformRow.usedSessionsTotal;
-    const usedSessionsTotal =
-      typeof persistedUsedSessionsTotal === 'number'
-        ? Math.max(usedSessionsNow, persistedUsedSessionsTotal)
-        : usedSessionsNow;
-    if (
-      typeof persistedUsedSessionsTotal === 'number' &&
-      usedSessionsNow > persistedUsedSessionsTotal
-    ) {
-      void updateUsedSessionsTotal(usedSessionsNow);
-    }
     const loadStatus = getLoadStatus({
       activeSessions,
       totalParticipants,
@@ -372,7 +350,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
       sessionTransitionsLastMinute: loadSignals.sessionTransitionsLastMinute,
       activeCountdownSessions: loadSignals.activeCountdownSessions,
       completedSessions: completedSessionsTotal,
-      usedSessions: usedSessionsTotal,
       activeBlitzRounds,
       maxParticipantsSingleSession: platformRow.maxParticipantsSingleSession,
       dailyHighscores: buildDailyHighscores(dailyHighscoreRows, dailyHighscoreRangeEnd),
@@ -389,7 +366,6 @@ async function computeServerStats(): Promise<ServerStatsDTO> {
       sessionTransitionsLastMinute: 0,
       activeCountdownSessions: 0,
       completedSessions: 0,
-      usedSessions: 0,
       activeBlitzRounds: 0,
       maxParticipantsSingleSession: 0,
       dailyHighscores: buildDailyHighscores([]),
