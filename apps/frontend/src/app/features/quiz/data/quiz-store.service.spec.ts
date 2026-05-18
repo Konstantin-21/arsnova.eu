@@ -581,14 +581,24 @@ describe('QuizStoreService', () => {
     expect(imported.quiz.questions.map((question) => question.type)).toEqual([
       'SINGLE_CHOICE',
       'SURVEY',
-      'FREETEXT',
+      'SHORT_TEXT',
     ]);
     expect(imported.quiz.questions[0]?.difficulty).toBe('EASY');
     expect(imported.quiz.questions[1]?.difficulty).toBe('MEDIUM');
     expect(imported.quiz.questions[2]?.difficulty).toBe('HARD');
     expect(imported.quiz.questions[0]?.timer).toBe(30);
     expect(imported.quiz.questions[1]?.answers.every((answer) => !answer.isCorrect)).toBe(true);
-    expect(imported.quiz.questions[2]?.answers).toEqual([]);
+    expect(imported.quiz.questions[2]).toMatchObject({
+      type: 'SHORT_TEXT',
+      answers: [{ text: 'Paris', isCorrect: true }],
+      shortTextEvaluationKind: 'text',
+      shortTextCaseSensitive: false,
+      shortTextEvaluationMode: 'exact',
+      shortTextToleranceLevel: 'none',
+      shortTextAllowPartialCredit: false,
+      shortTextTrimWhitespace: true,
+      shortTextNormalizeWhitespace: false,
+    });
     expect(imported.warnings.some((warning) => warning.kind === 'mapped_question')).toBe(true);
     expect(
       imported.warnings.some(
@@ -598,10 +608,64 @@ describe('QuizStoreService', () => {
       ),
     ).toBe(true);
     expect(
+      imported.warnings.some((warning) =>
+        warning.message.includes('Freitext-Antworten wurden nicht übernommen'),
+      ),
+    ).toBe(false);
+  });
+
+  it('importiert arsnova.click-Kurzantworten best effort mit praezisen Warnungen', () => {
+    const service = TestBed.inject(QuizStoreService);
+
+    const imported = service.importQuiz({
+      name: 'Click Short Text Detail',
+      questionList: [
+        {
+          TYPE: 'FreeTextQuestion',
+          questionText: 'Nenne die Hauptstadt von Frankreich.',
+          answerOptionList: [
+            {
+              answerText: 'Paris',
+              configCaseSensitive: false,
+              configTrimWhitespaces: true,
+              configUseKeywords: true,
+              configUsePunctuation: false,
+            },
+            {
+              answerText: 'paris',
+              configCaseSensitive: false,
+              configTrimWhitespaces: true,
+              configUseKeywords: true,
+              configUsePunctuation: false,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(imported.quiz.questions[0]).toMatchObject({
+      type: 'SHORT_TEXT',
+      answers: [{ text: 'Paris', isCorrect: true }],
+      shortTextCaseSensitive: false,
+      shortTextEvaluationMode: 'exact',
+      shortTextToleranceLevel: 'none',
+      shortTextAllowPartialCredit: false,
+      shortTextTrimWhitespace: true,
+      shortTextNormalizeWhitespace: false,
+    });
+    expect(
       imported.warnings.some(
         (warning) =>
-          warning.questionNumber === 3 &&
-          warning.message === 'Sonderregeln für Freitext-Antworten wurden nicht übernommen.',
+          warning.questionNumber === 1 &&
+          warning.message === 'Nicht alle Kurzantwort-Regeln konnten 1:1 übernommen werden.' &&
+          warning.detail === 'configUseKeywords, configUsePunctuation',
+      ),
+    ).toBe(true);
+    expect(
+      imported.warnings.some(
+        (warning) =>
+          warning.questionNumber === 1 &&
+          warning.message === 'Doppelte Kurzantwort-Musterlösungen wurden zusammengeführt.',
       ),
     ).toBe(true);
   });

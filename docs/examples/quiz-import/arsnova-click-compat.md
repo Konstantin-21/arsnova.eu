@@ -17,16 +17,16 @@ wie `arsnova.eu` es derzeit importiert.
 
 ## Aktuelles Mapping nach arsnova.eu
 
-| arsnova.click                   | arsnova.eu        | Status     | Bemerkung                                                            |
-| ------------------------------- | ----------------- | ---------- | -------------------------------------------------------------------- |
-| `SingleChoiceQuestion`          | `SINGLE_CHOICE`   | importiert | direktes Mapping                                                     |
-| `YesNoSingleChoiceQuestion`     | `SINGLE_CHOICE`   | importiert | Spezialisierung geht verloren                                        |
-| `TrueFalseSingleChoiceQuestion` | `SINGLE_CHOICE`   | importiert | Spezialisierung geht verloren                                        |
-| `MultipleChoiceQuestion`        | `MULTIPLE_CHOICE` | importiert | direktes Mapping                                                     |
-| `SurveyQuestion`                | `SURVEY`          | importiert | alle Antworten werden als nicht-korrekt normalisiert                 |
-| `ABCDSurveyQuestion`            | `SURVEY`          | importiert | Spezialtyp geht verloren                                             |
-| `FreeTextQuestion`              | `FREETEXT`        | importiert | Antwortschluessel aus click werden nicht in `arsnova.eu` uebernommen |
-| `RangedQuestion`                | kein Pendant      | abgelehnt  | aktuelle Fehlermeldung statt stiller Degradation                     |
+| arsnova.click                   | arsnova.eu        | Status     | Bemerkung                                                                       |
+| ------------------------------- | ----------------- | ---------- | ------------------------------------------------------------------------------- |
+| `SingleChoiceQuestion`          | `SINGLE_CHOICE`   | importiert | direktes Mapping                                                                |
+| `YesNoSingleChoiceQuestion`     | `SINGLE_CHOICE`   | importiert | Spezialisierung geht verloren                                                   |
+| `TrueFalseSingleChoiceQuestion` | `SINGLE_CHOICE`   | importiert | Spezialisierung geht verloren                                                   |
+| `MultipleChoiceQuestion`        | `MULTIPLE_CHOICE` | importiert | direktes Mapping                                                                |
+| `SurveyQuestion`                | `SURVEY`          | importiert | alle Antworten werden als nicht-korrekt normalisiert                            |
+| `ABCDSurveyQuestion`            | `SURVEY`          | importiert | Spezialtyp geht verloren                                                        |
+| `FreeTextQuestion`              | `SHORT_TEXT`      | importiert | Musterloesungen, Gross-/Kleinschreibung und Trim werden best effort uebernommen |
+| `RangedQuestion`                | kein Pendant      | abgelehnt  | aktuelle Fehlermeldung statt stiller Degradation                                |
 
 ## Aktuell uebernommene Session-Felder
 
@@ -60,8 +60,6 @@ wie `arsnova.eu` es derzeit importiert.
 - `questionList[].multipleSelectionEnabled`
 - `questionList[].tags`
 - `questionList[].requiredForToken`
-- `FreeTextAnswerOption.configCaseSensitive`
-- `FreeTextAnswerOption.configTrimWhitespaces`
 - `FreeTextAnswerOption.configUseKeywords`
 - `FreeTextAnswerOption.configUsePunctuation`
 - `RangedQuestion.rangeMin`
@@ -71,6 +69,6 @@ wie `arsnova.eu` es derzeit importiert.
 ## Offene Folgearbeiten fuer spaetere Angleichung
 
 1. Pruefen, ob `RangedQuestion` in `arsnova.eu` einen neuen Fragetyp braucht oder als `RATING`/`FREETEXT` bewusst umgedeutet werden soll.
-2. Entscheiden, ob `FreeTextQuestion`-Antwortoptionen als Auswertungshilfe, Tags oder neue Bewertungslogik erhalten bleiben muessen.
+2. Klaeren, ob `FreeTextQuestion.configUseKeywords` und `configUsePunctuation` eine echte 1:1-Entsprechung bekommen sollen oder bewusst im Best-Effort-Import bleiben.
 3. Klaeren, ob `ABCDSurveyQuestion`, `YesNoSingleChoiceQuestion` und `TrueFalseSingleChoiceQuestion` als eigene UI-Varianten sichtbar bleiben sollen.
 4. Festlegen, ob Musik-, Theme- und Nickname-Presets in `arsnova.eu` ueberhaupt eine fachliche Entsprechung bekommen sollen.

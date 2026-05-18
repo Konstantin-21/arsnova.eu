@@ -1,11 +1,41 @@
-import { QUIZ_EXPORT_VERSION, type Difficulty, type QuizExport } from '@arsnova/shared-types';
+import {
+  QUIZ_EXPORT_VERSION,
+  SHORT_TEXT_DEFAULT_MAX_LENGTH,
+  SHORT_TEXT_MAX_LENGTH_LIMIT,
+  normalizeShortTextValue,
+  type Difficulty,
+  type QuizExport,
+} from '@arsnova/shared-types';
 
 type JsonRecord = Record<string, unknown>;
 type ImportedQuiz = QuizExport['quiz'];
 type ImportedQuestion = ImportedQuiz['questions'][number];
 type ImportedAnswer = ImportedQuestion['answers'][number];
+type ClickFreeTextFlagKey =
+  | 'configCaseSensitive'
+  | 'configTrimWhitespaces'
+  | 'configUseKeywords'
+  | 'configUsePunctuation';
 
 const CLICK_TEAM_NAME_LIMIT = 8;
+
+interface ClickFreeTextAnswerOption {
+  text: string;
+  configCaseSensitive?: boolean;
+  configTrimWhitespaces?: boolean;
+  configUseKeywords?: boolean;
+  configUsePunctuation?: boolean;
+}
+
+interface ParsedClickFreeTextAnswers {
+  answers: ClickFreeTextAnswerOption[];
+  discardedAnswerCount: number;
+}
+
+interface ResolvedClickBooleanSetting {
+  value: boolean;
+  hadConflicts: boolean;
+}
 
 export type QuizImportWarningKind =
   | 'skipped_question'
@@ -269,18 +299,16 @@ function mapQuestion(value: unknown, index: number): MappedQuestionResult {
         warnings,
       };
     case 'FreeTextQuestion':
-      return {
-        question: {
-          text,
-          type: 'FREETEXT',
-          difficulty,
-          order: index,
-          ...(timer === undefined ? {} : { timer }),
-          answers: [],
-          enabled: true,
-        },
+      return mapFreeTextQuestion({
+        question: value,
+        questionNumber,
+        questionText,
+        text,
+        index,
+        timer,
+        difficulty,
         warnings,
-      };
+      });
     case 'RangedQuestion':
       throw new Error('Dieser Fragetyp wird in arsnova.eu noch nicht unterstützt.');
     default:
@@ -301,20 +329,6 @@ function collectQuestionWarnings(
   addIfPresent(question, ignored, 'tags');
   addIfPresent(question, ignored, 'requiredForToken');
 
-  const answers = Array.isArray(question['answerOptionList']) ? question['answerOptionList'] : [];
-  let hasFreeTextAnswerConfig = false;
-  for (const answer of answers) {
-    if (!isRecord(answer)) continue;
-    if (
-      Object.hasOwn(answer, 'configCaseSensitive') ||
-      Object.hasOwn(answer, 'configTrimWhitespaces') ||
-      Object.hasOwn(answer, 'configUseKeywords') ||
-      Object.hasOwn(answer, 'configUsePunctuation')
-    ) {
-      hasFreeTextAnswerConfig = true;
-    }
-  }
-
   const warnings: QuizImportWarning[] = [];
   if (ignored.size > 0) {
     warnings.push({
@@ -326,17 +340,189 @@ function collectQuestionWarnings(
     });
   }
 
-  if (hasFreeTextAnswerConfig) {
+  return warnings;
+}
+
+function mapFreeTextQuestion(params: {
+  question: JsonRecord;
+  questionNumber: number;
+  questionText?: string;
+  text: string;
+  index: number;
+  timer?: number;
+  difficulty: Difficulty;
+  warnings: QuizImportWarning[];
+}): MappedQuestionResult {
+  const {
+    question,
+    questionNumber,
+    questionText,
+    text,
+    index,
+    timer,
+    difficulty,
+    warnings: baseWarnings,
+  } = params;
+  const warnings = [...baseWarnings];
+  const parsedAnswers = readClickFreeTextAnswers(question['answerOptionList']);
+
+  if (parsedAnswers.discardedAnswerCount > 0) {
     warnings.push({
       kind: 'simplified_question',
       questionNumber,
       questionText,
-      message: 'Sonderregeln für Freitext-Antworten wurden nicht übernommen.',
-      detail: 'configCaseSensitive, configTrimWhitespaces, configUseKeywords, configUsePunctuation',
+      message: 'Leere Kurzantwort-Musterlösungen wurden verworfen.',
+      detail: `${parsedAnswers.discardedAnswerCount} Eintrag/Einträge`,
     });
   }
 
-  return warnings;
+  if (parsedAnswers.answers.length === 0) {
+    warnings.push({
+      kind: 'simplified_question',
+      questionNumber,
+      questionText,
+      message: 'Ohne gültige Musterlösungen wurde die Kurzantwort als Freitext importiert.',
+    });
+    return {
+      question: {
+        text,
+        type: 'FREETEXT',
+        difficulty,
+        order: index,
+        ...(timer === undefined ? {} : { timer }),
+        answers: [],
+        enabled: true,
+      },
+      warnings,
+    };
+  }
+
+  const caseSensitive = resolveClickBooleanSetting(
+    parsedAnswers.answers.map((answer) => answer.configCaseSensitive),
+    false,
+    'preferFalse',
+  );
+  const trimWhitespace = resolveClickBooleanSetting(
+    parsedAnswers.answers.map((answer) => answer.configTrimWhitespaces),
+    true,
+    'preferTrue',
+  );
+  const conflictingSettings = new Set<string>();
+  if (caseSensitive.hadConflicts) {
+    conflictingSettings.add('configCaseSensitive');
+  }
+  if (trimWhitespace.hadConflicts) {
+    conflictingSettings.add('configTrimWhitespaces');
+  }
+  if (conflictingSettings.size > 0) {
+    warnings.push({
+      kind: 'simplified_question',
+      questionNumber,
+      questionText,
+      message: 'Abweichende Kurzantwort-Regeln je Musterlösung wurden vereinheitlicht.',
+      detail: [...conflictingSettings].join(', '),
+    });
+  }
+
+  const unsupportedSettings = new Set<string>();
+  if (hasAnyFlagValue(parsedAnswers.answers, 'configUseKeywords', true)) {
+    unsupportedSettings.add('configUseKeywords');
+  }
+  if (hasAnyFlagValue(parsedAnswers.answers, 'configUsePunctuation', false)) {
+    unsupportedSettings.add('configUsePunctuation');
+  }
+  if (unsupportedSettings.size > 0) {
+    warnings.push({
+      kind: 'simplified_question',
+      questionNumber,
+      questionText,
+      message: 'Nicht alle Kurzantwort-Regeln konnten 1:1 übernommen werden.',
+      detail: [...unsupportedSettings].join(', '),
+    });
+  }
+
+  const normalizationOptions = {
+    caseSensitive: caseSensitive.value,
+    trimWhitespace: trimWhitespace.value,
+    normalizeWhitespace: false,
+  };
+  const answers: ImportedAnswer[] = [];
+  const seenNormalizedAnswers = new Set<string>();
+  let mergedAnswerCount = 0;
+
+  for (const answer of parsedAnswers.answers) {
+    const normalizedAnswer = normalizeShortTextValue(answer.text, normalizationOptions);
+    if (!normalizedAnswer) {
+      continue;
+    }
+    if (seenNormalizedAnswers.has(normalizedAnswer)) {
+      mergedAnswerCount += 1;
+      continue;
+    }
+    seenNormalizedAnswers.add(normalizedAnswer);
+    answers.push({
+      text: answer.text,
+      isCorrect: true,
+    });
+  }
+
+  if (mergedAnswerCount > 0) {
+    warnings.push({
+      kind: 'simplified_question',
+      questionNumber,
+      questionText,
+      message: 'Doppelte Kurzantwort-Musterlösungen wurden zusammengeführt.',
+      detail: `${mergedAnswerCount} Eintrag/Einträge`,
+    });
+  }
+
+  if (answers.length === 0) {
+    warnings.push({
+      kind: 'simplified_question',
+      questionNumber,
+      questionText,
+      message: 'Ohne gültige Musterlösungen wurde die Kurzantwort als Freitext importiert.',
+    });
+    return {
+      question: {
+        text,
+        type: 'FREETEXT',
+        difficulty,
+        order: index,
+        ...(timer === undefined ? {} : { timer }),
+        answers: [],
+        enabled: true,
+      },
+      warnings,
+    };
+  }
+
+  const longestAnswerLength = Math.max(...answers.map((answer) => answer.text.length), 0);
+  const shortTextMaxLength =
+    longestAnswerLength > SHORT_TEXT_DEFAULT_MAX_LENGTH
+      ? Math.min(longestAnswerLength, SHORT_TEXT_MAX_LENGTH_LIMIT)
+      : undefined;
+
+  return {
+    question: {
+      text,
+      type: 'SHORT_TEXT',
+      difficulty,
+      order: index,
+      ...(timer === undefined ? {} : { timer }),
+      answers,
+      shortTextEvaluationKind: 'text',
+      ...(shortTextMaxLength === undefined ? {} : { shortTextMaxLength }),
+      shortTextCaseSensitive: caseSensitive.value,
+      shortTextEvaluationMode: 'exact',
+      shortTextToleranceLevel: 'none',
+      shortTextAllowPartialCredit: false,
+      shortTextTrimWhitespace: trimWhitespace.value,
+      shortTextNormalizeWhitespace: false,
+      enabled: true,
+    },
+    warnings,
+  };
 }
 
 function mapChoiceAnswers(
@@ -371,6 +557,69 @@ function mapSurveyAnswers(question: JsonRecord, useAbcdFallback: boolean): Impor
   }
 
   return answers.map((answer) => ({ ...answer, isCorrect: false }));
+}
+
+function readClickFreeTextAnswers(value: unknown): ParsedClickFreeTextAnswers {
+  if (!Array.isArray(value)) {
+    return { answers: [], discardedAnswerCount: 0 };
+  }
+
+  const answers: ClickFreeTextAnswerOption[] = [];
+  let discardedAnswerCount = 0;
+
+  for (const answer of value) {
+    if (!isRecord(answer)) {
+      discardedAnswerCount += 1;
+      continue;
+    }
+
+    const text = readOptionalString(answer['answerText']);
+    if (!text) {
+      discardedAnswerCount += 1;
+      continue;
+    }
+
+    answers.push({
+      text,
+      configCaseSensitive: readBoolean(answer['configCaseSensitive']),
+      configTrimWhitespaces: readBoolean(answer['configTrimWhitespaces']),
+      configUseKeywords: readBoolean(answer['configUseKeywords']),
+      configUsePunctuation: readBoolean(answer['configUsePunctuation']),
+    });
+  }
+
+  return { answers, discardedAnswerCount };
+}
+
+function resolveClickBooleanSetting(
+  values: Array<boolean | undefined>,
+  defaultValue: boolean,
+  conflictStrategy: 'preferTrue' | 'preferFalse',
+): ResolvedClickBooleanSetting {
+  const distinctValues = [
+    ...new Set(values.filter((value): value is boolean => value !== undefined)),
+  ];
+
+  if (distinctValues.length === 0) {
+    return { value: defaultValue, hadConflicts: false };
+  }
+
+  if (distinctValues.length === 1) {
+    return { value: distinctValues[0], hadConflicts: false };
+  }
+
+  return {
+    value: conflictStrategy === 'preferTrue',
+    hadConflicts: true,
+  };
+}
+
+function hasAnyFlagValue(
+  answers: ClickFreeTextAnswerOption[],
+  key: ClickFreeTextFlagKey,
+  expectedValue: boolean,
+): boolean {
+  return answers.some((answer) => answer[key] === expectedValue);
 }
 
 function readAnswerList(value: unknown, fallbackTexts: string[] = []): ImportedAnswer[] {

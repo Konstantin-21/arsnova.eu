@@ -681,25 +681,41 @@ Viel Erfolg beim Import.`);
   it('importiert ueber den Datei-Import der Quiz-Sammlung und zeigt nur nicht uebernommene Fragen', async () => {
     const fixture = TestBed.createComponent(QuizListComponent);
     const component = fixture.componentInstance;
-    mockStore.importQuiz.mockReturnValue({
-      quiz: {
-        id: 'caece014-f7cd-4d26-a101-bd494379f95f',
-        name: 'Datei Import',
-      },
-      warnings: [
+    mockStore.importQuiz.mockImplementation(() => {
+      quizzesSignal.set([
         {
-          kind: 'skipped_question',
-          questionNumber: 1,
-          questionText: 'Schätzfrage',
-          message: 'Dieser Fragetyp wird in arsnova.eu noch nicht unterstützt.',
+          id: 'caece014-f7cd-4d26-a101-bd494379f95f',
+          name: 'Datei Import',
+          description: 'Neu importiert',
+          createdAt: '2026-05-18T12:00:00.000Z',
+          updatedAt: '2026-05-18T12:00:00.000Z',
+          questionCount: 1,
+          teamMode: false,
+          hasBonus: false,
+          lastServerQuizId: null,
+          lastServerQuizAccessProof: null,
         },
-        {
-          kind: 'simplified_question',
-          questionNumber: 2,
-          questionText: 'Freitext',
-          message: 'Sonderregeln für Freitext-Antworten wurden nicht übernommen.',
+      ]);
+      return {
+        quiz: {
+          id: 'caece014-f7cd-4d26-a101-bd494379f95f',
+          name: 'Datei Import',
         },
-      ],
+        warnings: [
+          {
+            kind: 'skipped_question',
+            questionNumber: 1,
+            questionText: 'Schätzfrage',
+            message: 'Dieser Fragetyp wird in arsnova.eu noch nicht unterstützt.',
+          },
+          {
+            kind: 'simplified_question',
+            questionNumber: 2,
+            questionText: 'Freitext',
+            message: 'Sonderregeln für Freitext-Antworten wurden nicht übernommen.',
+          },
+        ],
+      };
     });
 
     const file = {
@@ -727,6 +743,8 @@ Viel Erfolg beim Import.`);
 
     await component.onImportFileSelected({ target: input } as Event);
     fixture.detectChanges();
+    await flushAsyncEffects();
+    fixture.detectChanges();
 
     expect(mockStore.importQuiz).toHaveBeenCalledWith({
       name: 'Click Import',
@@ -751,6 +769,7 @@ Viel Erfolg beim Import.`);
     expect(infoText).toContain('Schätzfrage');
     expect(infoText).not.toContain('Freitext');
     expect(component.actionError()).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Datei Import');
   });
 
   it('zeigt direkten Start-CTA bei startLive-Shortcut', async () => {
