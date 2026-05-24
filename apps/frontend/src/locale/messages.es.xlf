@@ -11878,16 +11878,16 @@
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.round2BannerPlayful" datatype="html">
-        <source>Runde 2 – hat sich deine Meinung nach dem Gespräch geändert?</source>
-        <target>Ronda 2 – ¿cambió tu opinión después del intercambio?</target>
+        <source>Nur Runde 2 zählt. Antworte erneut.</source>
+        <target>Solo cuenta la ronda 2. Responde otra vez.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">314</context>
         </context-group>
       </trans-unit>
       <trans-unit id="sessionVote.round2BannerSerious" datatype="html">
-        <source>2. Runde – hat die Diskussion deine Meinung geändert?</source>
-        <target>Segunda ronda: ¿la discusión te hizo cambiar de opinión?</target>
+        <source>Nur Runde 2 zählt. Antworte erneut.</source>
+        <target>Solo cuenta la ronda 2. Responde otra vez.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-vote/session-vote-participant-copy.ts</context>
           <context context-type="linenumber">316</context>

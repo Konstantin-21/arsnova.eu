@@ -225,9 +225,9 @@ describe('session team mode (Story 7.1)', () => {
       { id: 'p3', teamId: TEAM_B_ID },
     ]);
     prismaMock.vote.findMany.mockResolvedValue([
-      { participantId: 'p1', score: 2800 },
-      { participantId: 'p2', score: 2735.34 },
-      { participantId: 'p3', score: 2500 },
+      { participantId: 'p1', questionId: 'q1', round: 1, score: 2800 },
+      { participantId: 'p2', questionId: 'q1', round: 1, score: 2735.34 },
+      { participantId: 'p3', questionId: 'q1', round: 1, score: 2500 },
     ]);
 
     const result = await caller.getTeamLeaderboard({ code: 'ABC123' });
@@ -266,9 +266,9 @@ describe('session team mode (Story 7.1)', () => {
       { id: 'p2', teamId: TEAM_B_ID },
     ]);
     prismaMock.vote.findMany.mockResolvedValue([
-      { participantId: 'p1', score: 1000, responseTimeMs: 6000 },
-      { participantId: 'p1', score: 0, responseTimeMs: 120_000 },
-      { participantId: 'p2', score: 1000, responseTimeMs: 7000 },
+      { participantId: 'p1', questionId: 'q1', round: 1, score: 1000, responseTimeMs: 6000 },
+      { participantId: 'p1', questionId: 'q2', round: 1, score: 0, responseTimeMs: 120_000 },
+      { participantId: 'p2', questionId: 'q1', round: 1, score: 1000, responseTimeMs: 7000 },
     ]);
 
     const result = await caller.getTeamLeaderboard({ code: 'ABC123' });
@@ -289,6 +289,50 @@ describe('session team mode (Story 7.1)', () => {
         totalScore: 1000,
         memberCount: 1,
         averageScore: 1000,
+      },
+    ]);
+  });
+
+  it('wertet Runde 2 im Team-Leaderboard ohne Antwortzeit-Tiebreaker', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      quiz: { teamMode: true, teamCount: 2, teamNames: [] },
+    });
+    prismaMock.team.findMany.mockResolvedValue([
+      { id: TEAM_A_ID, name: 'Zeta', color: '#1E88E5', _count: { participants: 1 } },
+      { id: TEAM_B_ID, name: 'Alpha', color: '#43A047', _count: { participants: 1 } },
+    ]);
+    prismaMock.participant.findMany.mockResolvedValue([
+      { id: 'p1', teamId: TEAM_A_ID },
+      { id: 'p2', teamId: TEAM_B_ID },
+    ]);
+    prismaMock.vote.findMany.mockResolvedValue([
+      { participantId: 'p1', questionId: 'q1', round: 1, score: 1000, responseTimeMs: 5000 },
+      { participantId: 'p2', questionId: 'q1', round: 1, score: 1000, responseTimeMs: 6000 },
+      { participantId: 'p1', questionId: 'q2', round: 1, score: 0, responseTimeMs: 100 },
+      { participantId: 'p2', questionId: 'q2', round: 1, score: 1900, responseTimeMs: 100 },
+      { participantId: 'p1', questionId: 'q2', round: 2, score: 2000, responseTimeMs: 120_000 },
+      { participantId: 'p2', questionId: 'q2', round: 2, score: 2000, responseTimeMs: 500 },
+    ]);
+
+    const result = await caller.getTeamLeaderboard({ code: 'ABC123' });
+
+    expect(result).toEqual([
+      {
+        rank: 1,
+        teamName: 'Zeta',
+        teamColor: '#1E88E5',
+        totalScore: 3000,
+        memberCount: 1,
+        averageScore: 3000,
+      },
+      {
+        rank: 2,
+        teamName: 'Alpha',
+        teamColor: '#43A047',
+        totalScore: 3000,
+        memberCount: 1,
+        averageScore: 3000,
       },
     ]);
   });
@@ -321,9 +365,9 @@ describe('session team mode (Story 7.1)', () => {
       { id: 'p3', teamId: TEAM_B_ID },
     ]);
     prismaMock.vote.findMany.mockResolvedValue([
-      { participantId: 'p1', score: 400 },
-      { participantId: 'p2', score: 600 },
-      { participantId: 'p3', score: 700 },
+      { participantId: 'p1', questionId: 'q1', round: 1, score: 400 },
+      { participantId: 'p2', questionId: 'q1', round: 1, score: 600 },
+      { participantId: 'p3', questionId: 'q1', round: 1, score: 700 },
     ]);
 
     const result = await hostCaller.getExportData({ code: 'ABC123' });

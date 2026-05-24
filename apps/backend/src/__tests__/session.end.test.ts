@@ -105,7 +105,7 @@ describe('session.end', () => {
       bonusTokens: [],
     });
     prismaMock.vote.findMany.mockResolvedValue([
-      { participantId: 'p1', score: 2000, responseTimeMs: 900 },
+      { participantId: 'p1', questionId: 'q1', round: 1, score: 2000, responseTimeMs: 900 },
     ]);
 
     await caller.end({ code: 'ABC123' });

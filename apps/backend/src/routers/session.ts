@@ -1070,6 +1070,37 @@ function normalizeTeamLeaderboardScore(rawTotalScore: number, memberCount: numbe
   return Math.round(averageScore * 10) / 10;
 }
 
+type CompetitionVote = {
+  participantId: string;
+  questionId: string;
+  round: number;
+  score: number;
+  responseTimeMs: number | null;
+};
+
+// Für die Wettbewerbswertung ersetzt Runde 2 die Runde 1 der jeweiligen Frage; Runde-2-Zeiten sind kein Tiebreaker.
+function selectEffectiveCompetitionVotes<T extends CompetitionVote>(votes: readonly T[]): T[] {
+  const round2QuestionIds = new Set(
+    votes.filter((vote) => vote.round === 2).map((vote) => vote.questionId),
+  );
+  const effectiveVotes = new Map<string, T>();
+  for (const vote of votes) {
+    const usesRound2 = round2QuestionIds.has(vote.questionId);
+    if (usesRound2 ? vote.round !== 2 : vote.round !== 1) {
+      continue;
+    }
+    effectiveVotes.set(`${vote.participantId}:${vote.questionId}`, vote);
+  }
+  return [...effectiveVotes.values()];
+}
+
+function getCompetitionResponseTimeMs(vote: CompetitionVote): number {
+  if (vote.score <= 0 || vote.round === 2) {
+    return 0;
+  }
+  return vote.responseTimeMs ?? 0;
+}
+
 /** Typen für getExportData-Callbacks (vermeidet implizites any). */
 interface QuestionWithAnswersForExport {
   id: string;
@@ -1706,10 +1737,18 @@ async function buildSessionTeamLeaderboard(
     where: { sessionId },
     select: { id: true, teamId: true },
   });
-  const votes = await prisma.vote.findMany({
-    where: { sessionId, round: 1 },
-    select: { participantId: true, score: true, responseTimeMs: true },
-  });
+  const votes = selectEffectiveCompetitionVotes(
+    await prisma.vote.findMany({
+      where: { sessionId, round: { in: [1, 2] } },
+      select: {
+        participantId: true,
+        questionId: true,
+        round: true,
+        score: true,
+        responseTimeMs: true,
+      },
+    }),
+  );
 
   const teamStats = new Map<
     string,
@@ -1748,9 +1787,7 @@ async function buildSessionTeamLeaderboard(
     if (!stats) continue;
     const score = Number(vote.score) || 0;
     stats.rawTotalScore += score;
-    if (score > 0) {
-      stats.totalResponseTimeMs += vote.responseTimeMs ?? 0;
-    }
+    stats.totalResponseTimeMs += getCompetitionResponseTimeMs(vote);
   }
 
   return [...teamStats.values()]
@@ -2074,10 +2111,18 @@ async function generateBonusTokens(session: {
     return;
   }
 
-  const votes = await prisma.vote.findMany({
-    where: { sessionId: session.id, round: 1 },
-    select: { participantId: true, score: true, responseTimeMs: true },
-  });
+  const votes = selectEffectiveCompetitionVotes(
+    await prisma.vote.findMany({
+      where: { sessionId: session.id, round: { in: [1, 2] } },
+      select: {
+        participantId: true,
+        questionId: true,
+        round: true,
+        score: true,
+        responseTimeMs: true,
+      },
+    }),
+  );
 
   const stats = new Map<string, { totalScore: number; totalResponseTimeMs: number }>();
   for (const p of session.participants) {
@@ -2087,9 +2132,7 @@ async function generateBonusTokens(session: {
     const s = stats.get(v.participantId);
     if (!s) continue;
     s.totalScore += v.score;
-    if (v.score > 0) {
-      s.totalResponseTimeMs += v.responseTimeMs ?? 0;
-    }
+    s.totalResponseTimeMs += getCompetitionResponseTimeMs(v);
   }
 
   const nicknameById = new Map(session.participants.map((p) => [p.id, p.nickname]));
@@ -4410,21 +4453,25 @@ export const sessionRouter = router({
         questionCountsTowardsTotalQuestions(q.type as QuestionType),
       ).length;
 
-      const votes = await prisma.vote.findMany({
-        where: { sessionId: session.id, round: 1 },
-        select: {
-          participantId: true,
-          score: true,
-          responseTimeMs: true,
-          question: {
-            select: {
-              type: true,
-              answers: { select: { id: true, isCorrect: true } },
+      const votes = selectEffectiveCompetitionVotes(
+        await prisma.vote.findMany({
+          where: { sessionId: session.id, round: { in: [1, 2] } },
+          select: {
+            participantId: true,
+            questionId: true,
+            round: true,
+            score: true,
+            responseTimeMs: true,
+            question: {
+              select: {
+                type: true,
+                answers: { select: { id: true, isCorrect: true } },
+              },
             },
+            selectedAnswers: { select: { answerOptionId: true } },
           },
-          selectedAnswers: { select: { answerOptionId: true } },
-        },
-      });
+        }),
+      );
 
       const stats = new Map<
         string,
@@ -4438,9 +4485,7 @@ export const sessionRouter = router({
         const s = stats.get(v.participantId);
         if (!s) continue;
         s.totalScore += Number(v.score) || 0;
-        if (v.score > 0) {
-          s.totalResponseTimeMs += v.responseTimeMs ?? 0;
-        }
+        s.totalResponseTimeMs += getCompetitionResponseTimeMs(v);
 
         if (questionCountsTowardsTotalQuestions(v.question.type as QuestionType)) {
           if (v.question.type === 'SHORT_TEXT') {
@@ -4903,14 +4948,22 @@ export const sessionRouter = router({
       const questionsUpToNow = session.quiz.questions
         .slice(0, input.questionIndex + 1)
         .map((q) => q.id);
-      const allVotes = await prisma.vote.findMany({
-        where: {
-          sessionId: session.id,
-          round: input.round,
-          questionId: { in: questionsUpToNow },
-        },
-        select: { participantId: true, score: true, responseTimeMs: true },
-      });
+      const allVotes = selectEffectiveCompetitionVotes(
+        await prisma.vote.findMany({
+          where: {
+            sessionId: session.id,
+            round: { in: [1, 2] },
+            questionId: { in: questionsUpToNow },
+          },
+          select: {
+            participantId: true,
+            questionId: true,
+            round: true,
+            score: true,
+            responseTimeMs: true,
+          },
+        }),
+      );
 
       const totals = new Map<string, { totalScore: number; totalResponseTimeMs: number }>();
       for (const p of session.participants) {
@@ -4920,9 +4973,7 @@ export const sessionRouter = router({
         const t = totals.get(v.participantId);
         if (!t) continue;
         t.totalScore += Number(v.score) || 0;
-        if (v.score > 0) {
-          t.totalResponseTimeMs += v.responseTimeMs ?? 0;
-        }
+        t.totalResponseTimeMs += getCompetitionResponseTimeMs(v);
       }
 
       const ranked = [...totals.entries()]
@@ -4945,14 +4996,22 @@ export const sessionRouter = router({
         const prevQuestionIds = session.quiz.questions
           .slice(0, input.questionIndex)
           .map((q) => q.id);
-        const prevVotes = await prisma.vote.findMany({
-          where: {
-            sessionId: session.id,
-            round: input.round,
-            questionId: { in: prevQuestionIds },
-          },
-          select: { participantId: true, score: true, responseTimeMs: true },
-        });
+        const prevVotes = selectEffectiveCompetitionVotes(
+          await prisma.vote.findMany({
+            where: {
+              sessionId: session.id,
+              round: { in: [1, 2] },
+              questionId: { in: prevQuestionIds },
+            },
+            select: {
+              participantId: true,
+              questionId: true,
+              round: true,
+              score: true,
+              responseTimeMs: true,
+            },
+          }),
+        );
         const prevTotals = new Map<string, { totalScore: number; totalResponseTimeMs: number }>();
         for (const p of session.participants) {
           prevTotals.set(p.id, { totalScore: 0, totalResponseTimeMs: 0 });
@@ -4961,9 +5020,7 @@ export const sessionRouter = router({
           const t = prevTotals.get(v.participantId);
           if (!t) continue;
           t.totalScore += Number(v.score) || 0;
-          if (v.score > 0) {
-            t.totalResponseTimeMs += v.responseTimeMs ?? 0;
-          }
+          t.totalResponseTimeMs += getCompetitionResponseTimeMs(v);
         }
         const prevRanked = [...prevTotals.entries()]
           .map(([pid, s]) => ({
@@ -5036,10 +5093,18 @@ export const sessionRouter = router({
         });
       }
 
-      const votes = await prisma.vote.findMany({
-        where: { sessionId: session.id, round: 1 },
-        select: { participantId: true, score: true, responseTimeMs: true },
-      });
+      const votes = selectEffectiveCompetitionVotes(
+        await prisma.vote.findMany({
+          where: { sessionId: session.id, round: { in: [1, 2] } },
+          select: {
+            participantId: true,
+            questionId: true,
+            round: true,
+            score: true,
+            responseTimeMs: true,
+          },
+        }),
+      );
 
       const stats = new Map<string, { totalScore: number; totalResponseTimeMs: number }>();
       for (const p of session.participants) {
@@ -5049,9 +5114,7 @@ export const sessionRouter = router({
         const s = stats.get(v.participantId);
         if (!s) continue;
         s.totalScore += v.score;
-        if (v.score > 0) {
-          s.totalResponseTimeMs += v.responseTimeMs ?? 0;
-        }
+        s.totalResponseTimeMs += getCompetitionResponseTimeMs(v);
       }
 
       const ranked = [...stats.entries()]

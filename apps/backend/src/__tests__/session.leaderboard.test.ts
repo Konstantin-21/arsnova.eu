@@ -43,6 +43,8 @@ describe('session.getLeaderboard', () => {
     prismaMock.vote.findMany.mockResolvedValue([
       {
         participantId: 'p1',
+        questionId: 'q1',
+        round: 1,
         score: 2000,
         responseTimeMs: 1000,
         question: {
@@ -57,6 +59,8 @@ describe('session.getLeaderboard', () => {
       },
       {
         participantId: 'p2',
+        questionId: 'q1',
+        round: 1,
         score: 0,
         responseTimeMs: 1200,
         question: {
@@ -101,6 +105,8 @@ describe('session.getLeaderboard', () => {
     prismaMock.vote.findMany.mockResolvedValue([
       {
         participantId: 'p1',
+        questionId: 'q1',
+        round: 1,
         score: 2000,
         responseTimeMs: 5000,
         question: {
@@ -114,6 +120,8 @@ describe('session.getLeaderboard', () => {
       },
       {
         participantId: 'p1',
+        questionId: 'q2',
+        round: 1,
         score: 0,
         responseTimeMs: 120_000,
         question: {
@@ -127,6 +135,8 @@ describe('session.getLeaderboard', () => {
       },
       {
         participantId: 'p2',
+        questionId: 'q1',
+        round: 1,
         score: 2000,
         responseTimeMs: 6000,
         question: {
@@ -160,6 +170,133 @@ describe('session.getLeaderboard', () => {
     ]);
   });
 
+  it('ersetzt bei Runde 2 die Runde-1-Wertung und ignoriert Runde-2-Antwortzeiten', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: 'sess-1',
+      quiz: {
+        showLeaderboard: true,
+        questions: [{ type: 'SINGLE_CHOICE' }, { type: 'SINGLE_CHOICE' }],
+      },
+      participants: [
+        { id: 'p1', nickname: 'Ada' },
+        { id: 'p2', nickname: 'Bob' },
+      ],
+    });
+    prismaMock.vote.findMany.mockResolvedValue([
+      {
+        participantId: 'p1',
+        questionId: 'q1',
+        round: 1,
+        score: 1000,
+        responseTimeMs: 5000,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q1-a1', isCorrect: true },
+            { id: 'q1-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q1-a1' }],
+      },
+      {
+        participantId: 'p2',
+        questionId: 'q1',
+        round: 1,
+        score: 1000,
+        responseTimeMs: 6000,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q1-a1', isCorrect: true },
+            { id: 'q1-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q1-a1' }],
+      },
+      {
+        participantId: 'p1',
+        questionId: 'q2',
+        round: 1,
+        score: 0,
+        responseTimeMs: 100,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q2-a1', isCorrect: true },
+            { id: 'q2-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q2-a2' }],
+      },
+      {
+        participantId: 'p2',
+        questionId: 'q2',
+        round: 1,
+        score: 1900,
+        responseTimeMs: 100,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q2-a1', isCorrect: true },
+            { id: 'q2-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q2-a1' }],
+      },
+      {
+        participantId: 'p1',
+        questionId: 'q2',
+        round: 2,
+        score: 2000,
+        responseTimeMs: 120_000,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q2-a1', isCorrect: true },
+            { id: 'q2-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q2-a1' }],
+      },
+      {
+        participantId: 'p2',
+        questionId: 'q2',
+        round: 2,
+        score: 2000,
+        responseTimeMs: 500,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'q2-a1', isCorrect: true },
+            { id: 'q2-a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'q2-a1' }],
+      },
+    ]);
+
+    const result = await caller.getLeaderboard({ code: 'ABC123' });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        rank: 1,
+        nickname: 'Ada',
+        totalScore: 3000,
+        correctCount: 2,
+        totalQuestions: 2,
+        totalResponseTimeMs: 5000,
+      }),
+      expect.objectContaining({
+        rank: 2,
+        nickname: 'Bob',
+        totalScore: 3000,
+        correctCount: 2,
+        totalQuestions: 2,
+        totalResponseTimeMs: 6000,
+      }),
+    ]);
+  });
+
   it('zaehlt positive SHORT_TEXT-Scores als richtige Antworten im Leaderboard', async () => {
     prismaMock.session.findUnique.mockResolvedValue({
       id: 'sess-1',
@@ -172,6 +309,8 @@ describe('session.getLeaderboard', () => {
     prismaMock.vote.findMany.mockResolvedValue([
       {
         participantId: 'p1',
+        questionId: 'q1',
+        round: 1,
         score: 215,
         responseTimeMs: 1800,
         question: {

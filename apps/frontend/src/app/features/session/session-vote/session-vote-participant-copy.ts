@@ -311,9 +311,9 @@ export function voteDiscussionNext(playful: boolean): string {
 
 export function voteRound2Banner(playful: boolean): string {
   if (playful) {
-    return $localize`:@@sessionVote.round2BannerPlayful:Runde 2 – hat sich deine Meinung nach dem Gespräch geändert?`;
+    return $localize`:@@sessionVote.round2BannerPlayful:Nur Runde 2 zählt. Antworte erneut.`;
   }
-  return $localize`:@@sessionVote.round2BannerSerious:2. Runde – hat die Diskussion deine Meinung geändert?`;
+  return $localize`:@@sessionVote.round2BannerSerious:Nur Runde 2 zählt. Antworte erneut.`;
 }
 
 export function voteRoundBadge(playful: boolean): string {

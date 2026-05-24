@@ -148,6 +148,8 @@ describe('SessionVoteComponent', () => {
     expect(vpc.voteFeedbackDoneCount(true, 1)).toBe('1 Stimme insgesamt');
     expect(vpc.voteFeedbackDoneCount(true, 3)).toBe('3 Stimmen insgesamt');
     expect(vpc.voteQuestionLabel(true, 2)).toBe('Frage 2');
+    expect(vpc.voteRound2Banner(true)).toBe('Nur Runde 2 zählt. Antworte erneut.');
+    expect(vpc.voteRound2Banner(false)).toBe('Nur Runde 2 zählt. Antworte erneut.');
   });
 
   beforeEach(() => {
