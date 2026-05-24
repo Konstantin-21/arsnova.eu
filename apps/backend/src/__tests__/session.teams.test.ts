@@ -252,6 +252,47 @@ describe('session team mode (Story 7.1)', () => {
     ]);
   });
 
+  it('nutzt Antwortzeiten nur von beitragenden Team-Votes als Gleichstand-Tiebreaker', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: SESSION_ID,
+      quiz: { teamMode: true, teamCount: 2, teamNames: [] },
+    });
+    prismaMock.team.findMany.mockResolvedValue([
+      { id: TEAM_A_ID, name: 'Zeta', color: '#1E88E5', _count: { participants: 1 } },
+      { id: TEAM_B_ID, name: 'Alpha', color: '#43A047', _count: { participants: 1 } },
+    ]);
+    prismaMock.participant.findMany.mockResolvedValue([
+      { id: 'p1', teamId: TEAM_A_ID },
+      { id: 'p2', teamId: TEAM_B_ID },
+    ]);
+    prismaMock.vote.findMany.mockResolvedValue([
+      { participantId: 'p1', score: 1000, responseTimeMs: 6000 },
+      { participantId: 'p1', score: 0, responseTimeMs: 120_000 },
+      { participantId: 'p2', score: 1000, responseTimeMs: 7000 },
+    ]);
+
+    const result = await caller.getTeamLeaderboard({ code: 'ABC123' });
+
+    expect(result).toEqual([
+      {
+        rank: 1,
+        teamName: 'Zeta',
+        teamColor: '#1E88E5',
+        totalScore: 1000,
+        memberCount: 1,
+        averageScore: 1000,
+      },
+      {
+        rank: 2,
+        teamName: 'Alpha',
+        teamColor: '#43A047',
+        totalScore: 1000,
+        memberCount: 1,
+        averageScore: 1000,
+      },
+    ]);
+  });
+
   it('liefert Team-Wertung auch im Session-Export nach Sessionende', async () => {
     prismaMock.session.findUnique.mockResolvedValue({
       id: SESSION_ID,

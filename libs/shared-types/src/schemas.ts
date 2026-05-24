@@ -2352,7 +2352,7 @@ export const LeaderboardEntryDTOSchema = z.object({
   totalScore: z.number(), // Gesamtpunkte (Schwierigkeit × Zeitbonus)
   correctCount: z.number(), // Anzahl richtiger Antworten
   totalQuestions: z.number(), // Gesamtanzahl Fragen
-  totalResponseTimeMs: z.number(), // Gesamtantwortzeit in ms (Tiebreaker)
+  totalResponseTimeMs: z.number(), // Gesamtantwortzeit positiv bewerteter Antworten in ms (Tiebreaker)
 });
 export type LeaderboardEntryDTO = z.infer<typeof LeaderboardEntryDTOSchema>;
 

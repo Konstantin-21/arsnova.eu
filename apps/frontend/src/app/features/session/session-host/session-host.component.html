@@ -674,6 +674,12 @@
                         </p>
                       </div>
                     }
+                    <p class="session-host__leaderboard-tiebreak-hint">
+                      <mat-icon aria-hidden="true">timer</mat-icon>
+                      <span i18n="@@sessionHost.leaderboardTiebreakHint"
+                        >Bei Punktgleichheit entscheidet die schnellere Antwortzeit.</span
+                      >
+                    </p>
                     <div class="session-host__leaderboard-wrap">
                       <table class="session-host__leaderboard-table" role="table">
                         <thead>
@@ -796,6 +802,14 @@
                         </li>
                       }
                     </ol>
+                    @if (teamLeaderboardHasScoreTie()) {
+                      <p class="session-host__leaderboard-tiebreak-hint">
+                        <mat-icon aria-hidden="true">timer</mat-icon>
+                        <span i18n="@@sessionHost.teamLeaderboardTiebreakHint"
+                          >Gleichstand: Antwortzeit zählt.</span
+                        >
+                      </p>
+                    }
                   </section>
                 }
 
@@ -1650,6 +1664,14 @@
                       </li>
                     }
                   </ol>
+                  @if (visibleInterimLeaderboardHasScoreTie()) {
+                    <p class="session-host__interim-tiebreak-hint">
+                      <mat-icon aria-hidden="true">timer</mat-icon>
+                      <span i18n="@@sessionHost.interimLeaderboardTiebreakHint"
+                        >Gleichstand: Antwortzeit zählt.</span
+                      >
+                    </p>
+                  }
                 </div>
               }
 
@@ -1713,6 +1735,14 @@
                       </li>
                     }
                   </ol>
+                  @if (teamLeaderboardHasScoreTie()) {
+                    <p class="session-host__interim-tiebreak-hint">
+                      <mat-icon aria-hidden="true">timer</mat-icon>
+                      <span i18n="@@sessionHost.teamLeaderboardTiebreakHint"
+                        >Gleichstand: Antwortzeit zählt.</span
+                      >
+                    </p>
+                  }
                 </div>
               }
 

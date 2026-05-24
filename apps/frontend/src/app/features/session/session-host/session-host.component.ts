@@ -549,9 +549,39 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     if (board.length === 0) return 0;
     return Math.max(...board.map((e) => e.totalScore));
   });
+  readonly teamLeaderboardHasScoreTie = computed(() => {
+    const seenScores = new Set<number>();
+    return this.teamLeaderboard().some((entry) => {
+      const score = entry.totalScore;
+      if (score <= 0) {
+        return false;
+      }
+      if (seenScores.has(score)) {
+        return true;
+      }
+      seenScores.add(score);
+      return false;
+    });
+  });
   readonly showsInterimLeaderboard = computed(() =>
     isScoredQuestionType(this.displayedCurrentQuestionForHost()?.type),
   );
+  readonly visibleInterimLeaderboardHasScoreTie = computed(() => {
+    const seenScores = new Set<number>();
+    return this.leaderboard()
+      .slice(0, 5)
+      .some((entry) => {
+        const score = entry.totalScore;
+        if (score <= 0) {
+          return false;
+        }
+        if (seenScores.has(score)) {
+          return true;
+        }
+        seenScores.add(score);
+        return false;
+      });
+  });
   readonly wordCloudToggleLabel = computed(() =>
     this.wordCloudExpanded()
       ? $localize`:@@sessionHost.wordCloudHide:Wortwolke ausblenden`

@@ -102,10 +102,9 @@ export const voteRouter = router({
       }
 
       const questionType = question.type as QuestionType;
-      const responseTimeMs =
-        timerSeconds && timerSeconds > 0 && hasServerQuestionStart
-          ? Math.max(0, requestReceivedAtMs - statusChangedAtMs)
-          : (input.responseTimeMs ?? null);
+      const responseTimeMs = hasServerQuestionStart
+        ? Math.max(0, requestReceivedAtMs - statusChangedAtMs)
+        : (input.responseTimeMs ?? null);
       const answerIds = [...new Set(input.answerIds ?? [])];
       const allowedAnswerIds = new Set(question.answers.map((answer) => answer.id));
       const hasInvalidAnswerId = answerIds.some((answerId) => !allowedAnswerIds.has(answerId));

@@ -5111,7 +5111,15 @@ describe('SessionHostComponent', () => {
         teamColor: '#1E88E5',
         totalScore: 220,
         memberCount: 3,
-        averageScore: 73.33,
+        averageScore: 220,
+      },
+      {
+        rank: 2,
+        teamName: 'Team B',
+        teamColor: '#43A047',
+        totalScore: 220,
+        memberCount: 2,
+        averageScore: 220,
       },
     ]);
 
@@ -5125,6 +5133,7 @@ describe('SessionHostComponent', () => {
     expect(text).toContain('Zur Startseite');
     expect(text).toContain('Team-Leaderboard');
     expect(text).toContain('Team A');
+    expect(text).toContain('Gleichstand: Antwortzeit zählt.');
     expect(getTeamLeaderboardQueryMock).toHaveBeenCalledWith({ code: 'ABC123' });
     fixture.destroy();
   });
@@ -5184,6 +5193,7 @@ describe('SessionHostComponent', () => {
 
     expect(text).toContain('Gewonnen hat');
     expect(text).toContain('Lila Delfin');
+    expect(text).toContain('Bei Punktgleichheit entscheidet die schnellere Antwortzeit.');
     expect(text).toMatch(/Mit 9[.,]400 Punkten/);
     expect(winnerEmoji?.getAttribute('title')).toBe('Lila Delfin');
     expect(
@@ -5201,7 +5211,7 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
-  it('zeigt im Host-Zwischenleaderboard Titles und Labels an Kindergarten-Tiericons', async () => {
+  it('zeigt im Host-Zwischenleaderboard Titles, Labels und den Gleichstandhinweis', async () => {
     getInfoQueryMock.mockResolvedValue({
       ...defaultSession,
       status: 'RESULTS',
@@ -5254,7 +5264,7 @@ describe('SessionHostComponent', () => {
       {
         rank: 2,
         nickname: 'Lagunenblaue Qualle',
-        totalScore: 450,
+        totalScore: 500,
         correctCount: 2,
         totalQuestions: 3,
         totalResponseTimeMs: 3200,
@@ -5283,6 +5293,7 @@ describe('SessionHostComponent', () => {
       'Lagunenblaue Qualle',
     ]);
     expect(interimLabels).toEqual(['Lila Delfin', 'Lagunenblaue Qualle']);
+    expect(fixture.nativeElement.textContent ?? '').toContain('Gleichstand: Antwortzeit zählt.');
     fixture.destroy();
   });
 
@@ -5306,6 +5317,14 @@ describe('SessionHostComponent', () => {
         teamColor: '#1E88E5',
         totalScore: 220,
         memberCount: 3,
+        averageScore: 220,
+      },
+      {
+        rank: 2,
+        teamName: ':pear: Gruen',
+        teamColor: '#43A047',
+        totalScore: 220,
+        memberCount: 2,
         averageScore: 220,
       },
     ]);
@@ -5364,6 +5383,14 @@ describe('SessionHostComponent', () => {
         memberCount: 3,
         averageScore: 220,
       },
+      {
+        rank: 2,
+        teamName: ':pear: Gruen',
+        teamColor: '#43A047',
+        totalScore: 220,
+        memberCount: 2,
+        averageScore: 220,
+      },
     ]);
 
     const fixture = setup();
@@ -5384,6 +5411,7 @@ describe('SessionHostComponent', () => {
     expect(interimName?.textContent ?? '').toContain('Rot');
     expect(interimScore?.textContent ?? '').toContain('3 Mitglieder');
     expect(interimScore?.textContent ?? '').toContain('∅ 220');
+    expect(teamInterim?.textContent ?? '').toContain('Gleichstand: Antwortzeit zählt.');
     expect(interimName?.querySelector('.session-host__interim-team-dot')).toBeNull();
     expect(interimName?.querySelector('.session-host__interim-team-emoji')?.textContent).toBe('🍎');
     fixture.destroy();

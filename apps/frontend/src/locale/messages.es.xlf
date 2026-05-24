@@ -8769,6 +8769,14 @@
           <context context-type="linenumber">672,674</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="sessionHost.leaderboardTiebreakHint" datatype="html">
+        <source>Bei Punktgleichheit entscheidet die schnellere Antwortzeit.</source>
+        <target>Si hay empate a puntos, decide el menor tiempo de respuesta.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/session/session-host/session-host.component.html</context>
+          <context context-type="linenumber">680</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="5635631035014464221" datatype="html">
         <source>Richtig</source>
         <target>Correcto</target>
@@ -8783,6 +8791,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-host/session-host.component.html</context>
           <context context-type="linenumber">747</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="sessionHost.teamLeaderboardTiebreakHint" datatype="html">
+        <source>Gleichstand: Antwortzeit zählt.</source>
+        <target>Empate: cuenta el tiempo.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/session/session-host/session-host.component.html</context>
+          <context context-type="linenumber">805</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5866404944747657974" datatype="html">
@@ -9103,6 +9119,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/session/session-host/session-host.component.html</context>
           <context context-type="linenumber">1612</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="sessionHost.interimLeaderboardTiebreakHint" datatype="html">
+        <source>Gleichstand: Antwortzeit zählt.</source>
+        <target>Empate: cuenta el tiempo.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/session/session-host/session-host.component.html</context>
+          <context context-type="linenumber">1659</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8436638106328843877" datatype="html">

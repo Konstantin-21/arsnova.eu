@@ -1708,18 +1708,25 @@ async function buildSessionTeamLeaderboard(
   });
   const votes = await prisma.vote.findMany({
     where: { sessionId, round: 1 },
-    select: { participantId: true, score: true },
+    select: { participantId: true, score: true, responseTimeMs: true },
   });
 
   const teamStats = new Map<
     string,
-    { teamName: string; teamColor: string | null; rawTotalScore: number; memberCount: number }
+    {
+      teamName: string;
+      teamColor: string | null;
+      rawTotalScore: number;
+      totalResponseTimeMs: number;
+      memberCount: number;
+    }
   >();
   for (const team of teams) {
     teamStats.set(team.id, {
       teamName: team.name,
       teamColor: team.color ?? null,
       rawTotalScore: 0,
+      totalResponseTimeMs: 0,
       memberCount: 0,
     });
   }
@@ -1739,7 +1746,11 @@ async function buildSessionTeamLeaderboard(
     if (!teamId) continue;
     const stats = teamStats.get(teamId);
     if (!stats) continue;
-    stats.rawTotalScore += Number(vote.score) || 0;
+    const score = Number(vote.score) || 0;
+    stats.rawTotalScore += score;
+    if (score > 0) {
+      stats.totalResponseTimeMs += vote.responseTimeMs ?? 0;
+    }
   }
 
   return [...teamStats.values()]
@@ -1751,14 +1762,24 @@ async function buildSessionTeamLeaderboard(
         teamName: team.teamName,
         teamColor: team.teamColor,
         totalScore: normalizedScore,
+        totalResponseTimeMs: team.totalResponseTimeMs,
         memberCount: team.memberCount,
         averageScore: normalizedScore,
       };
     })
-    .sort((a, b) => b.totalScore - a.totalScore || a.teamName.localeCompare(b.teamName))
+    .sort(
+      (a, b) =>
+        b.totalScore - a.totalScore ||
+        a.totalResponseTimeMs - b.totalResponseTimeMs ||
+        a.teamName.localeCompare(b.teamName),
+    )
     .map((team, index) => ({
-      ...team,
       rank: index + 1,
+      teamName: team.teamName,
+      teamColor: team.teamColor,
+      totalScore: team.totalScore,
+      memberCount: team.memberCount,
+      averageScore: team.averageScore,
     }));
 }
 
@@ -2066,7 +2087,9 @@ async function generateBonusTokens(session: {
     const s = stats.get(v.participantId);
     if (!s) continue;
     s.totalScore += v.score;
-    s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+    if (v.score > 0) {
+      s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+    }
   }
 
   const nicknameById = new Map(session.participants.map((p) => [p.id, p.nickname]));
@@ -4409,7 +4432,9 @@ export const sessionRouter = router({
         const s = stats.get(v.participantId);
         if (!s) continue;
         s.totalScore += Number(v.score) || 0;
-        s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        if (v.score > 0) {
+          s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        }
 
         if (questionCountsTowardsTotalQuestions(v.question.type as QuestionType)) {
           const correctAnswerIds = v.question.answers
@@ -4861,7 +4886,9 @@ export const sessionRouter = router({
         const t = totals.get(v.participantId);
         if (!t) continue;
         t.totalScore += Number(v.score) || 0;
-        t.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        if (v.score > 0) {
+          t.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        }
       }
 
       const ranked = [...totals.entries()]
@@ -4900,7 +4927,9 @@ export const sessionRouter = router({
           const t = prevTotals.get(v.participantId);
           if (!t) continue;
           t.totalScore += Number(v.score) || 0;
-          t.totalResponseTimeMs += v.responseTimeMs ?? 0;
+          if (v.score > 0) {
+            t.totalResponseTimeMs += v.responseTimeMs ?? 0;
+          }
         }
         const prevRanked = [...prevTotals.entries()]
           .map(([pid, s]) => ({
@@ -4986,7 +5015,9 @@ export const sessionRouter = router({
         const s = stats.get(v.participantId);
         if (!s) continue;
         s.totalScore += v.score;
-        s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        if (v.score > 0) {
+          s.totalResponseTimeMs += v.responseTimeMs ?? 0;
+        }
       }
 
       const ranked = [...stats.entries()]

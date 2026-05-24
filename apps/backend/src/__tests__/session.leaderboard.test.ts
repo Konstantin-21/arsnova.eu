@@ -77,4 +77,76 @@ describe('session.getLeaderboard', () => {
       }),
     ]);
   });
+
+  it('nutzt nur Antwortzeiten von positiv bewerteten Antworten als Tiebreaker', async () => {
+    prismaMock.session.findUnique.mockResolvedValue({
+      id: 'sess-1',
+      quiz: {
+        showLeaderboard: true,
+        questions: [{ type: 'SINGLE_CHOICE' }, { type: 'SURVEY' }],
+      },
+      participants: [
+        { id: 'p1', nickname: 'Ada' },
+        { id: 'p2', nickname: 'Bob' },
+      ],
+    });
+    prismaMock.vote.findMany.mockResolvedValue([
+      {
+        participantId: 'p1',
+        score: 2000,
+        responseTimeMs: 5000,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'a1', isCorrect: true },
+            { id: 'a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'a1' }],
+      },
+      {
+        participantId: 'p1',
+        score: 0,
+        responseTimeMs: 120_000,
+        question: {
+          type: 'SURVEY',
+          answers: [
+            { id: 's1', isCorrect: false },
+            { id: 's2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 's1' }],
+      },
+      {
+        participantId: 'p2',
+        score: 2000,
+        responseTimeMs: 6000,
+        question: {
+          type: 'SINGLE_CHOICE',
+          answers: [
+            { id: 'a1', isCorrect: true },
+            { id: 'a2', isCorrect: false },
+          ],
+        },
+        selectedAnswers: [{ answerOptionId: 'a1' }],
+      },
+    ]);
+
+    const result = await caller.getLeaderboard({ code: 'ABC123' });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        rank: 1,
+        nickname: 'Ada',
+        totalScore: 2000,
+        totalResponseTimeMs: 5000,
+      }),
+      expect.objectContaining({
+        rank: 2,
+        nickname: 'Bob',
+        totalScore: 2000,
+        totalResponseTimeMs: 6000,
+      }),
+    ]);
+  });
 });
