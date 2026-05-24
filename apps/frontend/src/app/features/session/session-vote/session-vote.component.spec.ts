@@ -320,6 +320,23 @@ describe('SessionVoteComponent', () => {
     fixture.destroy();
   });
 
+  it('rendert gebuendelte App-Asset-Bilder in Live-Fragetexten', () => {
+    const fixture = TestBed.createComponent(SessionVoteComponent);
+    const component = fixture.componentInstance;
+
+    const rendered = component.renderMarkdown(
+      '![Rooftop scene](/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png)',
+    ) as unknown as {
+      changingThisBreaksApplicationSecurity?: string;
+    };
+
+    expect(rendered.changingThisBreaksApplicationSecurity).toContain(
+      'src="/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png"',
+    );
+    expect(rendered.changingThisBreaksApplicationSecurity).toContain('alt="Rooftop scene"');
+    fixture.destroy();
+  });
+
   it('markiert fuehrende Emojis in Antworttexten fuer ein kompakteres Live-Layout', () => {
     const fixture = TestBed.createComponent(SessionVoteComponent);
     const component = fixture.componentInstance;

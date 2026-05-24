@@ -1,6 +1,6 @@
 {
-  "exportVersion": 24,
-  "exportedAt": "2026-05-16T20:20:00.000Z",
+  "exportVersion": 25,
+  "exportedAt": "2026-05-24T10:00:00.000Z",
   "quiz": {
     "name": "Showcase didattico: demo a squadre",
     "description": "![Showcase didattico](https://upload.wikimedia.org/wikipedia/commons/2/2a/Pi-unrolled-720.gif)\n\n# Showcase didattico\n\nQuesta demo è pensata per un **uso reale in classe**. Non vuole essere il quiz disciplinare perfetto dall’inizio alla fine. Il suo obiettivo è un altro: mostrare a docenti, formatori e facilitatori come arsnova.eu possa rendere una sessione dal vivo più varia, più visiva e più coinvolgente.\n\nUsala come una **demo breve a squadre, in stile Kahoot, per lezioni dal vivo** per mostrare come puoi:\n- iniziare con un check-in emotivo o sociale\n- usare immagini invece di sole domande testuali\n- inserire formule e notazione scientifica nelle materie STEM\n- raccogliere risposte brevi in testo libero che poi riappaiono come nuvola di parole\n- usare bene domande a scelta multipla e scale di valutazione rapide\n- aggiungere energia con timer, squadre, classifica e codici bonus\n- mostrare frammenti di codice in informatica o in corsi tecnici\n\nLe domande sono volutamente varie. L’idea è offrirti spunti pratici per attività rompighiaccio, verifiche rapide della comprensione, reset dell’attenzione e brevi momenti interattivi da riutilizzare in classe.\n\n**Suggerimento per la demo:** Entra nella sessione anche da un secondo dispositivo, idealmente scansionando il QR code con il telefono. Così puoi provare in modo realistico il passaggio tra la vista host e l’esperienza del partecipante.\n\n**Un altro suggerimento:** Poi apri il quiz in modalità modifica per vedere come le domande sono realizzate con Markdown e KaTeX.\n\n**E ancora una cosa:** Se ti servono altri tipi di domanda o funzionalità, puoi richiederli senza problemi. Trovi i contatti nelle note legali.",
@@ -58,7 +58,7 @@
         "answers": []
       },
       {
-        "text": "### Immagine generata dall’IA o foto reale?\n\n> **Uso didattico:** Usalo come avvio visivo, reset dell’attenzione o spunto di discussione a bassa soglia.\n\n![Foto di città](https://cdn.imago-images.de/bild/st/0105048862/s.jpg)",
+        "text": "### Immagine generata dall’IA o foto reale?\n\n> **Uso didattico:** Usalo come avvio visivo, reset dell’attenzione o spunto di discussione a bassa soglia.\n\n![Scena sul tetto](/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png)",
         "type": "SINGLE_CHOICE",
         "timer": null,
         "difficulty": "EASY",

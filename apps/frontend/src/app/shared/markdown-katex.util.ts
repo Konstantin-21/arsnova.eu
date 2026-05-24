@@ -10,7 +10,10 @@ export interface MarkdownRenderResult {
   katexError: string | null;
 }
 
-export type MarkdownImagePolicy = 'external-https-only' | 'allow-relative-and-https';
+export type MarkdownImagePolicy =
+  | 'external-https-only'
+  | 'external-https-and-app-assets'
+  | 'allow-relative-and-https';
 
 const MARKDOWN_EMOJI_SHORTCODES = new Map(Object.entries(MARKDOWN_EMOJI_SHORTCODE_MAP));
 const INTERNAL_MARKDOWN_LINK_HOSTNAMES = new Set([
@@ -248,6 +251,11 @@ function sanitizeMarkdownUrl(
     if (value.startsWith('./') || value.startsWith('../')) return value;
     if (/^[^\s/:?#]+(?:\/[^\s?#]*)?(?:\?[^\s#]*)?(?:#.*)?$/.test(value)) return value;
   }
+  if (type === 'image' && imagePolicy === 'external-https-and-app-assets') {
+    const appAssetPath = sanitizeAppAssetImagePath(value);
+    if (appAssetPath) return appAssetPath;
+  }
+
   if (type === 'image' && imagePolicy === 'allow-relative-and-https') {
     if (value.startsWith('/')) {
       return value.startsWith('//') ? null : value;
@@ -280,6 +288,22 @@ function sanitizeMarkdownUrl(
 
   const allowedSchemes = new Set(['https', 'mailto', 'tel']);
   return allowedSchemes.has(scheme) ? value : null;
+}
+
+function sanitizeAppAssetImagePath(value: string): string | null {
+  if (value.startsWith('//') || value.includes('\\')) return null;
+  if (!value.startsWith('/assets/') && !value.startsWith('assets/')) return null;
+
+  try {
+    const url = new URL(value, 'https://arsnova.local/');
+    if (url.origin !== 'https://arsnova.local') return null;
+    const decodedPath = decodeURIComponent(url.pathname);
+    if (!decodedPath.startsWith('/assets/')) return null;
+    if (decodedPath.split('/').some((segment) => segment === '.' || segment === '..')) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
 }
 
 function isLoopbackHttpUrl(value: string): boolean {

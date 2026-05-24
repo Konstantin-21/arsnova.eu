@@ -42,16 +42,15 @@ function fnv1a32Hex(input: string): string {
 
 /**
  * Stabiler Vergleichswert für localStorage: wechselt mit Locale und Inhalt der Showcase-JSON.
- * U. a. Beschreibung/Motiv — sonst bleibt nach JSON-Updates ein altes Demo in IndexedDB (ohne Bild).
+ * Der volle Payload-Hash stellt sicher, dass auch reine Fragen-/Antwort-Updates ein Reseed auslösen.
  */
 export function getDemoQuizSeedFingerprint(locale: SupportedLocale): string {
   const payload = PAYLOADS[locale] ?? PAYLOADS.de;
   const p = payload as DemoExportShape;
   const v = typeof p.exportVersion === 'number' ? p.exportVersion : 0;
   const n = typeof p.quiz?.name === 'string' ? p.quiz.name : '';
-  const desc = typeof p.quiz?.description === 'string' ? p.quiz.description : '';
   const motif = typeof p.quiz?.motifImageUrl === 'string' ? p.quiz.motifImageUrl : '';
-  return `${locale}|${v}|${n}|${motif}|${fnv1a32Hex(desc)}`;
+  return `${locale}|${v}|${n}|${motif}|${fnv1a32Hex(JSON.stringify(payload))}`;
 }
 
 export function getDemoQuizExpectedTitle(locale: SupportedLocale): string {

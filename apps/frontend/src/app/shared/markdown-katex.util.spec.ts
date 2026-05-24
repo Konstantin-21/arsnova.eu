@@ -67,6 +67,31 @@ describe('renderMarkdownWithKatex', () => {
     expect(result.html).not.toContain('src="/assets/demo/x.svg"');
   });
 
+  it('erlaubt gebuendelte App-Assets im Session-Asset-Modus', () => {
+    const result = renderMarkdownWithKatex('![Demo](assets/demo/x.svg)', {
+      imagePolicy: 'external-https-and-app-assets',
+    });
+
+    expect(result.html).toContain('<img');
+    expect(result.html).toContain('src="/assets/demo/x.svg"');
+  });
+
+  it('blockiert andere relative Bildquellen im Session-Asset-Modus', () => {
+    const result = renderMarkdownWithKatex('![Demo](/trpc/health.check)', {
+      imagePolicy: 'external-https-and-app-assets',
+    });
+
+    expect(result.html).toContain('<p>Demo</p>');
+    expect(result.html).not.toContain('<img ');
+    expect(result.html).not.toContain('/trpc/health.check');
+
+    const traversal = renderMarkdownWithKatex('![Demo](/assets/%2e%2e/trpc/health.check)', {
+      imagePolicy: 'external-https-and-app-assets',
+    });
+    expect(traversal.html).toContain('<p>Demo</p>');
+    expect(traversal.html).not.toContain('<img ');
+  });
+
   it('erlaubt im lockeren Bildmodus Loopback-HTTP-Bildquellen fuer lokale Vorschauen', () => {
     const result = renderMarkdownWithKatex('![Demo](http://localhost:4200/assets/demo/x.svg)', {
       imagePolicy: 'allow-relative-and-https',
@@ -207,6 +232,20 @@ describe('renderMarkdownWithoutKatex', () => {
     expect(html).toContain('<p>A</p>');
     expect(html).not.toContain('<img ');
     expect(html).not.toContain('src="assets/demo/x.svg"');
+  });
+
+  it('erlaubt /assets-Bilder im Session-Asset-Modus ohne beliebige relative Pfade', () => {
+    const html = renderMarkdownWithoutKatex('![A](/assets/demo/x.svg)', {
+      imagePolicy: 'external-https-and-app-assets',
+    });
+    expect(html).toContain('<img');
+    expect(html).toContain('src="/assets/demo/x.svg"');
+
+    const blocked = renderMarkdownWithoutKatex('![A](/api/private.png)', {
+      imagePolicy: 'external-https-and-app-assets',
+    });
+    expect(blocked).toContain('<p>A</p>');
+    expect(blocked).not.toContain('<img ');
   });
 
   it('erlaubt https-Bildquellen im strikten Modus (Quiz-Inhalte)', () => {

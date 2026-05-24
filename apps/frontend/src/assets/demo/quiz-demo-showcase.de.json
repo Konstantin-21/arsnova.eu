@@ -1,6 +1,6 @@
 {
-  "exportVersion": 24,
-  "exportedAt": "2026-05-16T20:20:00.000Z",
+  "exportVersion": 25,
+  "exportedAt": "2026-05-24T10:00:00.000Z",
   "quiz": {
     "name": "Praxis-Showcase: Live-Teamdemo",
     "description": "![Praxis-Showcase](https://upload.wikimedia.org/wikipedia/commons/2/2a/Pi-unrolled-720.gif)\n\n# Praxis-Showcase für den Unterricht\n\nDiese Demo ist für den **echten Unterrichtseinsatz** gedacht. Sie will kein perfekt durchkomponiertes Fachquiz von Anfang bis Ende sein. Ihr Zweck ist ein anderer: Sie soll Lehrkräften, Dozierenden und Trainer:innen zeigen, wie arsnova.eu eine Live-Session abwechslungsreicher, visueller und spielerischer machen kann.\n\nNutze sie als kurze, **Kahoot-artige Team-Demo für den Live-Unterricht**, um zu zeigen, wie du:\n- mit einem kurzen emotionalen oder sozialen Check-in startest\n- Bilder statt reiner Textfragen einsetzt\n- Formeln und wissenschaftliche Notation in MINT-Fächern einbindest\n- kurze Freitextantworten aus dem Raum sammelst, die später als Wortwolke sichtbar werden\n- Multiple-Choice- und Rating-Fragen sinnvoll einsetzt\n- mit Timer, Teams, Rangliste und Bonus-Codes mehr Energie aufbaust\n- Codebeispiele im Informatik- oder Technikunterricht einsetzt\n\nDie Fragen sind bewusst gemischt. Ziel ist es, dir konkrete Ideen für Einstiege, Verständnischecks, Aufmerksamkeitssignale und kurze interaktive Momente im Unterricht zu geben.\n\n**Tipp für die Demo:** Tritt der Session auf einem zweiten Gerät bei, am besten per QR-Code auf dem Smartphone. So kannst du den Wechsel zwischen Host-Ansicht und Teilnehmenden-Perspektive realistisch durchspielen.\n\n**Noch ein Tipp:** Öffne danach den Bearbeitungsmodus des Quiz und schau dir an, wie die Fragen mit Markdown und KaTeX umgesetzt sind.\n\n**Und noch etwas:** Weitere Frageformate oder Features kannst du gern anfragen. Die Kontaktdaten findest du im Impressum.",
@@ -58,7 +58,7 @@
         "answers": []
       },
       {
-        "text": "### KI-Bild oder echtes Foto?\n\n> **Unterrichtsidee:** Nutze das als visuellen Einstieg, als Aufmerksamkeitssignal oder als niedrigschwelligen Gesprächseinstieg.\n\n![Stadtfoto](https://cdn.imago-images.de/bild/st/0105048862/s.jpg)",
+        "text": "### KI-Bild oder echtes Foto?\n\n> **Unterrichtsidee:** Nutze das als visuellen Einstieg, als Aufmerksamkeitssignal oder als niedrigschwelligen Gesprächseinstieg.\n\n![Dachszene](/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png)",
         "type": "SINGLE_CHOICE",
         "timer": null,
         "difficulty": "EASY",

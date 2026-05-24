@@ -3310,7 +3310,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     }
     const rendered = this.sanitizer.bypassSecurityTrustHtml(
       decorateLeadingAnswerEmoji(
-        renderMarkdownWithKatex(value, { imagePolicy: 'external-https-only' }).html,
+        renderMarkdownWithKatex(value, { imagePolicy: 'external-https-and-app-assets' }).html,
       ),
     );
     this.markdownCache.set(value, rendered);

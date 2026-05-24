@@ -672,8 +672,9 @@ export type LibrarySharingMode = 'local' | 'shared';
 export const DEMO_QUIZ_ID = 'de500000-0000-4000-a000-000000000001';
 
 /**
- * Erwarteter Demo-Seed aus Showcase-JSON (Locale + Version + Titel). Alte Keys `arsnova-demo-quiz-locale-v1/v2`
- * allein reichen nicht, wenn der gespeicherte Quiz-Datensatz von der URL-Sprache abweicht.
+ * Erwarteter Demo-Seed aus Showcase-JSON (Locale + Version + Payload-Hash). Alte Keys
+ * `arsnova-demo-quiz-locale-v1/v2` allein reichen nicht, wenn der gespeicherte
+ * Quiz-Datensatz von der URL-Sprache oder dem aktuellen Demo-Inhalt abweicht.
  */
 const DEMO_QUIZ_SEED_FINGERPRINT_KEY = 'arsnova-demo-quiz-seed-fp-v1';
 

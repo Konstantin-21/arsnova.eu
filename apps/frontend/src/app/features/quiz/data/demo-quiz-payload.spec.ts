@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { getDemoQuizPayload, getDemoQuizSeedFingerprint } from './demo-quiz-payload';
 
 describe('getDemoQuizSeedFingerprint', () => {
-  it('ändert sich mit exportVersion, Motiv-URL und Beschreibung (Demo-Reseed)', () => {
+  it('ändert sich mit exportVersion, Motiv-URL und komplettem Payload (Demo-Reseed)', () => {
     const de = getDemoQuizSeedFingerprint('de');
-    expect(de).toMatch(/^de\|24\|/);
+    expect(de).toMatch(/^de\|25\|/);
     expect(de).toContain(
       'https://upload.wikimedia.org/wikipedia/commons/b/b4/Sixteen_faces_expressing_the_human_passions._Wellcome_L0068375_%28cropped%29.jpg',
     );
@@ -22,6 +22,29 @@ describe('getDemoQuizSeedFingerprint', () => {
 
     expect(payload.quiz?.questions?.[1]?.skipReadingPhase).toBe(true);
     expect(payload.quiz?.questions?.[3]?.skipReadingPhase).toBe(true);
+  });
+
+  it('nutzt fuer die KI-oder-Foto-Frage ein lokales Asset und neutrale Alt-Texte', () => {
+    const expectedAltByLocale = {
+      de: 'Dachszene',
+      en: 'Rooftop scene',
+      es: 'Escena en una azotea',
+      fr: 'Scène de toit',
+      it: 'Scena sul tetto',
+    } as const;
+
+    for (const [locale, alt] of Object.entries(expectedAltByLocale)) {
+      const payload = getDemoQuizPayload(locale as keyof typeof expectedAltByLocale) as {
+        quiz?: { questions?: Array<{ text?: string; type?: string }> };
+      };
+      const question = payload.quiz?.questions?.find((q) => q.type === 'SINGLE_CHOICE');
+
+      expect(question?.text).toContain(
+        `![${alt}](/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png)`,
+      );
+      expect(question?.text).not.toContain('cdn.imago-images.de');
+      expect(question?.text).not.toContain('0105048862');
+    }
   });
 
   it('enthält eine 1.2ea-taugliche SHORT_TEXT-Frage mit Varianten und Buchstabendrehern', () => {

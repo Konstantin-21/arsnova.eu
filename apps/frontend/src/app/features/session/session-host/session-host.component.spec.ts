@@ -502,6 +502,23 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   }, 15000);
 
+  it('rendert gebuendelte App-Asset-Bilder in Live-Fragetexten', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+
+    const rendered = component.renderMarkdown(
+      '![Dachszene](/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png)',
+    ) as unknown as {
+      changingThisBreaksApplicationSecurity?: string;
+    };
+
+    expect(rendered.changingThisBreaksApplicationSecurity).toContain(
+      'src="/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png"',
+    );
+    expect(rendered.changingThisBreaksApplicationSecurity).toContain('alt="Dachszene"');
+    fixture.destroy();
+  }, 15000);
+
   it('markiert fuehrende Emojis in Antworttexten fuer ein kompakteres Host-Layout', () => {
     const fixture = setup();
     const component = fixture.componentInstance;

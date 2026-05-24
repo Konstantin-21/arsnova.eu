@@ -10,13 +10,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const demoDir = path.join(__dirname, '../src/assets/demo');
 const md = String.raw;
 
-const EXPORT_VERSION = 23;
-const EXPORTED_AT = '2026-05-16T13:40:00.000Z';
+const EXPORT_VERSION = 25;
+const EXPORTED_AT = '2026-05-24T10:00:00.000Z';
 
 const EMOTION_IMAGE_URL =
   'https://upload.wikimedia.org/wikipedia/commons/b/b4/Sixteen_faces_expressing_the_human_passions._Wellcome_L0068375_%28cropped%29.jpg';
 const PI_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Pi-unrolled-720.gif';
-const PHOTO_IMAGE_URL = 'https://cdn.imago-images.de/bild/st/0105048862/s.jpg';
+const ROOFTOP_SCENE_IMAGE_URL = '/assets/demo/Bettgestell%20auf%20der%20Dachspitze.png';
 const CODE_FENCE = '```';
 
 const PROCESSING_SKETCH = [
@@ -145,12 +145,31 @@ function buildPayload(locale) {
           type: 'RATING',
           timer: null,
           difficulty: 'EASY',
-          order: 7,
+          order: 8,
           answers: [],
           ratingMin: 1,
           ratingMax: 5,
           ratingLabelMin: locale.questions[7].ratingLabelMin,
           ratingLabelMax: locale.questions[7].ratingLabelMax,
+        },
+        {
+          text: locale.questions[8].text,
+          type: 'SHORT_TEXT',
+          timer: null,
+          difficulty: 'HARD',
+          order: 7,
+          answers: locale.questions[8].answers,
+          shortTextMaxLength: 24,
+          shortTextCaseSensitive: false,
+          shortTextEvaluationKind: 'numeric_unit',
+          numericInputKind: 'decimal',
+          numericToleranceMode: 'relative',
+          numericRelativeTolerancePercent: 2,
+          numericUnitFamily: 'time',
+          numericRequireUnit: true,
+          numericAcceptEquivalentUnits: true,
+          shortTextTrimWhitespace: true,
+          shortTextNormalizeWhitespace: true,
         },
       ],
     },
@@ -219,7 +238,7 @@ $$\pi = \int_{-\infty}^{\infty} \frac{\mathrm{d}x}{1 + x^2} = 2 \cdot \int_{-1}^
 
 > **Unterrichtsidee:** Nutze das als visuellen Einstieg, als Aufmerksamkeitssignal oder als niedrigschwelligen Gesprächseinstieg.
 
-![Stadtfoto](${PHOTO_IMAGE_URL})`,
+![Dachszene](${ROOFTOP_SCENE_IMAGE_URL})`,
         answers: [
           { text: 'KI-generiertes Bild', isCorrect: false },
           { text: 'Echtes Foto', isCorrect: true },
@@ -288,6 +307,16 @@ Gesucht ist der etablierte didaktische Begriff für diesen Ablauf.`,
         ratingLabelMin: 'Eher noch nicht',
         ratingLabelMax: 'Ich probiere es aus',
       },
+      {
+        text: md`### Schallgeschwindigkeit unter Druck: Wie lange braucht Schall für 58 cm?
+
+> **Unterrichtsidee:** Diese numerische Kurzantwort ist bewusst anspruchsvoll: Teilnehmende müssen Einheiten sicher umrechnen und ein Ergebnis im passenden Größenbereich angeben.
+
+Nimm für trockene Luft bei 20 °C die Schallgeschwindigkeit $$v = 343\,\mathrm{m/s}$$ an.
+
+Gesucht ist die Laufzeit für $$s = 0{,}58\,\mathrm{m}$$ als Kurzantwort mit Einheit (z. B. in ms oder s).`,
+        answers: [{ text: '1,69 ms', isCorrect: true }],
+      },
     ],
   },
   en: {
@@ -351,7 +380,7 @@ $$\pi = \int_{-\infty}^{\infty} \frac{\mathrm{d}x}{1 + x^2} = 2 \cdot \int_{-1}^
 
 > **Teaching move:** Use this as a visual warm-up, an attention reset, or a low-stakes discussion starter.
 
-![City photo](${PHOTO_IMAGE_URL})`,
+![Rooftop scene](${ROOFTOP_SCENE_IMAGE_URL})`,
         answers: [
           { text: 'AI-generated image', isCorrect: false },
           { text: 'Real photo', isCorrect: true },
@@ -420,6 +449,16 @@ We are looking for the established instructional term for this sequence.`,
         ratingLabelMin: 'Not yet',
         ratingLabelMax: 'Ready to try it',
       },
+      {
+        text: md`### Pressure-ready numeracy: how long does sound need for 58 cm?
+
+> **Teaching move:** This numeric short answer is intentionally demanding: learners must convert units correctly and report a physically plausible time scale.
+
+Assume the speed of sound in dry air at 20 °C is $$v = 343\,\mathrm{m/s}$$.
+
+Find the travel time for $$s = 0.58\,\mathrm{m}$$ and answer with unit (for example in ms or s).`,
+        answers: [{ text: '1.69 ms', isCorrect: true }],
+      },
     ],
   },
   fr: {
@@ -483,7 +522,7 @@ $$\pi = \int_{-\infty}^{\infty} \frac{\mathrm{d}x}{1 + x^2} = 2 \cdot \int_{-1}^
 
 > **Usage pédagogique :** Utilise cela comme échauffement visuel, relance d’attention ou amorce de discussion à faible seuil.
 
-![Photo de ville](${PHOTO_IMAGE_URL})`,
+![Scène de toit](${ROOFTOP_SCENE_IMAGE_URL})`,
         answers: [
           { text: 'Image générée par IA', isCorrect: false },
           { text: 'Photo réelle', isCorrect: true },
@@ -552,6 +591,16 @@ On cherche le terme didactique établi pour cette séquence.`,
         ratingLabelMin: 'Pas pour l’instant',
         ratingLabelMax: 'Je vais l’essayer',
       },
+      {
+        text: md`### Calcul exigeant : combien de temps le son met-il pour parcourir 58 cm ?
+
+> **Usage pédagogique :** Cette réponse courte numérique est volontairement difficile : il faut convertir les unités correctement et donner un ordre de grandeur cohérent.
+
+Suppose la vitesse du son dans l’air sec à 20 °C : $$v = 343\,\mathrm{m/s}$$.
+
+Détermine le temps de parcours pour $$s = 0{,}58\,\mathrm{m}$$ et réponds avec unité (par exemple en ms ou en s).`,
+        answers: [{ text: '1,69 ms', isCorrect: true }],
+      },
     ],
   },
   es: {
@@ -615,7 +664,7 @@ $$\pi = \int_{-\infty}^{\infty} \frac{\mathrm{d}x}{1 + x^2} = 2 \cdot \int_{-1}^
 
 > **Uso didáctico:** Úsalo como calentamiento visual, reinicio de atención o punto de partida para una conversación sencilla.
 
-![Foto de ciudad](${PHOTO_IMAGE_URL})`,
+![Escena en una azotea](${ROOFTOP_SCENE_IMAGE_URL})`,
         answers: [
           { text: 'Imagen generada por IA', isCorrect: false },
           { text: 'Foto real', isCorrect: true },
@@ -684,6 +733,16 @@ Buscamos el término pedagógico establecido para esta secuencia.`,
         ratingLabelMin: 'Todavía no',
         ratingLabelMax: 'Lo voy a probar',
       },
+      {
+        text: md`### Cálculo exigente: ¿cuánto tarda el sonido en recorrer 58 cm?
+
+> **Uso didáctico:** Esta respuesta corta numérica es intencionalmente difícil: hay que convertir unidades con precisión y reportar una escala temporal físicamente plausible.
+
+Supón para aire seco a 20 °C una velocidad del sonido de $$v = 343\,\mathrm{m/s}$$.
+
+Calcula el tiempo para $$s = 0{,}58\,\mathrm{m}$$ y responde con unidad (por ejemplo en ms o en s).`,
+        answers: [{ text: '1,69 ms', isCorrect: true }],
+      },
     ],
   },
   it: {
@@ -747,7 +806,7 @@ $$\pi = \int_{-\infty}^{\infty} \frac{\mathrm{d}x}{1 + x^2} = 2 \cdot \int_{-1}^
 
 > **Uso didattico:** Usalo come avvio visivo, reset dell’attenzione o spunto di discussione a bassa soglia.
 
-![Foto di città](${PHOTO_IMAGE_URL})`,
+![Scena sul tetto](${ROOFTOP_SCENE_IMAGE_URL})`,
         answers: [
           { text: 'Immagine generata dall’IA', isCorrect: false },
           { text: 'Foto reale', isCorrect: true },
@@ -815,6 +874,16 @@ Cerchiamo il termine didattico consolidato per questa sequenza.`,
 > **Uso didattico:** Usalo come rapido polso della situazione, exit ticket o autovalutazione di fiducia.`,
         ratingLabelMin: 'Non ancora',
         ratingLabelMax: 'Lo provo',
+      },
+      {
+        text: md`### Calcolo avanzato: quanto tempo impiega il suono a percorrere 58 cm?
+
+> **Uso didattico:** Questa risposta breve numerica è volutamente impegnativa: richiede conversioni corrette delle unità e un ordine di grandezza fisicamente coerente.
+
+Assumi per aria secca a 20 °C una velocità del suono pari a $$v = 343\,\mathrm{m/s}$$.
+
+Determina il tempo di percorrenza per $$s = 0{,}58\,\mathrm{m}$$ e rispondi con unità (ad esempio in ms o in s).`,
+        answers: [{ text: '1,69 ms', isCorrect: true }],
       },
     ],
   },
