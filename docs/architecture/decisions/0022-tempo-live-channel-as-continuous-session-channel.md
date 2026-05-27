@@ -2,9 +2,11 @@
 
 # ADR-0022: Tempo-Livekanal als kontinuierlicher Session-Kanal
 
-**Status:** Accepted  
+**Status:** Superseded by ADR-0029  
 **Datum:** 2026-04-26  
 **Entscheider:** Projektteam
+
+> **Hinweis (2026-05-27):** Diese Entscheidung wurde vor Implementierung verworfen. Das Produktziel wird nicht mehr als vierter Session-Kanal umgesetzt, sondern als vordefiniertes Blitzlicht-Template gemaess [ADR-0029](./0029-tempo-as-predefined-blitzlicht-template.md).
 
 ## Kontext
 

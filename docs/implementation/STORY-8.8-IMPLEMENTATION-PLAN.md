@@ -1,163 +1,186 @@
 <!-- markdownlint-disable MD013 -->
 
-# Story 8.8 – Implementierungsplan: Tempo-Livekanal
+# Story 8.8 - Implementierungsplan: Tempo-Blitzlicht als Host-Option
 
-**Epic 8 · Erweiterte Live-Kanaele (Q&A, Tempo)**  
-**Ziel:** Ein vierter Session-Kanal `Tempo` wird als kontinuierlicher, anonymer Livekanal in ARSnova eingefuehrt. Teilnehmende koennen ihren kognitiven Zustand jederzeit mit einem Tap melden; Hosts sehen nur aggregierte Live-Werte und eine Tendenz.
+**Epic 8 · Erweiterte Live-Kanaele (Q&A, Blitzlicht)**  
+**Ziel:** Das Feature `Tempo` wird als vordefiniertes Blitzlicht-Template innerhalb des bestehenden `quickFeedback`-Stacks umgesetzt. Es entsteht **kein** vierter Session-Kanal. Das Template muss sowohl im Session-Blitzlicht als auch im Standalone-Blitzlicht verfuegbar sein.
 
-**Backlog-Bezug:** `Story 8.8 Tempo-Livekanal`  
-**Architekturbezug:** `ADR-0022`, `ADR-0009`, `ADR-0010`, `ADR-0014`, `ADR-0019`, `ADR-0021`
+**Backlog-Bezug:** `Story 8.8 Tempo-Blitzlicht als Host-Option` in [`../../Backlog.md`](../../Backlog.md)  
+**Architekturbezug:** `ADR-0029`, `ADR-0010`, `ADR-0013`, `ADR-0014`, `ADR-0019`, `ADR-0025`  
+**Produktbezug:** Issue `#17` "Tempo-Blitzlicht als Host-Option (statt eigenem Session-Kanal)"
 
-**Status:** 📌 Planungsdokument / vor Implementierung
+**Status:** Planungsdokument / vor Implementierung
 
 ---
 
 ## Zielbild
 
-Der Tempo-Livekanal ist ein **eigener vierter Session-Kanal**:
+Das Host-UI fuer Blitzlicht bietet sowohl in der Session als auch im Standalone-Blitzlicht zusaetzlich ein vordefiniertes Template `Tempo` mit genau vier Reaktionen:
 
-- **Quiz**
-- **Q&A**
-- **Blitzlicht**
-- **Tempo**
+- `🚀 Schneller`
+- `🙂 Ich folge`
+- `🐢 Langsamer`
+- `😵 Verloren`
 
 Fachliche Kerneigenschaften:
 
-- **kontinuierlich**, nicht punktuell
-- **parallel** zu Quiz, Q&A und Blitzlicht
-- **anonym** im Produktsinn
-- **pro teilnehmender Person genau ein aktueller Zustand**
-- **kein Submit-Button**
-- **keine Round-/Lock-/Vergleichslogik**
-
-Die vier Zustände sind:
-
-- `speed_up` → 🚀 Schneller
-- `following` → 🙂 Ich folge
-- `slow_down` → 🐢 Langsamer
-- `lost` → 😵 Verloren
+- Tempo ist ein **Blitzlicht-Template**, kein eigener Session-Kanal.
+- Es gibt weiterhin genau **ein aktives Blitzlicht** zur selben Zeit.
+- Teilnehmende koennen ihre Tempo-Auswahl **aendern** oder durch Re-Tap **entfernen**.
+- Hosts sehen nur **Aggregation + Tendenz**, keine Einzelrueckmeldungen.
+- Die Host-Ansicht bietet einen **Umschalter** zwischen Detaildarstellung und Tendenzindikator.
+- Im Standalone-Blitzlicht ist der Tendenzmodus die **dominante, grosse und sofort lesbare Hauptansicht**.
+- Auf der Startseite ist `Tempo` ein **prominenter Zusatz-Einstieg**, nicht nur eine weitere kleine Pill.
+- In der Blitzlicht-Host-Startflaeche ist `Tempo` ebenfalls **prominent** und nicht nur ein weiterer kleiner Preset-Chip.
+- Die bestehende Blitzlicht-Architektur wird erweitert, nicht verdoppelt.
 
 ---
 
 ## SWE-Lehrfluss
 
-Diese Story soll bewusst entlang eines sauberen SWE-Prozesses entwickelt werden:
+Die Story soll bewusst entlang eines sauberen SWE-Prozesses entwickelt werden:
 
-1. **Feature Request / GitHub-Issue**
-2. **Feature-Branch**
-3. **Branch-Entwicklung**
-4. **Pull Request**
-5. **Code Review**
-6. **UX-Tests**
-7. **UX-Feintuning**
-8. **Produktion**
+1. Feature Request / GitHub-Issue
+2. Feature-Branch
+3. Branch-Entwicklung
+4. Pull Request
+5. Code Review
+6. UX-Tests
+7. UX-Feintuning
+8. Produktion
 
 Empfohlener Branchname:
 
-- `codex/<issue-number>-tempo-livekanal`
+- `codex/<issue-number>-tempo-blitzlicht`
 
 ---
 
 ## Ist-Stand (vor Umsetzung)
 
-| Bereich            | Status                                                                                                                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Session-Modell** | Session ist kanalbasiert erweitert, aber aktuell noch hart auf `quiz`, `qa`, `quickFeedback` zugeschnitten (`qaEnabled`, `quickFeedbackEnabled`, `quickFeedbackOpen`).                |
-| **Shared Types**   | `SessionChannelsDTOSchema` kennt nur `quiz`, `qa`, `quickFeedback`. `SessionChannelTab` ist im Frontend ebenfalls auf drei Kanaele verdrahtet.                                        |
-| **Blitzlicht**     | `quickFeedback` ist technisch ein punktueller Round-Mechanismus mit `locked`, `discussion`, `currentRound`, `already voted`, Redis-TTL.                                               |
-| **Vote-Ansicht**   | Teilnehmer-Navigation ist tab-orientiert. Es gibt bereits Floating-/Bottom-Action-Konzepte, die mit einem persistenten Tempo-Widget kollidieren koennen.                              |
-| **Host-Ansicht**   | Host-Shell hat einen klaren Kanalbegriff, Badge-/Meta-Labels und channel activation/open-state, aber nur fuer drei Kanaele.                                                           |
-| **Realtime**       | tRPC-Subscriptions existieren; viele Session-Livepfade nutzen polling-basierte Subscription-Generatoren. Redis wird bereits fuer Livezustand, Rate-Limits und SLO-Telemetrie genutzt. |
-| **Sicherheit**     | Host-only-Aktionen laufen ueber `hostProcedure`; Session-Code alleine verleiht keine Host-Rechte.                                                                                     |
+| Bereich                    | Status                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Shared Types**           | `QuickFeedbackTypeEnum` kennt aktuell `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`. Ein Tempo-Typ fehlt.                                                                                                                                                                    |
+| **Frontend-Konfiguration** | `apps/frontend/src/app/features/feedback/feedback.config.ts` definiert die vorhandenen Optionen und Preset-Chips fuer Blitzlicht. Fuer `Tempo` fehlt ein hervorgehobenes Darstellungsmodell jenseits eines weiteren Standard-Presets.                                                                |
+| **Backend-Hotpath**        | `apps/backend/src/routers/quickFeedback.ts` behandelt Blitzlicht derzeit im Kern als Einmal-Vote: Redis-Set fuer `already voted`, Verteilung und Total werden hochgezaehlt.                                                                                                                          |
+| **Teilnehmer-UI**          | `feedback-vote.component.ts` ist auf klassischen Vote-Abschluss zugeschnitten und kennt keine template-spezifische Mutable-Semantik.                                                                                                                                                                 |
+| **Host-UI**                | Die Blitzlicht-Host-Ansichten koennen Typen starten und Live-Aggregate anzeigen, aber weder Tempo-Tendenz noch den vorgesehenen Umschalter zwischen Detaildarstellung und Tendenzindikator; fuer Standalone fehlt zudem das Zielbild einer grossen, one-glance-faehigen Tendenzansicht mit Zaehlern. |
+| **Startseite**             | Das bisherige Hero-Modell ist auf drei Chips optimiert. Fuer `Tempo` fehlt bisher ein exponierter Einstieg fuer Standalone-Blitzlicht, der sichtbar ist, ohne die Hero-Reihe in eine vierte gleichartige Pill zu verwandeln.                                                                         |
+| **Session-Architektur**    | Die Session-Shell ist bereits fuer `quickFeedback` etabliert. Fuer Tempo wird explizit **kein** weiterer Kanal eingefuehrt.                                                                                                                                                                          |
 
 ---
 
 ## Nicht-Ziele
 
-- **kein** neuer Blitzlicht-Typ
-- **kein** neuer Quiz-Fragentyp
-- **kein** Standalone-Tempo-Pfad in der ersten Ausbaustufe
-- **keine** personenbezogene Verlaufsanalyse
-- **keine** dauerhafte Ereignis-Historie in PostgreSQL
-- **kein** Ranking oder Gamification-Mechanismus
+- kein vierter Session-Kanal
+- kein neues Session-Tab fuer Host oder Teilnehmende
+- kein persistentes Parallel-Widget ausserhalb von Blitzlicht
+- keine personenbezogene Verlaufsanalyse
+- keine Gamification- oder Ranking-Semantik
+- keine globale Aenderung aller Blitzlicht-Typen auf mutable Votes
 
 ---
 
-## Architekturentscheidungen fuer die Umsetzung
+## Technische Leitplanken
 
-### 1. Eigener Kanal, eigene Semantik
+### 1. Tempo bleibt im `quickFeedback`-Modell
 
-Tempo wird nicht auf `quickFeedback` aufgesetzt, sondern bekommt:
+Das Feature wird innerhalb des bestehenden Blitzlicht-Stacks entwickelt:
 
-- eigene Schemas
-- eigene tRPC-Procedures
-- eigene Redis-Schluessel
-- eigene Host-/Teilnehmer-UI
+- gleicher Kanal
+- gleiche Host-Startlogik
+- gleicher Teilnehmer-Einstieg
+- gleiche Aggregationsansicht als Basis
 
-### 2. Session-Konfiguration in Postgres, Livezustand in Redis
+Die fachliche Erweiterung muss dabei in **beiden** Host-Kontexten verfuegbar sein:
 
-- `Session` speichert nur **Kanal-Konfiguration** (`tempoEnabled`, `tempoOpen`)
-- Redis speichert:
-  - letzten Zustand je `participantId`
-  - aggregierte Counts
-  - Rolling Window fuer Trend / Tendenz
+- Session-Blitzlicht
+- Standalone-Blitzlicht
 
-### 3. Unterschiedliche UI-Vertraege
+### 2. Mutable Verhalten gilt nur fuer `Tempo`
 
-- **Host:** eigener Kanal `Tempo` in der Session-Shell
-- **Teilnehmende:** persistentes Widget innerhalb der Vote-Ansicht, kein erzwungener eigener Fokus-Tab
+`Tempo` benoetigt eine Sondersemantik:
 
-### 4. Datenschutzgrenze
+- Auswahl wechseln
+- aktive Auswahl entfernen
+- immer nur letzter Zustand zaehlt
 
-Individuelle Tempo-Zustaende sind **technischer Innenzustand**, kein auslieferbarer Vertrag.
+Andere Blitzlicht-Typen bleiben beim heutigen Verhalten, solange keine explizite Folgeentscheidung etwas anderes verlangt.
 
-Hosts sehen nur:
+### 3. Keine neue DB-Hotpath-Last
 
-- aggregierte Counts
-- Prozentwerte
-- optionale absolute Zahlen
-- Tendenz
+Die Live-Aktualisierung muss im bestehenden performanten Blitzlicht-Pfad bleiben:
+
+- keine SQL-Schreiboperation pro Tap
+- keine Vollreaggregation aller Stimmen pro Event
+- keine polling-intensive Zusatzstrecke
+
+Delta-Updates in Redis sind die bevorzugte Richtung.
+
+### 4. Ruhiger Indikator mit Teilnehmerbezug
+
+Die Tendenz darf nicht aus dem bloessen Roh-Snapshot der aktuellen Tempo-Votes abgeleitet werden.
+
+Verbindliche Richtung:
+
+- Aktivierung nur bei ausreichender Rueckmeldequote relativ zu `activeParticipants`
+- Bezugsbasis ist die gesamte aktive Teilnehmendenbasis des jeweiligen Blitzlicht-Kontexts, nicht nur `tempoVotes`
+- geglaettete Berechnung ueber Rolling Window
+- Hysterese vor jedem sichtbaren Indikatorwechsel
+
+### 5. A11y und Mobile sind Teil der Kernfunktion
+
+Die vier Tempo-Reaktionen muessen:
+
+- auf kleinen Screens ohne horizontales Scrollen erreichbar sein
+- klaren Fokus- und Aktivzustand haben
+- screenreader-taugliche Namen tragen
+- nicht ausschliesslich ueber Farbe unterscheidbar sein
+
+Fuer die Host-UI im Standalone-Blitzlicht gilt zusaetzlich:
+
+- die Tendenz muss auf Smartphone-Groesse mit einem Blick lesbar sein
+- wesentliche Zaehler bleiben auch im Tendenzmodus sichtbar
+- Umschalter und `Session beenden` bleiben erreichbar, ohne die Hauptinformation zu verdraengen
 
 ---
 
 ## Betroffene Dateien
 
-### Shared Types / Schema
+### Shared Types
 
 - `libs/shared-types/src/schemas.ts`
 
 ### Backend
 
-- `prisma/schema.prisma`
-- neue Migration unter `prisma/migrations/*`
-- `apps/backend/src/routers/session.ts`
-- `apps/backend/src/routers/index.ts`
-- **neu:** `apps/backend/src/routers/tempo.ts`
-- ggf. **neu:** `apps/backend/src/lib/tempo*.ts`
-- ggf. `apps/backend/src/lib/sloTelemetry.ts`
+- `apps/backend/src/routers/quickFeedback.ts`
+- `apps/backend/src/routers/index.ts` falls Router-Exports angepasst werden muessen
+- ggf. Hilfslogik unter `apps/backend/src/lib/quick-feedback*`
 
 ### Frontend
 
+- `apps/frontend/src/app/features/feedback/feedback.config.ts`
+- `apps/frontend/src/app/features/feedback/feedback-vote.component.ts`
+- `apps/frontend/src/app/features/feedback/feedback-vote.component.html`
+- `apps/frontend/src/app/features/feedback/feedback-host.component.ts`
+- `apps/frontend/src/app/features/feedback/feedback-host.component.html`
+- `apps/frontend/src/app/features/feedback/feedback-host.component.scss`
+- `apps/frontend/src/app/features/home/home.component.ts`
+- `apps/frontend/src/app/features/home/home.component.html`
+- `apps/frontend/src/app/features/home/home.component.scss`
 - `apps/frontend/src/app/features/session/session-host/session-host.component.ts`
-- `apps/frontend/src/app/features/session/session-host/session-host.component.html`
-- `apps/frontend/src/app/features/session/session-host/session-host.component.scss`
-- `apps/frontend/src/app/features/session/session-vote/session-vote.component.ts`
-- `apps/frontend/src/app/features/session/session-vote/session-vote.component.html`
-- `apps/frontend/src/app/features/session/session-vote/session-vote.component.scss`
-- ggf. **neu:** `apps/frontend/src/app/features/session/tempo-*`
+- ggf. zugehoerige Specs
 
 ### Tests
 
-- Backend-Tests unter `apps/backend/src/__tests__/`
-- Frontend-Specs fuer Host/Vote-Komponenten
+- Backend-Tests fuer `quickFeedback`
+- Frontend-Specs fuer Host- und Vote-Komponenten
+- Last-/Smoke-Skripte fuer Blitzlicht-Hotpath, sofern vorhanden
 
 ---
 
 ## Implementierungsstrategie
 
-Die Umsetzung erfolgt in **7 Phasen**.
-
-Jede Phase soll:
+Die Umsetzung erfolgt in **6 Phasen**. Jede Phase soll:
 
 - kompilierbar bleiben
 - testbar bleiben
@@ -165,326 +188,216 @@ Jede Phase soll:
 
 ---
 
-## Phase 1: Shared Types und Session-Kanalmodell erweitern
+## Phase 1: Shared Types und Blitzlicht-Typmodell erweitern
 
-Ziel: Der vierte Kanal wird als offizieller Vertrag in `shared-types` und Session-DTOs verankert.
-
-### Aufgaben
-
-| #   | Task                                        | Beschreibung                                                                                                                                 | Datei                                               |
-| --- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 1.1 | **Tempo-State-Enum definieren**             | Neues Enum/Schema fuer `speed_up`, `following`, `slow_down`, `lost`.                                                                         | `libs/shared-types/src/schemas.ts`                  |
-| 1.2 | **Tempo-DTOs definieren**                   | Eigene Schemas fuer Teilnehmerzustand, Host-Snapshot, Trend/Tendenz.                                                                         | `libs/shared-types/src/schemas.ts`                  |
-| 1.3 | **SessionChannelsDTO erweitern**            | `SessionChannelsDTOSchema` um `tempo: { enabled, open }` erweitern.                                                                          | `libs/shared-types/src/schemas.ts`                  |
-| 1.4 | **Session-Create-/Update-Inputs erweitern** | `CreateSessionInputSchema` optional um `tempoEnabled` erweitern; spaetere Host-Mutationen mit dedizierten Input-/Output-Schemas vorbereiten. | `libs/shared-types/src/schemas.ts`                  |
-| 1.5 | **Stabile Namenskonventionen festlegen**    | Begriffe und API-Namen finalisieren: `tempo`, nicht `pace`, `speedFeedback` oder `feedback2`.                                                | `libs/shared-types/src/schemas.ts` + ADR-Konsistenz |
-
-### Ergebnis
-
-- `shared-types` beschreibt `Tempo` als offiziellen vierten Kanal
-- alle Folgeschichten koennen strikt gegen Zod-Vertraege entwickeln
-
----
-
-## Phase 2: Prisma-Sitzungskonfiguration und Migration
-
-Ziel: Der Session-Datensatz kann den Kanal `Tempo` konfigurieren, ohne den Live-Hotpath in die DB zu ziehen.
+Ziel: Tempo wird als offizieller Blitzlicht-Typ beschreibbar.
 
 ### Aufgaben
 
-| #   | Task                                   | Beschreibung                                                                                                       | Datei                                 |
-| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| 2.1 | **Session-Felder ergänzen**            | `tempoEnabled Boolean @default(false)` und `tempoOpen Boolean @default(false)` in `Session` aufnehmen.             | `prisma/schema.prisma`                |
-| 2.2 | **Migration erzeugen**                 | Neue Prisma-Migration fuer die beiden Session-Felder anlegen.                                                      | `prisma/migrations/*`                 |
-| 2.3 | **Session-Channel-Building erweitern** | `buildSessionChannels()` in `session.ts` um `tempo` erweitern.                                                     | `apps/backend/src/routers/session.ts` |
-| 2.4 | **Create-Flow erweitern**              | `session.create` so erweitern, dass neue Sessions optional direkt mit aktivem Tempo-Kanal angelegt werden koennen. | `apps/backend/src/routers/session.ts` |
+| #   | Task                               | Beschreibung                                                                                                                 |
+| --- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | **Tempo-Typ aufnehmen**            | `QuickFeedbackTypeEnum` um `TEMPO` erweitern oder aequivalente Typkonstante einfuehren.                                      |
+| 1.2 | **Tempo-Werte definieren**         | Eigene Value-Enum fuer `SPEED_UP`, `FOLLOWING`, `SLOW_DOWN`, `LOST` anlegen.                                                 |
+| 1.3 | **Ergebnis-Metadaten vorbereiten** | Falls noetig `QuickFeedbackResult` um template-spezifische Zusatzinfos fuer Tendenz/Indikator erweitern.                     |
+| 1.4 | **Typgrenzen festziehen**          | Sicherstellen, dass `TEMPO` als eigener Typ branchbar ist und nicht ueber generische `ABCD`-Werte "hineingeschmuggelt" wird. |
 
 ### Ergebnis
 
-- Tempo wird als Session-Funktion wie Q&A/Blitzlicht konfigurierbar
-- Live-Daten bleiben weiterhin ausserhalb von Prisma
+- `shared-types` kann Tempo explizit beschreiben
+- Frontend und Backend entwickeln gegen denselben Vertrag
 
 ---
 
-## Phase 3: Redis-Datenmodell und Tempo-Router
+## Phase 2: Frontend-Konfiguration fuer das neue Template
 
-Ziel: Ein performanter, datensparsamer Live-Hotpath fuer den Tempo-Kanal.
-
-### Redis-Zielmodell
-
-Empfohlen:
-
-- `tempo:state:<sessionCode>` oder `tempo:state:<sessionId>`  
-  Hash `participantId -> state`
-- `tempo:counts:<sessionCode>`  
-  Hash `state -> count`
-- `tempo:events:<sessionCode>:<bucket>`  
-  Rolling-Window-Zaehlungen fuer Trend/Tendenz
-
-### Verbindliche Vorab-Entscheidungen fuer Redis-Lifecycle
-
-Damit Phase 3 nicht in einen unscharfen Hotpath-Refactor kippt, werden fuer die erste Umsetzung folgende Punkte **vorab festgelegt**:
-
-- **Redis-Key-Basis ist `sessionCode` in Uppercase**, nicht `sessionId`.
-  Begründung: Die bestehenden Session-/Host-/Teilnehmer-Pfade und der Blitzlicht-Hotpath arbeiten bereits codezentriert; damit entfaellt ein zusatzlicher DB-Lookup pro Tap nur zur Redis-Adressierung.
-- **`tempo:state:<SESSION_CODE>` ist die minimale Quelle der Wahrheit.**
-  `tempo:counts:*` und `tempo:events:*` sind abgeleitete Caches, die deltabasiert gepflegt werden.
-- **Aktives Schliessen des Kanals loescht keine Tempo-Daten.**
-  `tempoOpen = false` blendet nur das Widget aus; beim Wiederoeffnen bleibt der Kanal ohne Neuinitialisierung nutzbar.
-- **Explizites Cleanup erfolgt beim Session-Ende.**
-  Wenn `session.finish` oder ein aequivalenter FINISHED-Uebergang erreicht wird, werden alle `tempo:*:<SESSION_CODE>`-Keys aktiv entfernt.
-- **Zusaetzlich gilt ein Fallback-TTL auf allen Tempo-Keys.**
-  Empfohlen: `24h`, erneuert bei jeder Mutation, damit liegengebliebene Keys auch dann verschwinden, wenn explizites Cleanup ausfaellt.
-- **Leere oder fehlende Redis-Keys muessen als gueltiger Leerzustand behandelbar sein.**
-  `getOwnState` und `hostSnapshot` duerfen aus fehlenden Keys keinen Serverfehler ableiten.
-
-### Drift- und Rebuild-Regeln
-
-- Counts werden im Hotpath **deltabasiert** fortgeschrieben.
-- Falls `tempo:counts:*` fehlt oder offensichtlich inkonsistent ist, darf der Host-Snapshot die Counts **einmalig aus `tempo:state:*` rekonstruieren**.
-- Trend-Buckets werden **nicht** als personenbezogene Historie verstanden, sondern nur als kurzlebige Aggregatbasis fuer die Tendenz.
+Ziel: Host und Teilnehmende erhalten eine saubere, lokalisierbare Template-Definition.
 
 ### Aufgaben
 
-| #   | Task                                   | Beschreibung                                                                                                                   | Datei                               |
-| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| 3.1 | **Tempo-Router anlegen**               | Neuer Router `tempo.ts` mit dedizierten Procedures.                                                                            | `apps/backend/src/routers/tempo.ts` |
-| 3.2 | **Teilnehmer-Mutation `setState`**     | Setzt oder ersetzt den aktuellen Zustand eines `participantId` fuer eine Session. Optional: gleicher Tap entfernt den Zustand. | `apps/backend/src/routers/tempo.ts` |
-| 3.3 | **Host-Query `hostSnapshot`**          | Liefert aggregierte Counts, Prozentwerte, Total und Trend/Tendenz.                                                             | `apps/backend/src/routers/tempo.ts` |
-| 3.4 | **Teilnehmer-Query `getOwnState`**     | Liefert nur den eigenen aktuellen Zustand fuer UI-Rehydrierung.                                                                | `apps/backend/src/routers/tempo.ts` |
-| 3.5 | **Host-Subscription `onHostSnapshot`** | Liefert neue aggregierte Snapshots nur bei Aenderung.                                                                          | `apps/backend/src/routers/tempo.ts` |
-| 3.6 | **Session-Gating**                     | `tempoEnabled`, `tempoOpen` und `status !== FINISHED` serverseitig pruefen.                                                    | `apps/backend/src/routers/tempo.ts` |
-| 3.7 | **Host-Autorisierung**                 | Host-only-Aktionen nur ueber `hostProcedure` bzw. host-token-gepruefte Pfade.                                                  | `apps/backend/src/routers/tempo.ts` |
-| 3.8 | **Router registrieren**                | `tempoRouter` in `apps/backend/src/routers/index.ts` einhaengen.                                                               | `apps/backend/src/routers/index.ts` |
-
-### Wichtige Regeln
-
-- keine individuellen Listen fuer Hosts
-- keine personenbezogenen Exporte
-- keine PostgreSQL-Schreiboperation bei jedem Tap
-- deltabasierte Zaehlerpflege statt Voll-Rescan pro Mutation
-- `tempo:state:*` bleibt die fachliche Mindestquelle; Counts/Trend bleiben abgeleitete Caches
+| #   | Task                               | Beschreibung                                                                                                                                                               |
+| --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | **Tempo-Optionen definieren**      | In `feedback.config.ts` die vier Reaktionen mit Icon, Label und accessible name hinterlegen.                                                                               |
+| 2.2 | **Host-Einstieg exponieren**       | Host-Startflaechen in Session und Standalone um einen festen, visuell hervorgehobenen `Tempo`-Einstieg erweitern statt nur einen weiteren Standard-Preset-Chip anzufuegen. |
+| 2.3 | **Anzeigehilfen kapseln**          | Helfer fuer Labels, Reihenfolge und ggf. Tendenz-Text zentral ablegen statt in Templates zu verteilen.                                                                     |
+| 2.4 | **Startseiten-Einstieg entwerfen** | `Tempo` als hervorgehobenen Standalone-Blitzlicht-Einstieg auf der Startseite vorsehen, ohne die kanonische 3-Chip-Reihe aus Story 6.7 zu einer vierten Pill zu erweitern. |
 
 ### Ergebnis
 
-- Tempo-Hotpath ist livefaehig und datensparsam
+- eine zentrale Definition fuer Tempo
+- keine duplizierten Emoji-/Label-Mappings
+- ein sichtbarer, aber IA-konsistenter Startseiten-Einstieg fuer `Tempo`
+- ein im Host sofort auffindbarer `Tempo`-Einstieg statt einer versteckten Zusatz-Pill
 
 ---
 
-## Phase 4: Session-Router und Shell-Refactor fuer den vierten Kanal
+## Phase 3: Backend-Hotpath fuer mutable Tempo-Votes
 
-Ziel: Die bestehende Shell wird vom hart verdrahteten 3-Kanal-Modell auf 4 Kanaele erweitert.
+Ziel: `quickFeedback` kann fuer `Tempo` Auswahlwechsel und Toggle-off korrekt behandeln.
 
 ### Aufgaben
 
-| #   | Task                                      | Beschreibung                                                                                                               | Datei                                                    |
-| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 4.1 | **Enable/Open/Close-Mutationen ergänzen** | `enableTempoChannel`, `closeTempoChannel`, `reopenTempoChannel` analog zu Q&A/Blitzlicht.                                  | `apps/backend/src/routers/session.ts`                    |
-| 4.2 | **Frontend-Channel-Unions erweitern**     | `SessionChannelTab` in Host/Vote auf `tempo` erweitern.                                                                    | `session-host.component.ts`, `session-vote.component.ts` |
-| 4.3 | **Visible/Open-State Refactor**           | `channels`, `channelOpenState`, `visibleChannels`, `channelLabel`, `channelTabMetaLabel` fuer den vierten Kanal erweitern. | Host/Vote-Komponenten                                    |
-| 4.4 | **Badge-/Meta-Konzept definieren**        | Tempo-Metadaten fuer Host-Tab festlegen, z. B. dominante Tendenz oder Hinweis `Live`.                                      | `session-host.component.ts`                              |
-| 4.5 | **Kein falscher Auto-Fokus**              | Sicherstellen, dass Tempo nicht die Teilnehmernavigation kapert wie eine aktive Blitzlicht-Runde.                          | `session-vote.component.ts`                              |
+| #   | Task                                            | Beschreibung                                                                                                                                                                  |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 | **Vote-Logik verzweigen**                       | In `quickFeedback.vote` zwischen klassischem Einmal-Vote und mutablem `Tempo` unterscheiden.                                                                                  |
+| 3.2 | **Delta-Update fuer Counts**                    | Vorherigen Zustand eines Teilnehmers lesen, alte Count dekrementieren, neue inkrementieren oder beim Toggle-off nur entfernen.                                                |
+| 3.3 | **Redis-Schluessel pruefen**                    | Bestehende Redis-Struktur fuer Verteilung, Total und Teilnehmerzustand so nutzen/erweitern, dass kein Full-Rebuild pro Tap noetig ist.                                        |
+| 3.4 | **Host-Result fuer Tendenz erweitern**          | Aggregat um deterministische Tendenz, Aktivierungszustand und ggf. Statusklasse fuer den Host-Umschalter erweitern.                                                           |
+| 3.5 | **Anonymitaet absichern**                       | Sicherstellen, dass keine individuelle Zustandliste an Host/Presenter/Admin ausgeliefert wird.                                                                                |
+| 3.6 | **Ablauf "anderes Blitzlicht startet" pruefen** | Beim Ersetzen eines laufenden Tempo-Blitzlichts muessen alte Tempo-Daten so beendet werden, dass kein UI- oder Redis-Zombie stehenbleibt.                                     |
+| 3.7 | **Rolling-Window aufbauen**                     | 15-Sekunden-Buckets fuer ein 60-Sekunden-Fenster halten, damit die Tendenz geglaettet und nicht pro Einzelstimme neu springt.                                                 |
+| 3.8 | **Aktivierungsschwelle mit Teilnehmerbezug**    | `activeParticipants` als Nenner heranziehen und den Indikator unterhalb einer Mindestquote neutral halten; der Nenner muss in Session und Standalone korrekt bestimmt werden. |
 
 ### Ergebnis
 
-- die Session-Shell kennt offiziell vier Kanaele
-- bestehende Q&A-/Blitzlicht-Logik bleibt intakt
+- Tempo verhaelt sich fachlich korrekt
+- andere Blitzlicht-Typen regressieren nicht
+- der Hotpath bleibt O(1) pro Tap
 
 ---
 
-## Phase 5: Host-UI fuer Aktivierung und Auswertung
+## Phase 4: Teilnehmer-UI fuer mutable Tempo-Interaktion
 
-Ziel: Hosts koennen den Kanal aktivieren und aggregiert auswerten.
-
-### Zielbild Host
-
-- Kanal `Tempo` in den Session-Tabs
-- Aktivieren, schliessen, wieder oeffnen
-- Aggregatsicht mit:
-  - 4 Segmenten / Balken
-  - Prozenten
-  - optional absoluten Zahlen
-  - Tendenz
+Ziel: Das bestehende Vote-UI bildet die neue Semantik sauber ab.
 
 ### Aufgaben
 
-| #   | Task                             | Beschreibung                                                                                             | Datei                               |
-| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 5.1 | **Tempo-Panel im Host einbauen** | Neuer Kanalzweig im Host-Template fuer `activeChannel() === 'tempo'`.                                    | `session-host.component.html`       |
-| 5.2 | **Host-State-Signale ergänzen**  | Signale fuer `tempoSnapshot`, Loading, Fehler, evtl. Tendenz und absolute Zahlen.                        | `session-host.component.ts`         |
-| 5.3 | **Live-Abo integrieren**         | Host-Snapshot per Query + Subscription / Fallback-Polling anbinden.                                      | `session-host.component.ts`         |
-| 5.4 | **Visualisierung bauen**         | Segmentierte Verteilung und lesbare Tendenz bauen, ohne auf Farbe allein zu setzen.                      | `session-host.component.html/.scss` |
-| 5.5 | **Mobile Host-IA beachten**      | Das Panel muss ins Vier-Zonen-/Mobile-Host-System passen und darf die obere Steuerzone nicht ueberladen. | `session-host.component.scss`       |
+| #   | Task                                | Beschreibung                                                                                                   |
+| --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 4.1 | **Aktiven Zustand sichtbar machen** | `feedback-vote` markiert die aktuell gewaehlte Tempo-Reaktion klar und semantisch.                             |
+| 4.2 | **Retap entfernt Auswahl**          | Ein Klick auf die aktive Option entfernt den Zustand statt ihn zu ignorieren.                                  |
+| 4.3 | **Wechsel ohne Submit**             | Der Wechsel auf eine andere Tempo-Option erfolgt direkt per Tap ohne Zusatzdialog.                             |
+| 4.4 | **One-shot-UX begrenzen**           | Hinweise wie "bereits abgestimmt" oder Abschlusszustand duerfen fuer `Tempo` nicht die Interaktion blockieren. |
+| 4.5 | **Mobile/A11y prüfen**              | Buttongroessen, Fokus, Screenreader-Text und kleine Viewports absichern.                                       |
 
 ### Ergebnis
 
-- Host sieht einen ruhigen, livefaehigen Tempo-Kanal
+- Teilnehmende koennen Tempo wie gefordert laufend anpassen
+- die UI bleibt innerhalb des bestehenden Blitzlicht-Flows konsistent
 
 ---
 
-## Phase 6: Teilnehmer-Widget in der Vote-Ansicht
+## Phase 5: Host-UI fuer Tendenz und Sichtbarkeit
 
-Ziel: Teilnehmende koennen den Tempo-Zustand jederzeit ohne Kontextwechsel setzen.
-
-### Zielbild Teilnehmer
-
-- persistentes Tempo-Widget in der Session-Vote-Ansicht
-- mobile-first erreichbar
-- keine horizontale Scrollfalle
-- aktiver Zustand klar markiert
-- semantisch und per Tastatur bedienbar
+Ziel: Hosts koennen Tempo gezielt starten und den Zustand schnell erfassen.
 
 ### Aufgaben
 
-| #   | Task                                | Beschreibung                                                                                   | Datei                               |
-| --- | ----------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 6.1 | **Widget-Strategie festlegen**      | Tempo nicht als Haupttab rendern, sondern als persistentes Bottom-/Inline-Widget.              | `session-vote.component.html`       |
-| 6.2 | **Signale ergänzen**                | `tempoOwnState`, Loading, Fehler, eventuell Optimistic-Update-State.                           | `session-vote.component.ts`         |
-| 6.3 | **Mutation anbinden**               | Tap setzt oder entfernt Zustand ohne Submit-Button.                                            | `session-vote.component.ts`         |
-| 6.4 | **Own-State-Rehydrierung**          | Beim Laden den eigenen letzten Zustand serverseitig oder aus Livezustand nachziehen.           | `session-vote.component.ts`         |
-| 6.5 | **Bottom-Bar-Kollisionen auflösen** | Abstimmungs-Submit, Session-End-Gate und Tempo-Widget sauber staffeln.                         | `session-vote.component.html/.scss` |
-| 6.6 | **A11y ausarbeiten**                | Buttons mit Textlabel, ARIA-Name, `aria-pressed` oder aequivalentem aktiven Zustand.           | `session-vote.component.html`       |
-| 6.7 | **Mobile-Lesbarkeit sichern**       | Vier Buttons auf schmalen Screens ohne horizontales Scrollen und ohne unruhige Labelumbrueche. | `session-vote.component.scss`       |
+| #   | Task                                  | Beschreibung                                                                                                                                             |
+| --- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5.1 | **Tempo in Host-Auswahl exponieren**  | Session- und Standalone-Host bieten `Tempo` als startbare, visuell hervorgehobene Option an statt als kleine Zusatz-Pill.                                |
+| 5.2 | **Umschalter einfuehren**             | Host-Ansicht bietet einen Toggle-Button fuer `Detaildarstellung` und `Tendenzindikator`.                                                                 |
+| 5.3 | **Standalone-Tendenz als Hero bauen** | Im Standalone-Blitzlicht wird die Tendenz gross, auffaellig und auf einen Blick lesbar dargestellt.                                                      |
+| 5.4 | **Zaehler sichtbar halten**           | Im Standalone-Tendenzmodus werden `activeParticipants` und `tempoVotes` deutlich angezeigt.                                                              |
+| 5.5 | **Bedienleiste erhalten**             | Umschalter und `Session beenden` bleiben auch im Standalone-Tendenzmodus sichtbar und gut erreichbar.                                                    |
+| 5.6 | **Kontextgerechte Platzierung**       | `FeedbackHostComponent` rendert den Umschalter eingebettet im Session-Blitzlicht und standalone im dortigen Host-Layout jeweils an der richtigen Stelle. |
+| 5.7 | **Keine Einzelpersonen-Leaks**        | UI zeigt keine Rohdaten, keine Listen, keine technisch internen IDs.                                                                                     |
 
 ### Ergebnis
 
-- Teilnehmende koennen Tempo jederzeit melden, ohne die eigentliche Session-Interaktion zu verlassen
+- Hosts erkennen schnell, ob das Tempo passt
+- die Zusatzinformation bleibt innerhalb der bestehenden Blitzlicht-IA
 
 ---
 
-## Phase 7: Tests, Review, UX-Tests, Feintuning
+## Phase 6: Tests, PR und UX-Abnahme
 
-Ziel: Die Story wird nicht nur technisch fertig, sondern review- und produktionsfaehig.
+Ziel: Das Feature wird sauber review- und releasefaehig.
 
-### Backend-Tests
+### Tests
 
-| #   | Task                   | Beschreibung                                                                             |
-| --- | ---------------------- | ---------------------------------------------------------------------------------------- |
-| 7.1 | **Aggregation testen** | Wechsel von Zuständen aktualisiert Counts korrekt.                                       |
-| 7.2 | **Anonymitaet testen** | Host-Responses enthalten keine individuellen Zustandslisten.                             |
-| 7.3 | **Gating testen**      | `tempoOpen`, `tempoEnabled`, `FINISHED` und Host-Autorisierung werden korrekt erzwungen. |
-| 7.4 | **Trendlogik testen**  | Rolling-Window und Tendenz sind deterministisch und nachvollziehbar.                     |
+- Backend:
+  - Vote neu setzen bei `Tempo`
+  - Vote wechseln bei `Tempo`
+  - Vote per Re-Tap entfernen
+  - andere Blitzlicht-Typen bleiben Einmal-Vote
+  - Host bekommt nur Aggregation und Tendenz
+  - Tendenz bleibt unterhalb der Mindestquote neutral
+  - Tendenz springt nicht bei einer Einzelstimme zwischen zwei Kategorien
+- Frontend:
+  - Session-Host und Standalone-Host koennen `Tempo` starten
+  - Teilnehmer-UI markiert aktiven Zustand korrekt
+  - Re-Tap entfernt Auswahl
+  - kleine Screens / Tastaturbedienung funktionieren
+  - Umschalter zwischen Detaildarstellung und Tendenz funktioniert in beiden Host-Kontexten
+  - Standalone-Tendenzansicht bleibt auf Smartphone-Groesse mit einem Blick lesbar
+  - `activeParticipants`, `tempoVotes`, Umschalter und `Session beenden` bleiben im Standalone-Tendenzmodus sichtbar
+  - neutraler Zustand und aktiver Zustand des Tendenzmodus sind klar unterscheidbar
+- Performance:
+  - kein regressiver Hotpath bei 500+ Teilnehmenden
+  - keine neue auffaellige Polling- oder Rebuild-Last
 
-### Frontend-Tests
+### PR-Checkliste
 
-| #   | Task                  | Beschreibung                                                                         |
-| --- | --------------------- | ------------------------------------------------------------------------------------ |
-| 7.5 | **Host-Specs**        | Kanal erscheint, Aktivierung funktioniert, Aggregat wird korrekt angezeigt.          |
-| 7.6 | **Vote-Specs**        | Widget erscheint nur wenn offen, Auswahl wechselt korrekt, aktiver Zustand markiert. |
-| 7.7 | **A11y-/State-Specs** | `aria-pressed`, Labels, Tastaturbedienbarkeit.                                       |
+- Story `8.8` und `ADR-0029` im PR verlinken
+- Diff klar in `shared-types -> backend -> frontend -> tests` strukturieren
+- benoetigte i18n-Strings mitziehen
+- gezielt auf Regressionsrisiko fuer bestehende Blitzlicht-Typen reviewen lassen
 
-### Konkrete Testanker im aktuellen Repo
+### UX-Abnahme
 
-Die Story sollte **nicht** mit neuen, losgeloesten Testinseln anfangen, sondern zunaechst die bereits vorhandenen Hotspots erweitern:
-
-- `apps/backend/src/__tests__/session.enable-channels.test.ts`
-  Fuer `enableTempoChannel`, `closeTempoChannel`, `reopenTempoChannel` und idempotente Kanalaktivierung.
-- `apps/backend/src/__tests__/tempo.test.ts` oder `apps/backend/src/__tests__/tempo.router.test.ts`
-  Neuer fokussierter Tempo-Test fuer `setState`, `getOwnState`, `hostSnapshot`, Trendlogik, Gating und Nicht-Leakage individueller Zustandslisten.
-- `apps/frontend/src/app/features/session/session-host/session-host.component.spec.ts`
-  Fuer vierten Kanal-Tab, Aktivierung, Sichtbarkeit, Host-Metadaten und Snapshot-Darstellung.
-- `apps/frontend/src/app/features/session/session-vote/session-vote.component.spec.ts`
-  Fuer persistentes Tempo-Widget, kein falscher Auto-Fokus, Zusammenspiel mit Bottom-Actions und aktiven Zustand.
-
-### Empfohlene fokussierte Checks waehrend der Umsetzung
-
-- `npm run test -w @arsnova/backend -- apps/backend/src/__tests__/session.enable-channels.test.ts`
-- `npm run test -w @arsnova/backend -- apps/backend/src/__tests__/tempo.test.ts`
-- `npm run test -w @arsnova/frontend -- apps/frontend/src/app/features/session/session-host/session-host.component.spec.ts`
-- `npm run test -w @arsnova/frontend -- apps/frontend/src/app/features/session/session-vote/session-vote.component.spec.ts`
-
-### Review- und UX-Stufen
-
-1. **PR / Code Review**
-   - keine Wiederverwendung falscher Blitzlicht-Semantik
-   - keine personenbezogene Leckage
-   - keine unnötige DB-Last
-   - Host-/Vote-Shell weiter konsistent
-2. **UX-Tests**
-   - Smartphone Teilnehmer mit aktivem Quiz
-   - Smartphone Teilnehmer mit offenem Q&A
-   - Host-Wechsel zwischen Quiz, Q&A, Blitzlicht, Tempo
-   - reale oder simulierte Live-Situation
-3. **UX-Feintuning**
-   - Wording
-   - Icon-/Labeldichte
-   - Widget-Hoehe und Position
-   - Tendenzschwellen
-   - Balken-/Segmentdarstellung
+- Host versteht auf den ersten Blick, dass `Tempo` ein Blitzlicht-Preset ist
+- Auf der Startseite ist `Tempo` ohne Sucharbeit auffindbar und sichtbar hervorgehoben, aber nicht als vierter gleichrangiger Hero-Chip inszeniert
+- In der Blitzlicht-Host-Auswahl ist `Tempo` ohne Sucharbeit auffindbar und klar priorisiert
+- Tendenz-Indikator ist sichtbar, aber nicht alarmistisch und nicht nervoes
+- Der Umschalter zwischen Detaildarstellung und Tendenz ist in Session und Standalone sofort verstaendlich
+- Die Standalone-Host-Ansicht macht die Lageeinschaetzung auf dem Handy ohne Nachdenken lesbar
+- Teilnehmer koennen ihre Auswahl ohne Nachdenken aendern oder loeschen
+- Mobile-Nutzung bleibt one-tap-faehig
 
 ---
 
-## Empfohlene Umsetzungsreihenfolge im Branch
+## Offene Designpunkte vor Branch-Start
 
-1. **shared-types**
-2. **Prisma + Migration**
-3. **Tempo-Router + Redis-Modell**
-4. **Session-Router + Shell-Refactor**
-5. **Host-UI**
-6. **Vote-Widget**
-7. **Tests**
-8. **PR**
-9. **UX-Tests**
-10. **UX-Feintuning**
+- Soll `TEMPO` ein eigener `QuickFeedbackType` werden oder ein Template-Flag auf bestehender Typbasis? Empfehlung: **eigener Typ**, damit Werte und Semantik sauber getrennt bleiben.
+- Wo lebt die Tendenzlogik technisch: direkt im Router, in einer dedizierten Helper-Datei oder in gemeinsam testbarer Domain-Logik? Empfehlung: **eigene Helper-Funktion mit Unit-Tests**.
+- Wie soll der Host-Umschalter visuell funktionieren: klassischer Toggle, Segment-Button oder Icon+Label? Empfehlung: **Segment-Button mit Textlabels**, damit `Details` und `Tendenz` explizit benannt sind.
 
-Diese Reihenfolge minimiert Rework, weil zuerst die Vertraege und der Datenpfad stabilisiert werden und erst danach die UI aufgesetzt wird.
+## Empfohlene Heuristik fuer die Tendenzberechnung
 
-## Empfohlenes PR-Backlog
+### Aktivierung
 
-Um Review-Risiko und Regressionsflaeche zu begrenzen, sollte die Story in **mehrere kleine PRs** geschnitten werden statt in einen grossen Feature-Branch-Block.
+- `activeParticipants` = aktuelle Zahl der aktiven Teilnehmenden im jeweiligen Blitzlicht-Kontext
+- `tempoVotes` = Zahl der Teilnehmenden mit aktuellem Tempo-Zustand
+- Der Indikator bleibt neutral, solange `tempoVotes < max(8, ceil(0.10 * activeParticipants))`
 
-| PR   | Ziel                                  | Enthalten                                                                                                                                                      | Muss vor Merge gruen sein                                                                           |
-| ---- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| PR 1 | **Vertraege + Session-Konfiguration** | `shared-types`, `SessionChannelsDTO`, `CreateSessionInput`, Prisma-Felder `tempoEnabled`/`tempoOpen`, Migration, `buildSessionChannels()`, Session-Create-Flow | `@arsnova/shared-types` Build, Backend-Typecheck, `session.create`-/`session.enable-channels`-Tests |
-| PR 2 | **Tempo-Backend-Hotpath**             | neuer `tempoRouter`, Redis-Keying, `setState`, `getOwnState`, `hostSnapshot`, Tendenz-Aggregation, Router-Registrierung                                        | fokussierte Tempo-Backend-Tests, Backend-Typecheck                                                  |
-| PR 3 | **Shell-Refactor fuer vier Kanaele**  | `SessionChannelTab`, `visibleChannels`, `channelOpenState`, `channelLabel`, Host-/Vote-Navigation, Entfernen falscher QuickFeedback-Autofokus-Annahmen         | Host-/Vote-Specs fuer Kanalwechsel und Navigationsregeln                                            |
-| PR 4 | **Host-UI fuer Tempo**                | Tempo-Tab, Aktivieren/Schliessen/Wiederoeffnen, Snapshot-Visualisierung, Meta-/Badge-Konzept                                                                   | Host-Spec, Frontend-Typecheck                                                                       |
-| PR 5 | **Teilnehmer-Widget + A11y**          | persistentes Tempo-Widget, Own-State-Rehydrierung, Mutation, Bottom-Bar-Koordination, `aria-pressed`, mobile Layoutregeln                                      | Vote-Spec, Frontend-Typecheck                                                                       |
-| PR 6 | **Feinschliff + Nachweise**           | Tendenzschwellen kalibrieren, i18n/Copy falls noetig, Doku-Abgleich, abschliessende Review-/UX-Checkliste                                                      | fokussierte Frontend-/Backend-Tests, ggf. `npm test` und `npm run typecheck`                        |
+### Glaettung
 
-### Zuschnittsregeln fuer die PRs
+- Verteilung in `15s`-Buckets fuehren
+- Entscheidungsgrundlage = rollendes Fenster der letzten `60s`
+- Angezeigt wird der geglaettete Mittelwert, nicht der rohe Snapshot des letzten Events
 
-- **PR 1 und PR 2** sollen **keine** sichtbare Tempo-UI erzwingen.
-- **PR 3** ist ein Refactor-PR und darf bewusst ohne fertige Tempo-Visualisierung gemerged werden, wenn die bestehende 3-Kanal-Logik stabil bleibt.
-- **PR 4 und PR 5** koennen getrennt reviewed werden, weil Host-Tab und Teilnehmer-Widget unterschiedliche UI-Vertraege haben.
-- **PR 6** ist kein "Restmuell-PR", sondern die explizite Stelle fuer UX-Feintuning, Copy und harte Abschlussnachweise.
+### Hysterese
 
----
+- Eine neue Tendenz muss in mindestens `2` aufeinanderfolgenden Buckets fuehren
+- Alternativ darf sie nur bei einer klaren Marge gegenueber der bisherigen Tendenz sofort uebernehmen
 
-## Risiken und Gegenmassnahmen
+### Beispielschwellen
 
-| Risiko                                          | Auswirkung                         | Gegenmassnahme                                                     |
-| ----------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
-| Blitzlicht-Logik wird teilweise wiederverwendet | fachlich falsches Produktmodell    | eigener Router, eigene DTOs, eigene Terminologie                   |
-| Host sieht zu viel Detail                       | Datenschutz- und Vertrauensproblem | nur Aggregat-Daten, keine individuellen Listen                     |
-| Teilnehmer-Widget kollidiert mit Bottom-Actions | schlechte Mobile-UX                | Layout frueh mit echter Vote-Ansicht und Session-End-Gate testen   |
-| Redis-Zaehler driften bei Zustandswechsel       | falsche Host-Anzeige               | deltabasierte Mutationen und explizite Backend-Tests               |
-| Trendlogik wirkt nervoes                        | schlechte Host-Interpretierbarkeit | Rolling Window + deterministische Schwellen + UX-Feintuning        |
-| Shell-Refactor bricht bestehende Kanaele        | Regression in Q&A/Blitzlicht       | Phase 4 bewusst klein schneiden und vorhandene Flows weiter testen |
+- `lost / activeParticipants >= 0.12` -> `Mehrere Teilnehmende sind abgehaengt.`
+- `(slow_down + lost) / activeParticipants >= 0.22` -> `Das Tempo wirkt zu hoch.`
+- `speed_up / activeParticipants >= 0.22` und `(slow_down + lost) / activeParticipants < 0.10` -> `Die Gruppe signalisiert Unterforderung.`
+- `following / activeParticipants >= 0.50` und `(slow_down + lost) / activeParticipants < 0.15` -> `Die Mehrheit kann folgen.`
+- Sonst, bei kleinem Abstand der Top-Gruppen oder breiter Streuung -> `Die Gruppe ist heterogen.`
+
+### Zusatzscore
+
+Optional kann parallel ein geglaetteter Score genutzt werden:
+
+- `speed_up = -1`
+- `following = 0`
+- `slow_down = 1`
+- `lost = 2`
+
+Der Score dient dann als Sekundaersignal; harte Sicherheitsregeln fuer `lost` und `slow_down + lost` haben Vorrang.
 
 ---
 
-## Definition of Done fuer die Story
+## Definition of Done (story-spezifisch)
 
-Die Story gilt erst als bereit fuer Produktion, wenn:
-
-- der Tempo-Kanal als eigener vierter Session-Kanal implementiert ist
-- Host nur aggregierte Tempo-Daten sieht
-- Teilnehmende ihren Zustand jederzeit setzen, aendern und optional entfernen koennen
-- der Kanal parallel zu Quiz, Q&A und Blitzlicht stabil laeuft
-- Mobile- und A11y-Kriterien nachgewiesen sind
-- Code Review ohne offene Architektur- oder Datenschutzbefunde abgeschlossen ist
-- UX-Tests und anschliessendes Feintuning erfolgt sind
-
----
-
-## Referenzen
-
-- [`Backlog.md`](../../Backlog.md) Story `8.8`
-- [`docs/implementation/STORY-8.8-GITHUB-CHECKLIST.md`](./STORY-8.8-GITHUB-CHECKLIST.md)
-- [`docs/architecture/decisions/0022-tempo-live-channel-as-continuous-session-channel.md`](../architecture/decisions/0022-tempo-live-channel-as-continuous-session-channel.md)
-- [`docs/architecture/decisions/0009-unified-live-session-channels.md`](../architecture/decisions/0009-unified-live-session-channels.md)
-- [`docs/architecture/decisions/0010-blitzlicht-as-core-live-mode.md`](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md)
-- [`docs/architecture/decisions/0014-mobile-first-information-architecture-for-host-views.md`](../architecture/decisions/0014-mobile-first-information-architecture-for-host-views.md)
-- [`docs/architecture/decisions/0019-host-hardening-and-owner-bound-session-access.md`](../architecture/decisions/0019-host-hardening-and-owner-bound-session-access.md)
-- [`docs/architecture/decisions/0021-separate-service-status-from-load-status-with-live-slo-telemetry.md`](../architecture/decisions/0021-separate-service-status-from-load-status-with-live-slo-telemetry.md)
+- `Tempo` ist als Blitzlicht-Template startbar.
+- Teilnehmende koennen `Tempo` setzen, wechseln und per Re-Tap entfernen.
+- Hosts sehen nur Aggregation und Tendenz.
+- In Session- und Standalone-Host gibt es einen sichtbaren Umschalter zwischen Detaildarstellung und Tendenzmodus.
+- Bestehende Blitzlicht-Typen verhalten sich unveraendert.
+- Mobile- und A11y-Anforderungen sind fuer die vier Reaktionen erfuellt.
+- Lastverhalten zeigt keinen auffaelligen Regressionshotspot fuer grosse Sessions.
