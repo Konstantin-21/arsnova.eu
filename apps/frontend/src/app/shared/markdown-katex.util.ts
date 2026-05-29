@@ -421,6 +421,10 @@ function sanitizeMarkdownHtml(html: string): string {
       'disabled',
       'focusable',
       'viewBox',
+      // KaTeX rendert Wurzelzeichen als SVG; ohne diese Geometrieattribute verschwindet das Radical.
+      'width',
+      'height',
+      'preserveAspectRatio',
       'd',
       'fill',
       'stroke',

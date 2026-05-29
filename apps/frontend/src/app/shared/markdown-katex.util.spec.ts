@@ -15,6 +15,17 @@ describe('renderMarkdownWithKatex', () => {
     expect(result.katexError).toBeNull();
   });
 
+  it('behält KaTeX-SVG-Attribute für Wurzelzeichen nach DOMPurify', () => {
+    const result = renderMarkdownWithKatex(String.raw`$U = \hat{u}\cdot \sqrt{2}$`);
+
+    expect(result.katexError).toBeNull();
+    expect(result.html).toContain('<msqrt>');
+    expect(result.html).toContain('<svg');
+    expect(result.html).toMatch(/<svg[^>]*\bwidth="[^"]+"/);
+    expect(result.html).toMatch(/<svg[^>]*\bheight="[^"]+"/);
+    expect(result.html).toContain('preserveAspectRatio="xMinYMin slice"');
+  });
+
   it('liefert bei ungültiger KaTeX-Syntax eine lesbare Fehlermarkierung', () => {
     const result = renderMarkdownWithKatex(String.raw`Formel: $\frac{1}{2$`);
 
