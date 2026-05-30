@@ -35,11 +35,11 @@ Falls die Integration in die Markdown-Vorschau nicht funktioniert:
 
 ## Dateien
 
-| Datei                          | Inhalt                                                                                                                             |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `diagrams.md`                  | Backend-, Frontend-, DB-Schema, Kommunikation Dozent/Student/**Admin**, Aktivität inkl. Admin, **MOTD** (Stand: 2026-04-01)        |
-| `architecture-overview.md`     | System-Architektur, Datenfluss inkl. Admin/MOTD, Komponenten-Hierarchie, Sicherheit inkl. Rollen-Autorisierung (Stand: 2026-04-01) |
-| `diagram-consistency-check.md` | Konsistenzprüfung Diagramme vs. Handbuch/Backlog/ADR-0006 (Epic 9 Admin ergänzt)                                                   |
+| Datei                          | Inhalt                                                                                                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagrams.md`                  | Backend-, Frontend-, DB-Schema inkl. SessionFeedback, Platform/DailyStatistic und MOTD, Kommunikation Dozent/Student/**Admin**, Aktivität inkl. Admin (Stand: 2026-05-30) |
+| `architecture-overview.md`     | System-Architektur, Datenfluss inkl. Admin/MOTD, Prisma/PostgreSQL-Kompaktsicht, Komponenten-Hierarchie, Sicherheit inkl. Rollen-Autorisierung (Stand: 2026-05-30)        |
+| `diagram-consistency-check.md` | Konsistenzprüfung Diagramme vs. Handbuch/Backlog/ADR-0006/Prisma; hält bewusste Vereinfachungen der Mermaid-ER-Diagramme fest.                                            |
 
 ## Online-Rendering
 

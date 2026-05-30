@@ -15,10 +15,11 @@
 
 ## ✅ Aktueller Entwicklungsstand (Mai 2026)
 
-- **Produktionsreif umgesetzt:** Epics **0–5**, **7.1 (Team-Modus)**, **9 (Admin)** und **10 (MOTD / Plattform-Kommunikation, ADR-0018)**; **Epic 8 ist im Kern mit 8.1–8.4** umgesetzt — siehe [`Backlog.md`](./Backlog.md).
+- **Produktionsreif umgesetzt:** Epics **0–5**, **7.1 (Team-Modus)**, **9 (Admin)** und **10 (MOTD / Plattform-Kommunikation, ADR-0018)**; **Epic 8 ist mit 8.1–8.4 sowie 8.6/8.7** im Kern umgesetzt — siehe [`Backlog.md`](./Backlog.md).
 - **Plattform-Qualität:** Epic **6** ist im Kern umgesetzt (Theme, i18n, Legal, Responsive); **6.5 Barrierefreiheit (Abschlussprüfung)** und **6.6 Thinking Aloud** sind noch offen.
 - **Aktuell in Arbeit:** **Story 0.7** (Last- & Performance-Tests) mit ersten `k6`-Skripten unter `scripts/load/` und Smoke-Flows wie `smoke:unified-session` und `smoke:short-text`; die vollständige Realtime-/E2E-/CI-Strecke ist noch offen.
-- **Offene Stories (Auswahl):** u. a. **0.8** (Komplexitätsabbau), **1.2d–1.2i** (neue Fragentypen & Confidence), **1.6c** (Sync-Sicherheit), **1.14a** (Word Cloud 2.0) und **8.5–8.8** (Q&A-Erweiterungen + Tempo-Livekanal) — vollständige Liste im Backlog. **Bereits abgeschlossen:** **2.1c**, **1.7a** und **1.7b**.
+- **Offene Stories (Auswahl):** u. a. **0.8** (Komplexitätsabbau), **1.2d**, **1.2ec–1.2ed** und **1.2f–1.2i** (Kurzantwort-Ausbau, neue Fragentypen & Confidence), **1.6c** (Sync-Sicherheit), **1.14a** (Word Cloud 2.0) sowie **8.5/8.8** (delegierbare Q&A-Moderation + Tempo-Blitzlicht) — vollständige Liste im Backlog. **Bereits abgeschlossen:** **2.1c**, **1.7a**, **1.7b**, **5.4a** und **8.6/8.7**.
+- **Kurzantwort-Abgrenzung:** **1.2ec** und **1.2ed** bleiben offen für arsnova.eu-native Schlüsselwort-Gruppen bzw. Token-/Mehrwortbewertung. `arsnova.click`-Tags und `configUseKeywords` werden beim Import bewusst **nicht** unterstützt oder fachlich ausgewertet.
 - **Plattform-Statistik:** Rekord **max. Teilnehmer je Session** wird serverseitig gepflegt und in `health.stats` sowie auf der Hilfe-Seite genutzt (`PlatformStatistic`, siehe Backlog „Repo-Abgleich“).
 - **Lehre:** Greenfield-Demo **Story 1.7a** in **3×45 Min.** — Leitfaden [`docs/didaktik/greenfield-demo-1-7a-vorlesung.md`](docs/didaktik/greenfield-demo-1-7a-vorlesung.md); Epic 10 bleibt optionales **Referenzbeispiel**, kein Ersatz für 1.7a.
 
@@ -28,7 +29,7 @@
 
 ### Alleinstellungsmerkmale
 
-- **Stil-Auswahl:** Die Lehrperson wählt beim Start der Session den Stil (**Seriös** oder **Spielerisch**) und kann Optionen anpassen (Rangliste, Sound, Lesephase, Team-Modus, Nicknames, Timer). So passt sich die Session an – Kita bis Uni. Teilnehmende können den Stil nicht ändern. Im Preset **Spielerisch** pulsieren auf der Startseite das Logo (nur bei normaler Bewegungspräferenz); im Team-Modus kommen zusätzlich farbige Teamkarten, motivierende Effekte im Join-/Lobby-Flow, ein teamzentrierter Lobby-Moment auf dem Beamer sowie ein klar fokussiertes Team-Finale auf Teilnehmergerät und Beamer dazu.
+- **Stil-Auswahl:** Die Lehrperson wählt beim Start der Session den Stil (**Seriös** oder **Spielerisch**) und kann Optionen anpassen (Rangliste, Sound, Lesephase, Team-Modus, Nicknames, Timer). So passt sich die Session an – Kita bis Uni. Teilnehmende können den Stil nicht ändern. Im Preset **Spielerisch** pulsieren auf der Startseite das Logo (nur bei normaler Bewegungspräferenz); im Live-Foyer fliegen neue Teilnehmende als farbige Arrival-Chips ein, während das Teilnehmendengerät einen kleinen Ankunftsmoment zeigt. Im Team-Modus kommen zusätzlich farbige Teamkarten, motivierende Effekte im Join-/Lobby-Flow, lokale Team-Arrival-Overlays sowie ein klar fokussiertes Team-Finale auf Teilnehmergerät und Beamer dazu.
 - **Bonus-Option für die Besten:** Top-Platzierte erhalten einen **einlösbaren Code**, den sie bei der Quizleitung einlösen können (z. B. für Bonuspunkte oder Anerkennung). Die App dient nicht als autorisiertes Prüfungsinstrument; die Einlösung liegt bei der Lehrperson.
 - **Zero-Knowledge / Local-First:** Keine Accounts nötig. Quiz-Inhalte werden lokal im Browser des Erstellers gespeichert; beim Start einer Live-Session wird nur temporär eine Kopie an den Server übertragen. Nach Ende der Session werden die Daten bereinigt. Der Server ist reiner Relay für Echtzeit-Abstimmungen.
 - **Admin-Kontrollpfad für Recht & Betrieb (Epic 9):** Betreiber können Sessions über `/admin` inspizieren, rechtlich begründet löschen und Behördenauszüge erzeugen (PDF/JSON, mit Audit-Log und ohne unnötige PII).
@@ -350,7 +351,7 @@ Nachdem die App lokal läuft, empfiehlt sich diese Lesereihenfolge:
 7. **[docs/cursor-context.md](./docs/cursor-context.md)** – verdichtete Projektreferenz für komplexere KI-Sessions
 8. **[Vibe-Coding-Szenario](./docs/vibe-coding/vibe-coding-szenario.md)** – Zusammenarbeit mit der KI
 
-> **Tipp (aktueller Fokus):** Epics **0–5**, **7.1**, **9** und **10** sind umgesetzt; **Epic 8** ist im Kern mit **8.1–8.4** produktiv. Nächste Prioritäten siehe [Backlog](./Backlog.md) (u. a. **0.7**, **0.8**, **6.5**/**6.6**, **1.2d–1.2i**, **1.6c**, **1.14a**, **8.5–8.8**). Vor der Umsetzung zuerst Story und DoD lesen; bei KI-gestützter Arbeit anschließend mit `AGENT.md` arbeiten.
+> **Tipp (aktueller Fokus):** Epics **0–5**, **7.1**, **9** und **10** sind umgesetzt; **Epic 8** ist mit **8.1–8.4** sowie **8.6/8.7** produktiv. Nächste Prioritäten siehe [Backlog](./Backlog.md) (u. a. **0.7**, **0.8**, **6.5**/**6.6**, **1.2d**, **1.2ec–1.2ed**, **1.2f–1.2i**, **1.6c**, **1.14a**, **8.5** und **8.8**). Vor der Umsetzung zuerst Story und DoD lesen; bei KI-gestützter Arbeit anschließend mit `AGENT.md` arbeiten.
 
 ## 🔄 Zurücksetzen auf einen bekannten Zustand
 

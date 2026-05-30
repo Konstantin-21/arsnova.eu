@@ -67,7 +67,7 @@ erDiagram
 - **Status Quo:** Bei jedem Beitritt (`apps/backend/src/routers/session.ts`) wird synchron der Teilnehmer gezählt und _asynchron_ (`void updateMaxParticipantsSingleSession(...)`) der Rekord geprüft.
 - **Erweiterung:** Das Backend muss zusätzlich prüfen, ob der Session-Tagesrekord gebrochen wurde.
 - **API (`health.stats`):** Die Datenabfrage erfolgt über tRPC. Das `ServerStatsDTO` (Data Transfer Object) wird um ein Array `dailyHighscores` erweitert, welches die Werte der letzten 30 Tage liefert. Jeder Wert steht fuer die **groesste einzelne Session des jeweiligen UTC-Tages**, nicht fuer eine Tagesgesamtsumme. Damit bewegen wir uns direkt im Rahmen von **ADR-0003**.
-- **Architektur-Fokus (Echtzeit vs. Polling):** arsnova.eu ist ein Echtzeitsystem. Das Speichern des Rekords darf den Beitritt nicht verzögern (Daher: `void` = Fire-and-Forget). Die Aktualisierung der Anzeige bei allen Clients erfolgt bewusst _nicht_ über teure WebSockets, sondern über ressourcenschonendes HTTP-Polling (alle 30 Sekunden). Das passt zur bestehenden Trennung von kompaktem Footer und Detaildialog aus **ADR-0021**.
+- **Architektur-Fokus (Echtzeit vs. Polling):** arsnova.eu ist ein Echtzeitsystem. Das Speichern des Rekords darf den Beitritt nicht verzögern (Daher: `void` = Fire-and-Forget). Die Footer-Ampel wird bewusst _nicht_ über teure WebSockets aktualisiert, sondern über ressourcenschonendes HTTP-Polling (`health.footerBundle`, aktuell alle 5 Minuten); der Detaildialog lädt `health.stats` beim Öffnen frisch und nutzt kurze Cache-Fenster. Das passt zur bestehenden Trennung von kompaktem Footer und Detaildialog aus **ADR-0021**.
 
 **Ablauf beim Session-Beitritt (Sequenzdiagramm):**
 
@@ -77,7 +77,7 @@ sequenceDiagram
     participant API as Backend (tRPC)
     participant DB as Prisma (PostgreSQL)
 
-    S->>API: joinSession(sessionId)
+    S->>API: session.join(code, nickname)
     activate API
     API->>DB: COUNT Teilnehmende der Session
     DB-->>API: result (z.B. 42)
@@ -95,7 +95,7 @@ sequenceDiagram
 - **Erweiterung:** Im `ServerStatusHelpDialogComponent` wird ein Chart eingefügt.
 - **Performance-Fokus:** Chart-Bibliotheken sind oft sehr groß (300-800 KB). Um das Time-to-Interactive der App nicht zu ruinieren, treffen wir zwei Entscheidungen:
   1. **Minimalismus:** Wir nutzen das kleine `chart.js` (ca. 68 KB) komplett ohne Angular-Wrapper, um Overhead zu sparen.
-  2. **Lazy Loading:** Das Chart wird über Angulars `@defer`-Direktive asynchron erst dann geladen, wenn der Dialog tatsächlich geöffnet wird.
+  2. **Lazy Loading:** Der Dialog und der Chart-Renderer werden per dynamischem `import()` erst beim Öffnen geladen; `chart.js` wird innerhalb des Renderers ebenfalls dynamisch importiert.
 - **UI-Governance:** Neue Beschriftungen, Diagramm-Titel und ARIA-Hinweise muessen den Regeln aus **ADR-0008** folgen.
 
 **Zeitliches Verhalten & Performance (Sequenzdiagramm / Lazy Loading):**
@@ -104,20 +104,23 @@ sequenceDiagram
 sequenceDiagram
     actor U as User
     participant W as StatusWidget (Footer)
-    participant API as Backend (health.stats)
+    participant FooterAPI as Backend (health.footerBundle)
+    participant StatsAPI as Backend (health.stats)
     participant C as Chart.js (Modul)
 
-    Note over W,API: Initialisierung und ressourcenschonendes Polling
-    W->>API: GET stats (inkl. dailyHighscores)
-    API-->>W: stats (Allzeit + 30 Tage Historie)
+    Note over W,FooterAPI: Footer-Dot mit schlankem Status
+    W->>FooterAPI: footerBundle
+    FooterAPI-->>W: check + serviceStatus/loadStatus
 
-    loop Alle 30 Sekunden
-        W->>API: GET stats (Aktualisierung)
-        API-->>W: update
+    loop Alle 5 Minuten bei sichtbarem Footer
+        W->>FooterAPI: footerBundle
+        FooterAPI-->>W: check + FooterStatusDTO
     end
 
     Note over U,C: Dialog-Öffnung triggert Lazy Loading
     U->>W: Klick auf "Hilfe / Info"
+    W->>StatsAPI: health.stats (inkl. dailyHighscores)
+    StatsAPI-->>W: stats (Allzeit + 30 Tage Historie)
     W->>C: import('chart.js') (asynchron via HTTP)
     C-->>W: Chunk geladen (ca. 68 KB)
     W->>C: render(dailyHighscores)
@@ -168,7 +171,7 @@ git switch -c feature/0.4a-daily-session-record-history
 Nun darf der Agent recherchieren, aber gezielt entlang der Story und der ADRs.
 
 - **Aktion:** Der Nutzer äußert einen konkreten Wunsch: _"Erweitere die Betriebsstatusanzeige gemaess Story 0.4a."_
-- **KI-Arbeit:** Der Agent nutzt Suchwerkzeuge (`grep_search`), um Relevanz zu finden. Er untersucht, wo `maxParticipantsSingleSession`, `health.stats` und der `ServerStatusHelpDialogComponent` bereits verarbeitet werden.
+- **KI-Arbeit:** Der Agent nutzt Suchwerkzeuge (`grep_search`), um Relevanz zu finden. Er untersucht, wo `maxParticipantsSingleSession`, `health.footerBundle`, `health.stats` und der `ServerStatusHelpDialogComponent` bereits verarbeitet werden.
 
 ### Phase 5: Strategie & Architekturdiskussion (Plan Mode)
 
@@ -196,7 +199,7 @@ Titel: feat(status): add daily session record history
 
 - Story: 0.4a
 - ADR: 0024
-- Scope: DailyStatistic, health.stats, ServerStatusHelpDialog
+- Scope: DailyStatistic, health.stats, health.footerBundle, ServerStatusHelpDialog
 - Validierung: Typecheck, Vitest, manuelle UI-Pruefung
 - Risiken: Bundle-Groesse, Polling-Verhalten, A11y des Charts
 ```
@@ -263,7 +266,7 @@ Erweiterung der Betriebsstatusanzeige um einen Session-Tagesrekord der Teilnehme
 #### 4.3.3. Frontend (Chart.js)
 
 - **Abhängigkeiten:** `npm install chart.js` in `apps/frontend`.
-- **Lazy Loading:** `chart.js` wird streng asynchron geladen. Wir verwenden keine Angular-Wrapper. Das HTML-Canvas-Element wird in einem `@defer`-Block platziert.
+- **Lazy Loading:** `chart.js` wird streng asynchron geladen. Wir verwenden keine Angular-Wrapper; der Dialog lädt `ServerStatusHistoryChartRenderer` per dynamischem `import()`, der Renderer lädt anschließend `chart.js`.
 - **UX & Design ("vom Feinsten"):**
   - **Type:** `line`, **Styling:** Weiche Kurven (`tension: 0.4`), gefüllter Bereich (`fill: true`), minimale Achsen (keine Grid-Linien).
   - **Tooltips:** Aktivieren für Datum und Rekord-Anzahl.

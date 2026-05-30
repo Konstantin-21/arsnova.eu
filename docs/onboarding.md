@@ -174,7 +174,7 @@ arsnova.eu/
 │   │       ├── trpc.ts       # tRPC-Initialisierung (Router, Procedures)
 │   │       └── routers/      # tRPC-Router (API-Endpunkte)
 │   │           ├── index.ts  # appRouter – vereint alle Sub-Router
-│   │           ├── health.ts # health.check, health.stats, health.ping
+│   │           ├── health.ts # health.check, health.footerBundle, health.stats, health.ping
 │   │           ├── session.ts# session.create, getInfo, join, getExportData
 │   │           └── vote.ts   # vote.submit (mit Rate-Limit)
 │   └── frontend/             # Angular 21 Single-Page-App (Angular-Style: core/shared/features)
@@ -234,30 +234,30 @@ Das System ist nach dem **Local-First**-Prinzip entworfen:
 
 ### Was bereits funktioniert (✅ Implementiert – Stand: 2026-05-05)
 
-| Komponente                                                 | Beschreibung                                                                                                               |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Express + tRPC-Server                                      | Backend auf Port 3000 mit `health.check`, `health.stats`, `health.ping` (Subscription)                                     |
-| Angular 21 Frontend                                        | Standalone Components, Signals, Angular Material 3, tokenbasiertes Theming, Startseite mit Server-Status-Widget            |
-| tRPC-Client                                                | `httpBatchLink` (Queries/Mutations) + `wsLink` (Subscriptions)                                                             |
-| Redis-Anbindung                                            | `ioredis`-Client, Health-Check, Rate-Limiting (Sliding-Window), Session-Code-Lockout                                       |
-| tRPC WebSocket                                             | Separater WebSocket-Server (Port 3001) für Subscriptions                                                                   |
-| Yjs y-websocket Relay                                      | Backend startet y-websocket-Server (Port 3002) für Multi-Device-Sync                                                       |
-| Server-Status (Epic 0.4)                                   | `health.stats`, Widget auf Startseite (Polling 30s), Schwellwerte healthy/busy/overloaded                                  |
-| Session-, Vote-, Q&A-, Blitzlicht-, Admin- und MOTD-Router | `session`, `vote`, `qa`, `quickFeedback`, `admin`, `motd` (Epic 10) mit Rate-Limiting; Live-Subscriptions für Session-Pfad |
-| Prisma-Schema                                              | Vollständiges Datenbankmodell (Quiz, Question, Session, Vote, etc.)                                                        |
-| Zod-Schemas (`shared-types`)                               | Alle Input-/Output-Schemas und DTOs definiert                                                                              |
-| Docker Compose                                             | PostgreSQL 16 + Redis 7 (+ optional App-Container) per `docker compose up`                                                 |
-| CI/CD-Pipeline                                             | GitHub Actions: Prisma validate/generate, TypeScript, ESLint, Tests, Docker-Build (Node 20/22)                             |
-| Session- und Besitzhärtung                                 | Host-Token, `hostProcedure`, Feedback-Host-Token, datensparsame Teilnehmerpfade und `accessProof` für Quiz-Historie        |
-| Basis-Lasttest-Bausteine                                   | `scripts/load/` mit `k6`-Skripten und Node-Simulationen; Frontend-Smoke-Flow `smoke:unified-session` vorhanden             |
+| Komponente                                                              | Beschreibung                                                                                                                            |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Express + tRPC-Server                                                   | Backend auf Port 3000 mit `health.check`, `health.footerBundle`, `health.stats`, `health.ping` (Subscription)                           |
+| Angular 21 Frontend                                                     | Standalone Components, Signals, Angular Material 3, tokenbasiertes Theming, Startseite mit Server-Status-Widget                         |
+| tRPC-Client                                                             | `httpBatchLink` (Queries/Mutations) + `wsLink` (Subscriptions)                                                                          |
+| Redis-Anbindung                                                         | `ioredis`-Client, Health-Check, Rate-Limiting (Sliding-Window), Session-Code-Lockout                                                    |
+| tRPC WebSocket                                                          | Separater WebSocket-Server (Port 3001) für Subscriptions                                                                                |
+| Yjs y-websocket Relay                                                   | Backend startet y-websocket-Server (Port 3002) für Multi-Device-Sync                                                                    |
+| Server-Status (Epic 0.4)                                                | `health.footerBundle` im Footer, `health.stats` im Detaildialog, `PlatformStatistic`/`DailyStatistic`, Service-/Laststatus              |
+| Session-, Vote-, Q&A-, Blitzlicht-, Word-Cloud-, Admin- und MOTD-Router | `session`, `vote`, `qa`, `quickFeedback`, `wordCloud`, `admin`, `motd` (Epic 10) mit Rate-Limiting; Live-Subscriptions für Session-Pfad |
+| Prisma-Schema                                                           | Vollständiges Datenbankmodell (Quiz, Question, Session, Vote, etc.)                                                                     |
+| Zod-Schemas (`shared-types`)                                            | Alle Input-/Output-Schemas und DTOs definiert                                                                                           |
+| Docker Compose                                                          | PostgreSQL 16 + Redis 7 (+ optional App-Container) per `docker compose up`                                                              |
+| CI/CD-Pipeline                                                          | GitHub Actions: Prisma validate/generate, TypeScript, ESLint, Tests, Docker-Build (Node 20/22)                                          |
+| Session- und Besitzhärtung                                              | Host-Token, `hostProcedure`, Feedback-Host-Token, datensparsame Teilnehmerpfade und `accessProof` für Quiz-Historie                     |
+| Basis-Lasttest-Bausteine                                                | `scripts/load/` mit `k6`-Skripten und Node-Simulationen; Frontend-Smoke-Flow `smoke:unified-session` vorhanden                          |
 
 ### Was als nächstes ansteht (🔲 Geplant / offen)
 
 | Thema                        | Kurzbeschreibung                                                                                    | Backlog / Referenz |
 | ---------------------------- | --------------------------------------------------------------------------------------------------- | ------------------ |
 | Barrierefreiheit & UX        | Story **6.5** (Abschlussprüfung), **6.6** (Thinking Aloud)                                          | Epic 6             |
-| Neue Fragentypen             | **1.2d–1.2i**: numerische Schätzung, Kurzantwort, Hotspot, Matching, Reihenfolge, Confidence        | Epic 1             |
-| Q&A und Tempo                | Delegation, Kontrovers-/Wilson-Sortierung und Tempo-Livekanal (**8.5–8.8**)                         | Epic 8             |
+| Neue Fragentypen             | **1.2d**, **1.2ec–1.2ed**, **1.2f–1.2i**: verbleibende Kurzantwort-/Fragentyp-Erweiterungen         | Epic 1             |
+| Q&A und Tempo                | Delegation und Tempo-Livekanal (**8.5**, **8.8**)                                                   | Epic 8             |
 | Last & Performance           | **0.7** in Arbeit: vorhandene `k6`-/Smoke-Bausteine zu vollständiger E2E-/Realtime-Strecke ausbauen | Epic 0, ADR-0013   |
 | Sync & Word Cloud / Refactor | **1.6c**, **1.6d**, **1.14a** sowie **0.8** (Komplexitätsabbau / McCabe-Hotspots)                   | Backlog            |
 
@@ -265,9 +265,9 @@ Vollständige Story-Liste und Status: [`Backlog.md`](../Backlog.md).
 
 ---
 
-## 5. Komponentenbeschreibung (Stand: 2026-05-05)
+## 5. Komponentenbeschreibung (Stand: 2026-05-30)
 
-Das folgende Diagramm zeigt eine vereinfachte **Backend-Architektur**. Neben Quiz und Session sind `Q&A`, `Blitzlicht`, `Admin` und **`motd` (Epic 10)** integriert.
+Das folgende Diagramm zeigt eine vereinfachte **Backend-Architektur**. Neben Quiz und Session sind `Q&A`, `Blitzlicht`, `wordCloud`, `Admin` und **`motd` (Epic 10)** integriert.
 
 ```mermaid
 graph TB
@@ -284,6 +284,7 @@ graph TB
         vote["voteRouter ✅"]
         qa["qaRouter ✅"]
         quickfb["quickFeedbackRouter ✅"]
+        wordcloud["wordCloudRouter ✅"]
         admin["adminRouter ✅"]
         motd["motdRouter ✅"]
     end
@@ -291,6 +292,7 @@ graph TB
     subgraph Services["Services"]
         ratelimit[RateLimitService ✅]
         scoring[Scoring / Session Logic ✅]
+        wcanalysis[WordCloudAnalysis ✅]
         streak[Streak / Bonus Logic ✅]
         codegen[SessionCodeService ✅]
         cleanup[CleanupService ✅]
@@ -315,6 +317,7 @@ graph TB
     trpcmw --> vote
     trpcmw --> qa
     trpcmw --> quickfb
+    trpcmw --> wordcloud
     trpcmw --> admin
     trpcmw --> motd
     session --> codegen
@@ -322,6 +325,7 @@ graph TB
     session --> ratelimit
     qa --> ratelimit
     quickfb --> ratelimit
+    wordcloud --> wcanalysis
     motd --> ratelimit
     session --> prevdto
     session --> studdto
@@ -329,13 +333,14 @@ graph TB
     session --> sessiondto
     codegen --> pg
     motd --> pg
+    scoring --> pg
     ratelimit --> redis
     session --> redis
     express --> wss
     express --> yws
 ```
 
-> ✅ = im Projektstand 2026-04-01 umgesetzt
+> ✅ = im Projektstand 2026-05-30 umgesetzt
 
 ### A. Frontend (Angular 21)
 
@@ -344,13 +349,13 @@ Das Frontend nutzt modernste Angular-Features:
 - **Standalone Components:** Keine `NgModules` – jede Komponente ist eigenständig importierbar.
 - **Angular Signals:** Reaktiver UI-Zustand; keine manuellen Subscriptions für State.
 - **tRPC-Client:** `httpBatchLink` (Queries/Mutations) und `wsLink` (Subscriptions) – beide aktiv.
-- **Server-Status-Widget:** Zeigt auf der Startseite aggregierte Kennzahlen (`health.stats`, Polling 30s).
+- **Server-Status-Widget:** Footer-Dot über `health.footerBundle`; Detaildialog lädt `health.stats` inkl. Tagesrekord-Chart.
 - **Yjs & IndexedDB:** Quiz-Daten Local-First im Browser; Yjs für Multi-Device-Sync.
 - **Unified Live Session:** Session-Shell mit Kanälen für Quiz, Q&A und Blitzlicht; zusätzlich Standalone-Blitzlicht über die Startseite.
 
 ### B. Backend (Node.js + tRPC)
 
-- **tRPC Router:** health, quiz, session, vote, qa, quickFeedback, admin. Typen über `@arsnova/shared-types`.
+- **tRPC Router:** health, quiz, session, vote, qa, quickFeedback, wordCloud, admin, motd. Typen über `@arsnova/shared-types`.
 - **Rate-Limiting:** Redis Sliding-Window für Session-Code, Vote-Submit, Session-Erstellung und weitere Live-Aktionen; tRPC-Error `TOO_MANY_REQUESTS` mit Retry-After.
 - **Service Layer:** SessionCode-, Scoring-, Bonus-, Cleanup- und Admin-Logik sind integriert.
 - **DTO Layer:** Data-Stripping für `isCorrect` ist entlang des Session-Status umgesetzt.
@@ -359,7 +364,7 @@ Das Frontend nutzt modernste Angular-Features:
 ### C. Infrastruktur
 
 - **PostgreSQL:** Live-Session-Daten (Sessions, Participants, Votes). Docker Compose.
-- **Redis (✅):** Health-Check, Rate-Limiting (`ioredis`), vorbereitet für Pub/Sub in Epics 2–4.
+- **Redis (✅):** Health-Check, Rate-Limiting (`ioredis`), QuickFeedback-Zustand, Presence-/Load-Signale und sessionnahe Live-Hilfsdaten.
 - **WebSocket (Port 3001):** tRPC-Subscriptions (z. B. `health.ping`).
 - **y-websocket (Port 3002):** Yjs-Relay für den Multi-Device-Sync der Lehrperson.
 

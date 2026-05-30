@@ -1,9 +1,9 @@
 # Konsistenzprüfung: Diagramme · Handbuch · Backlog · Code
 
-**Datum:** 2026-03-20  
+**Datum:** 2026-05-30  
 **Geprüft:** diagrams.md, architecture-overview.md, handbook.md, Backlog.md, ADR-0006, ADR-0015/0016, ROUTES_AND_STORIES.md, prisma/schema.prisma, libs/shared-types, apps/backend, apps/frontend, [server-status-widget.md](../features/server-status-widget.md).
 
-**Epic 0:** Alle Stories 0.1–0.6 umgesetzt (Redis, tRPC WebSocket, Yjs, Server-Status, Rate-Limiting, CI/CD). health.check, health.stats, health.ping, Rate-Limit-Service und Frontend ServerStatusWidget sind implementiert.
+**Epic 0:** Alle Stories 0.1–0.6 umgesetzt (Redis, tRPC WebSocket, Yjs, Server-Status, Rate-Limiting, CI/CD). health.check, health.footerBundle, health.stats, health.ping, Rate-Limit-Service und Frontend ServerStatusWidget sind implementiert.
 
 ---
 
@@ -11,21 +11,21 @@
 
 ### 1.1 Backend-Komponenten
 
-- **Router:** health, quiz, session, vote, qa, **admin** (Epic 9) – untereinander konsistent; adminRouter mit PG/Cleanup; Verbindungen zu Services, DTO, Validation und PG/Redis/WebSocket/y-websocket stimmig.
+- **Router:** health, quiz, session, vote, qa, quickFeedback, wordCloud, **admin** (Epic 9), **motd** (Epic 10) – untereinander konsistent; adminRouter mit PG/Cleanup; motdRouter mit PG/Rate-Limit; wordCloudRouter mit deterministischer Analyse ohne eigene Persistenz; Verbindungen zu Services, DTO, Validation und PG/Redis/WebSocket/y-websocket stimmig.
 - **DTO-Layer:** QuestionStudentDTO (kein isCorrect), QuestionRevealedDTO (mit isCorrect), SessionInfoDTO, LeaderboardEntryDTO, PersonalScorecardDTO – stimmt mit shared-types Zod-Schemas überein.
 - **Validation:** SubmitVoteInputSchema, CreateSessionInputSchema, QuizUploadInputSchema im Diagramm – alle drei existieren identisch in `libs/shared-types/src/schemas.ts`. ✓
 - **Header:** Epic 0 umgesetzt; healthRouter (check, stats, ping), sessionRouter (mit Rate-Limit), voteRouter (mit Rate-Limit), Yjs- und WebSocket-Server implementiert. ✓
 
 ### 1.2 Frontend-Komponenten
 
-- **Routen:** Home (/), Quiz (/quiz), Session (/session/:code/host), Beamer (/session/:code/present), Join (/join/:code), Student (/session/:code/vote), **Admin (/admin)**, Legal (/legal) – konsistent mit Backlog, ADR-0006 und ROUTES_AND_STORIES.md.
+- **Routen:** Home (/), Quiz (/quiz), Quiz-Sync (/quiz/sync/:docId), Session (/session/:code/host|present|vote), Join (/join/:code), Standalone-Blitzlicht (/feedback/:code|vote), **Admin (/admin)**, Help (/help), News-Archiv (/news-archive), Legal (/legal/imprint|privacy) – konsistent mit Backlog, ADR-0006 und ROUTES_AND_STORIES.md.
 - **Komponenten:** Alle geplanten Komponenten (inkl. QaModeratorComponent, QaStudentComponent, RatingScaleComponent, FreetextInputComponent, MotivationMessageComponent, EmojiBarComponent, BonusTokenDisplay, BonusTokenListComponent, EmojiOverlayComponent, QrCodeComponent, WordcloudComponent, RatingHistogramComponent, ImportExportComponent, ConfirmDialogComponent) sind abgebildet. ✓
 
 ### 1.3 Datenbank-Schema (erDiagram)
 
-- **Entitäten:** Quiz, Question, AnswerOption, Session, Participant, Team, Vote, VoteAnswer, BonusToken, QaQuestion, QaUpvote – stimmen mit Prisma-Schema überein. ✓
-- **Relationen & Kardinalitäten:** Alle 1:n- und n:m-Beziehungen korrekt.
-- **Felder im erDiagram:** Nur eine Auswahl dargestellt (id, name, text, etc.). Prisma-Schema enthält deutlich mehr Felder (z. B. Quiz hat 17 Felder im Schema, 4 im Diagramm). Akzeptable Vereinfachung.
+- **Entitäten:** Quiz, Question, AnswerOption, Session, Participant, PlatformStatistic, DailyStatistic, Team, Vote, VoteAnswer, BonusToken, SessionFeedback, QaQuestion, QaUpvote, AdminAuditLog, MotdTemplate, Motd, MotdLocale, MotdInteractionCounter, MotdAuditLog – stimmen mit Prisma-Schema überein. ✓
+- **Relationen & Kardinalitäten:** Alle zentralen 1:n-, n:m- und Snapshot-Beziehungen korrekt; optionale Beziehungen (`Session.quizId`, `Participant.teamId`, `Motd.templateId`) sind im ER-Diagramm als optional bzw. kompakt dargestellt.
+- **Felder im erDiagram:** Bewusst fachlich gekürzte Auswahl. Neuere schema-relevante Felder sind sichtbar: SHORT_TEXT/Numeric-Konfigurationen, Session-Kanäle, Onboarding-/Legal-Hold-Hinweise, SessionFeedback, Platform/DailyStatistic und MOTD.
 
 ### 1.4 Sequenzdiagramme (Dozent & Student)
 
@@ -42,15 +42,15 @@
 
 ## 2. Konsistenz zwischen diagrams.md und architecture-overview.md
 
-| Thema                | diagrams.md                                                                                        | architecture-overview.md                                    | Bewertung                              |
-| -------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- | ---------------------------------------- | -------- |
-| tRPC-Router          | health, quiz, session, vote, qa, admin                                                             | health · quiz · session · vote · qa · admin                 | ✓ gleich                               |
-| DTOs                 | QuestionStudentDTO, QuestionRevealedDTO, SessionInfoDTO, LeaderboardEntryDTO, PersonalScorecardDTO | QuestionStudentDTO, QuestionRevealedDTO                     | ⚠️ Übersicht benennt nur 2 DTOs        |
-| Data-Stripping       | ACTIVE ohne isCorrect, RESULTS mit isCorrect                                                       | Sicherheits-Diagramm + Datenfluss                           | ✓ gleich                               |
-| Session-Ablauf       | quiz.upload → session.create → …                                                                   | Datenfluss zeigt quiz.upload + session.create               | ✓ nach vorheriger Anpassung konsistent |
-| Frontend-Routen      | /, /quiz, /session/:code/host                                                                      | present                                                     | vote, /join/:code, /admin, /legal      | architecture-overview: FE_ROUTES + Admin | ✓ gleich |
-| DB-Modelle           | erDiagram inkl. AdminAuditLog                                                                      | `prisma/schema.prisma` inkl. `AdminAuditLog` (Story 9.2 ✅) | ✓                                      |
-| Frontend-Komponenten | 37 Komponenten                                                                                     | 20 Komponenten                                              | ⚠️ Vereinfacht (siehe 2.1)             |
+| Thema                | diagrams.md                                                                                                                   | architecture-overview.md                                                       | Bewertung                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------- |
+| tRPC-Router          | health, quiz, session, vote, qa, quickFeedback, wordCloud, admin, motd                                                        | health · quiz · session · vote · qa · quickFeedback · wordCloud · admin · motd | ✓ gleich                      |
+| DTOs                 | QuestionStudentDTO, QuestionRevealedDTO, SessionInfoDTO, LeaderboardEntryDTO, PersonalScorecardDTO                            | QuestionPreviewDTO, QuestionStudentDTO, QuestionRevealedDTO                    | ⚠️ Übersicht bleibt kompakter |
+| Data-Stripping       | ACTIVE ohne isCorrect, RESULTS mit isCorrect                                                                                  | Sicherheits-Diagramm + Datenfluss                                              | ✓ gleich                      |
+| Session-Ablauf       | quiz.upload → session.create → …                                                                                              | Datenfluss zeigt quiz.upload + session.create                                  | ✓ konsistent                  |
+| Frontend-Routen      | /, /quiz, /quiz/sync/:docId, /session/:code/(host/present/vote), /join/:code, /feedback, /admin, /help, /news-archive, /legal | FE_ROUTES mit denselben Hauptpfaden                                            | ✓ gleich                      |
+| DB-Modelle           | erDiagram inkl. SessionFeedback, Platform/DailyStatistic, MOTD und Audit-Snapshots                                            | `prisma/schema.prisma` inkl. gleicher Modelle                                  | ✓                             |
+| Frontend-Komponenten | Detailliertere Feature-Hierarchie                                                                                             | Kompaktere Architekturübersicht                                                | ⚠️ Vereinfacht (siehe 2.1)    |
 
 ### 2.1 Fehlende Komponenten in architecture-overview.md
 
@@ -84,14 +84,14 @@ Da beide Dateien als Living Documentation dienen, sollte architecture-overview.m
 
 ### Epic 0: Infrastruktur (✅ abgeschlossen)
 
-| Story              | Abgedeckt in Diagrammen                                   | Anmerkung                                                                                                                                                                                          |
-| ------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1 Redis-Setup    | Redis in System- und Backend-Architektur ✓                | Docker Compose + health.check (redis=ok) implementiert                                                                                                                                             |
-| 0.2 tRPC WebSocket | WebSocket Server + wsLink in Diagrammen ✓                 | health.ping Subscription, wsLink/httpBatchLink im Frontend implementiert                                                                                                                           |
-| 0.3 Yjs WebSocket  | y-websocket Relay in Backend-Diagramm ✓                   | y-websocket-Server (Port 3002) im Backend integriert                                                                                                                                               |
-| 0.4 health.stats   | ServerStatusWidget im Frontend-Diagramm ✓                 | `health.stats` + Footer-Widget (`compact`), Polling **30 s**, `health.check` → `connectionOk`; Schwellen 50/200; Details + Mermaid: [server-status-widget.md](../features/server-status-widget.md) |
-| 0.5 Rate-Limiting  | RateLimitService in Backend-Diagramm ✓                    | Redis Sliding-Window, TOO_MANY_REQUESTS, Env-konfigurierbar implementiert                                                                                                                          |
-| 0.6 CI/CD          | Nicht in Architektur-Diagrammen (korrekt, da Dev-Tooling) | GitHub Actions: Build, Lint, Test, Docker-Build, Matrix Node 20/22 ✓                                                                                                                               |
+| Story              | Abgedeckt in Diagrammen                                   | Anmerkung                                                                                                                                                                                                                                            |
+| ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1 Redis-Setup    | Redis in System- und Backend-Architektur ✓                | Docker Compose + health.check (redis=ok) implementiert                                                                                                                                                                                               |
+| 0.2 tRPC WebSocket | WebSocket Server + wsLink in Diagrammen ✓                 | health.ping Subscription, wsLink/httpBatchLink im Frontend implementiert                                                                                                                                                                             |
+| 0.3 Yjs WebSocket  | y-websocket Relay in Backend-Diagramm ✓                   | y-websocket-Server (Port 3002) im Backend integriert                                                                                                                                                                                                 |
+| 0.4 Server-Status  | ServerStatusWidget im Frontend-Diagramm ✓                 | `health.footerBundle` für Footer-Dot, `health.stats` für Detaildialog, Polling 5 min im Footer, 30-s Dialog-/Server-Cache, Service-/Laststatus und DailyStatistic; Details + Mermaid: [server-status-widget.md](../features/server-status-widget.md) |
+| 0.5 Rate-Limiting  | RateLimitService in Backend-Diagramm ✓                    | Redis Sliding-Window, TOO_MANY_REQUESTS, Env-konfigurierbar implementiert                                                                                                                                                                            |
+| 0.6 CI/CD          | Nicht in Architektur-Diagrammen (korrekt, da Dev-Tooling) | GitHub Actions: Build, Lint, Test, Docker-Build, Matrix Node 20/22 ✓                                                                                                                                                                                 |
 
 ### Epic 1: Quiz-Verwaltung
 
@@ -169,35 +169,41 @@ Da beide Dateien als Living Documentation dienen, sollte architecture-overview.m
 
 ## 5. Konsistenz Zod-Schemas ↔ Prisma-Schema
 
-| Zod-Schema (shared-types) | Prisma-Modell/Enum             | Status                                                                    |
-| ------------------------- | ------------------------------ | ------------------------------------------------------------------------- |
-| QuestionTypeEnum          | QuestionType                   | ✓ Werte identisch                                                         |
-| SessionStatusEnum         | SessionStatus                  | ✓ Werte identisch                                                         |
-| DifficultyEnum            | Difficulty                     | ✓ Werte identisch                                                         |
-| NicknameThemeEnum         | NicknameTheme                  | ✓ Werte identisch                                                         |
-| TeamAssignmentEnum        | TeamAssignment                 | ✓ Werte identisch                                                         |
-| QaQuestionStatusEnum      | QaQuestionStatus               | ✓ Werte identisch                                                         |
-| SessionTypeEnum           | SessionType                    | ✓ Werte identisch                                                         |
-| QuizUploadInputSchema     | Quiz + Question + AnswerOption | ✓ Felder stimmen überein                                                  |
-| CreateSessionInputSchema  | Session                        | ✓ type, quizId, title, moderationMode                                     |
-| JoinSessionInputSchema    | Participant + Session          | ✓ code (6 Zeichen), nickname                                              |
-| SubmitVoteInputSchema     | Vote + VoteAnswer              | ✓ sessionId, questionId, answerIds, freeText, ratingValue, responseTimeMs |
+| Zod-Schema (shared-types)                                                    | Prisma-Modell/Enum                                     | Status                                                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| QuestionTypeEnum                                                             | QuestionType                                           | ✓ Werte identisch                                                         |
+| SessionStatusEnum                                                            | SessionStatus                                          | ✓ Werte identisch                                                         |
+| DifficultyEnum                                                               | Difficulty                                             | ✓ Werte identisch                                                         |
+| NicknameThemeEnum                                                            | NicknameTheme                                          | ✓ Werte identisch                                                         |
+| TeamAssignmentEnum                                                           | TeamAssignment                                         | ✓ Werte identisch                                                         |
+| QaQuestionStatusEnum                                                         | QaQuestionStatus                                       | ✓ Werte identisch                                                         |
+| SessionTypeEnum                                                              | SessionType                                            | ✓ Werte identisch                                                         |
+| MotdStatusEnum                                                               | MotdStatus                                             | ✓ Werte identisch                                                         |
+| MotdAuditActionEnum                                                          | MotdAuditAction                                        | ✓ Werte identisch                                                         |
+| ShortTextEvaluationKindEnum / ShortAnswerEvaluationModeEnum / Numeric\*Enums | Question-Stringfelder                                  | ✓ Werte werden in Zod validiert und als String-Konfiguration persistiert  |
+| QuizUploadInputSchema                                                        | Quiz + Question + AnswerOption                         | ✓ Felder stimmen überein                                                  |
+| CreateSessionInputSchema                                                     | Session                                                | ✓ type, quizId, title, moderationMode                                     |
+| JoinSessionInputSchema                                                       | Participant + Session                                  | ✓ code (6 Zeichen), nickname                                              |
+| SubmitVoteInputSchema                                                        | Vote + VoteAnswer                                      | ✓ sessionId, questionId, answerIds, freeText, ratingValue, responseTimeMs |
+| SubmitSessionFeedbackInputSchema                                             | SessionFeedback                                        | ✓ sessionId, participantId, Ratings                                       |
+| ServerStatsDTOSchema                                                         | PlatformStatistic + DailyStatistic                     | ✓ Allzeit- und Tagesrekord-Metriken                                       |
+| Motd\*Schemas                                                                | Motd, MotdLocale, MotdInteractionCounter, MotdTemplate | ✓ Public/Admin-Daten über DTOs statt Prisma-Rows                          |
 
-**Bewertung:** Alle Zod-Enums sind synchron mit den Prisma-Enums. Input-Schemas spiegeln die Prisma-Modelle korrekt wider. ✓
+**Bewertung:** Prisma-Enums und Zod-Enums sind synchron, wo es echte DB-Enums gibt. SHORT_TEXT/Numeric-Einstellungen sind bewusst als Prisma-Stringfelder modelliert und werden über Zod-Enums abgesichert. Input-/DTO-Schemas spiegeln die relevanten Modelle korrekt wider. ✓
 
 ---
 
-## 6. Konsistenz Diagramme ↔ Code (Implementierungsstand 2026-03-20)
+## 6. Konsistenz Diagramme ↔ Code (Implementierungsstand 2026-05-30)
 
-| Aspekt              | Im Diagramm                                                    | Im Code                                                  | Status |
-| ------------------- | -------------------------------------------------------------- | -------------------------------------------------------- | ------ |
-| Backend appRouter   | health, quiz, session, vote, qa, quickFeedback, admin          | `apps/backend/src/routers/index.ts` – gleiche Sub-Router | ✓      |
-| Persistenz / Prisma | PostgreSQL, Session-Modelle, AdminAuditLog, Q&A, BonusToken    | `prisma/schema.prisma`                                   | ✓      |
-| Redis / Rate-Limit  | Pub/Sub, Sliding Window                                        | `rateLimit`-Lib, Session-Publish                         | ✓      |
-| WebSocket tRPC      | Port 3001, Subscriptions                                       | Backend ws-Server + Frontend `wsLink`                    | ✓      |
-| Yjs Relay           | y-websocket :3002                                              | Backend Relay + Frontend CRDT-Pfad                       | ✓      |
-| Frontend            | Routen Home, Quiz, Session, Join, Feedback, Admin, Legal, Help | `app.routes.ts` + Feature-Module                         | ✓      |
-| Shared-Types        | Zod-Schemas / DTOs in Diagramm-Validation-Box                  | `libs/shared-types`, von tRPC genutzt                    | ✓      |
+| Aspekt              | Im Diagramm                                                                      | Im Code                                                  | Status |
+| ------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------- | ------ |
+| Backend appRouter   | health, quiz, session, vote, qa, quickFeedback, wordCloud, admin, motd           | `apps/backend/src/routers/index.ts` – gleiche Sub-Router | ✓      |
+| Persistenz / Prisma | PostgreSQL, Session-Modelle, Feedback, Q&A, BonusToken, Statistiken, MOTD, Audit | `prisma/schema.prisma`                                   | ✓      |
+| Redis / Rate-Limit  | Pub/Sub, Sliding Window                                                          | `rateLimit`-Lib, Session-Publish                         | ✓      |
+| WebSocket tRPC      | Port 3001, Subscriptions                                                         | Backend ws-Server + Frontend `wsLink`                    | ✓      |
+| Yjs Relay           | y-websocket :3002                                                                | Backend Relay + Frontend CRDT-Pfad                       | ✓      |
+| Frontend            | Routen Home, Quiz, Session, Join, Feedback, Admin, Help, News-Archiv, Legal      | `app.routes.ts` + Feature-Module                         | ✓      |
+| Shared-Types        | Zod-Schemas / DTOs in Diagramm-Validation-Box                                    | `libs/shared-types`, von tRPC genutzt                    | ✓      |
 
 **Bewertung:** Die zentralen Architekturdiagramme entsprechen dem aktuell umgesetzten Produktstand. Bewusste Vereinfachungen: keine vollständige Auflistung aller Procedures, Utility-Dateien (z. B. Vollbild-Helfer) und feingranulare UI-Komponenten.
 
@@ -209,9 +215,9 @@ Da beide Dateien als Living Documentation dienen, sollte architecture-overview.m
 
 **Erledigt (2026-02-21):** `PAUSED` ist im Prisma-Enum `SessionStatus` und in **diagrams.md** (Aktivitätsdiagramm sowie Dozent-Sequenz) im Übergang zwischen Fragen abgebildet; architecture-overview Datenfluss enthält eine FINISHED/PAUSED-Note. Bei neuen Session-Phasen beide Dateien prüfen.
 
-### 7.2 `health.stats` und Sequenzdiagramme in Architektur-Diagrammen
+### 7.2 Server-Status und Sequenzdiagramme in Architektur-Diagrammen
 
-Story 0.4: Das **ServerStatusWidget** ist in diagrams.md (App-Shell / Shared) abgebildet; ein **detaillierter Ablauf** (`health.check` → `apiStatus` / `connectionOk`, `health.stats` alle 30 s, Redis-`SCAN`, Schwellen) steht bewusst **nicht** in diagrams.md/architecture-overview, sondern in **[server-status-widget.md](../features/server-status-widget.md)** inkl. Sequenz-, Fehler- und Cleanup-Diagrammen.
+Story 0.4: Das **ServerStatusWidget** ist in diagrams.md (App-Shell / Shared) abgebildet; ein **detaillierter Ablauf** (`health.footerBundle` → `apiStatus` + `FooterStatusDTO`, `health.stats` im Detaildialog, Redis-Presence/Load/SLO, `DailyStatistic`, Cleanup) steht bewusst **nicht** in diagrams.md/architecture-overview, sondern in **[server-status-widget.md](../features/server-status-widget.md)** inkl. Sequenz-, Fehler- und Cleanup-Diagrammen.
 
 **Empfehlung:** Bei Fragen zu 0.4 das Feature-Dokument als Quelle nutzen; zentrale Architektur-Diagramme nur bei größeren Routing-/Router-Änderungen mitziehen.
 
@@ -225,6 +231,24 @@ Story 0.4: Das **ServerStatusWidget** ist in diagrams.md (App-Shell / Shared) ab
 
 ## 8. Zusammenfassung
 
+### 8.1 Repo-weiter Mermaid-Audit 2026-05-30
+
+Zusätzlich zu `docs/diagrams/*` wurden alle weiteren Markdown-Dateien mit Mermaid-Blöcken geprüft:
+
+| Datei                                              | Ergebnis                                                                                                                           |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/features/server-status-widget.md`            | Aktualisiert auf `health.footerBundle`, `health.stats`, `DailyStatistic`, Presence-/Load-/SLO-Signale und aktuellen Cleanup-Ablauf |
+| `docs/features/team-mode.md`                       | Aktualisiert auf Session-Onboarding-Felder, effektive Peer-Instruction-Votes und normalisiertes Team-Leaderboard                   |
+| `docs/features/bonus-codes.md`                     | Aktualisiert auf effektive Rundenwertung, letzte-Frage-Guard und Token-/Feedback-Retention vor Session-Purge                       |
+| `docs/features/blitzlicht-quickfeedback-api.md`    | Fehlende `quickFeedback`-Procedures `isActive`, `hostResults`, `onHostResults` ergänzt                                             |
+| `docs/features/preset-modes.md`                    | Foyer-Einflug im Preset `PLAYFUL` in Architektur- und User-Flow-Diagrammen ergänzt                                                 |
+| `docs/onboarding.md`                               | Backend-Diagramm um `wordCloudRouter`, `wordCloudAnalysis` und aktuellen Server-Status-Pfad ergänzt                                |
+| `docs/didaktik/dritter-kurs-data-analytics-nlp.md` | Zielbild an bestehenden `wordCloudRouter` und deterministische `wordCloudAnalysis`-Baseline angepasst                              |
+| `docs/praktikum/HANDOUT-TAGESREKORD-KI-AGENT.md`   | Tagesrekord-Sequenzen auf `footerBundle`/`stats`-Trennung und dynamisches Chart-Lazy-Loading aktualisiert                          |
+| `docs/architecture/quiz-library-sync.md`           | Geprüft; keine fachliche Änderung nötig                                                                                            |
+
+Technische Plausibilitätschecks: Mermaid-Fences balanciert; alle 20 Prisma-Modelle erscheinen in den zentralen ER-Diagrammen; alle `appRouter`-Keys (`health`, `quiz`, `session`, `vote`, `qa`, `quickFeedback`, `wordCloud`, `admin`, `motd`) sind in Diagramm-/Onboarding-Doku abgebildet; alle 68 Mermaid-Blöcke aus 11 getrackten Markdown-Dateien rendern mit `mmdc 11.15.0` erfolgreich.
+
 | Aspekt                                     | Bewertung                                                                                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | **Diagramme intern**                       | ✓ Konsistent (Router, DTOs, Abläufe, DB-Schema stimmig)                                                                |
@@ -234,4 +258,4 @@ Story 0.4: Das **ServerStatusWidget** ist in diagrams.md (App-Shell / Shared) ab
 | **Zod-Schemas ↔ Prisma**                   | ✓ Alle Enums synchron, Input-Schemas spiegeln Modelle korrekt                                                          |
 | **Diagramme ↔ Code**                       | ✓ Kernpfad (Router, DB, WS, Yjs, Frontend-Routen) abgedeckt                                                            |
 
-**Gesamtbewertung:** Die Diagramme sind intern konsistent und decken Handbook sowie Backlog umfassend ab. Die architecture-overview.md ist als vereinfachte Übersicht gekennzeichnet. Der PAUSED-Status ist in diagrams.md und im Datenfluss in architecture-overview.md berücksichtigt. **health.stats (0.4):** Ablauf in [server-status-widget.md](../features/server-status-widget.md). Team-Ranking: siehe [team-mode.md](../features/team-mode.md) statt eigener Diagramm-Komponente.
+**Gesamtbewertung:** Die Diagramme sind intern konsistent und decken Handbook sowie Backlog umfassend ab. Die architecture-overview.md ist als vereinfachte Übersicht gekennzeichnet. Der PAUSED-Status ist in diagrams.md und im Datenfluss in architecture-overview.md berücksichtigt. **Server-Status (0.4):** Ablauf in [server-status-widget.md](../features/server-status-widget.md). Team-Ranking: siehe [team-mode.md](../features/team-mode.md) statt eigener Diagramm-Komponente.

@@ -14,6 +14,7 @@ wie `arsnova.eu` es derzeit importiert.
 - Das `arsnova.click`-Export-JSON ist als Archiv-/Import-Snapshot dokumentiert, nicht als minimales DTO.
 - `TYPE` ist das massgebliche Feld fuer Fragetypen.
 - Mehrere Felder im Snapshot sind fuer `arsnova.eu` derzeit ohne Laufzeitwirkung und werden nur dokumentiert.
+- `arsnova.eu` wird `arsnova.click`-Tags nicht unterstuetzen oder fachlich auswerten. Tags und keywordartige Import-Metadaten duerfen beim Import nicht zu arsnova.eu-Bewertungslogik werden.
 
 ## Aktuelles Mapping nach arsnova.eu
 
@@ -58,9 +59,9 @@ wie `arsnova.eu` es derzeit importiert.
 - `questionList[].displayAnswerText`
 - `questionList[].showOneAnswerPerRow`
 - `questionList[].multipleSelectionEnabled`
-- `questionList[].tags`
+- `questionList[].tags` (bewusst nicht unterstuetzt, nicht ausgewertet)
 - `questionList[].requiredForToken`
-- `FreeTextAnswerOption.configUseKeywords`
+- `FreeTextAnswerOption.configUseKeywords` (bewusst nicht als arsnova.eu-Schluesselwortbewertung uebernommen)
 - `FreeTextAnswerOption.configUsePunctuation`
 - `RangedQuestion.rangeMin`
 - `RangedQuestion.rangeMax`
@@ -69,6 +70,6 @@ wie `arsnova.eu` es derzeit importiert.
 ## Offene Folgearbeiten fuer spaetere Angleichung
 
 1. Pruefen, ob `RangedQuestion` in `arsnova.eu` einen neuen Fragetyp braucht oder als `RATING`/`FREETEXT` bewusst umgedeutet werden soll.
-2. Klaeren, ob `FreeTextQuestion.configUseKeywords` und `configUsePunctuation` eine echte 1:1-Entsprechung bekommen sollen oder bewusst im Best-Effort-Import bleiben.
+2. `FreeTextQuestion.configUseKeywords`, `questionList[].tags` und vergleichbare keywordartige click-Metadaten bleiben bewusst ohne arsnova.eu-Entsprechung; der Import darf sie nur ignorieren bzw. als Best-Effort-Abweichung melden.
 3. Klaeren, ob `ABCDSurveyQuestion`, `YesNoSingleChoiceQuestion` und `TrueFalseSingleChoiceQuestion` als eigene UI-Varianten sichtbar bleiben sollen.
 4. Festlegen, ob Musik-, Theme- und Nickname-Presets in `arsnova.eu` ueberhaupt eine fachliche Entsprechung bekommen sollen.

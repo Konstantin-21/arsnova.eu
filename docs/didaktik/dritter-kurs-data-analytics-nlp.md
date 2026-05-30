@@ -1,6 +1,6 @@
 # Dritter Kurs: Data Analytics und NLP (nicht zwingend parallel)
 
-> **Kurs 3** vertieft **NLP und Auswertelogik** rund um die **geplante intelligente Wortwolke** (semantisches Bündeln von Freitext, Themenlabels, ggf. Abgrenzung zur rein lexikalischen Wolke). Der Kurs muss **nicht** parallel zu Kurs 1 (Entwicklung) und Kurs 2 (SQM) laufen — er eignet sich z. B. als **folgender** oder **eigenständiger** Block, sobald Produktkontext und Begriffe aus [`BEGRIFFE-FREITEXT-UND-SEMANTIK.md`](../praktikum/BEGRIFFE-FREITEXT-UND-SEMANTIK.md) bekannt sind.
+> **Kurs 3** vertieft **NLP und Auswertelogik** rund um die **intelligente Wortwolke** (semantisches Bündeln von Freitext, Themenlabels, ggf. Abgrenzung zur rein lexikalischen Wolke). Im aktuellen Repo existiert dafür bereits ein deterministischer `wordCloudRouter` mit `wordCloudAnalysis` als erklärbare Baseline; der Kurs kann diese Baseline evaluieren oder in Richtung Embeddings/on-prem LLM erweitern. Der Kurs muss **nicht** parallel zu Kurs 1 (Entwicklung) und Kurs 2 (SQM) laufen — er eignet sich z. B. als **folgender** oder **eigenständiger** Block, sobald Produktkontext und Begriffe aus [`BEGRIFFE-FREITEXT-UND-SEMANTIK.md`](../praktikum/BEGRIFFE-FREITEXT-UND-SEMANTIK.md) bekannt sind.
 
 ### Ausführliche Praktikumsbeschreibung (studierendenfreundlich)
 
@@ -29,7 +29,9 @@ flowchart LR
 	end
 
 	PRE[Vorverarbeitung<br/>Sprache erkennen<br/>Unicode + Tokenisierung<br/>Stopwoerter + Normalisierung]
-	BASE[Baseline-NLP<br/>Lemma / POS / spaCy<br/>regelbasierte Vorstruktur]
+	ROUTER[wordCloudRouter<br/>AnalyzeWordCloudInput/Output]
+	BASE[Repo-Baseline<br/>deterministische wordCloudAnalysis<br/>lexikalisch + Themenanker]
+	EXT[Optionale Kurs-3-Erweiterung<br/>Lemma / POS / spaCy]
 	SEM[Semantische Analyse<br/>Embeddings oder on-prem LLM<br/>Aehnlichkeiten und Paraphrasen]
 	CLUSTER[Clusterbildung<br/>Synonyme · Varianten<br/>aehnliche Aussagen]
 	LABEL[Themenlabeling<br/>sprechende Begriffe statt Tokens]
@@ -38,8 +40,11 @@ flowchart LR
 
 	QA --> PRE
 	FT --> PRE
-	PRE --> BASE
-	PRE --> SEM
+	PRE --> ROUTER
+	ROUTER --> BASE
+	BASE --> EXT
+	EXT --> SEM
+	ROUTER --> SEM
 	BASE --> CLUSTER
 	SEM --> CLUSTER
 	CLUSTER --> LABEL

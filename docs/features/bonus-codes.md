@@ -1,7 +1,7 @@
 # Bonus-Codes (Story 4.6)
 
 > **Zielgruppe:** Product Owner, Entwickler  
-> **Stand:** 2026-04-01 (Abgleich mit `session.ts` `nextQuestion` / `session.end`, `generateBonusTokens`, `getPersonalResult`, `getBonusTokens`, `sessionCleanup.ts`)
+> **Stand:** 2026-05-30 (Abgleich mit `session.ts` `nextQuestion` / `session.end`, `generateBonusTokens`, Peer-Instruction-Wettbewerbswertung, `getPersonalResult`, `getBonusTokens`, `sessionCleanup.ts`)
 
 ## Konzept
 
@@ -37,7 +37,7 @@ sequenceDiagram
   participant DB as PostgreSQL
 
   Dozent ->> Editor: bonusTokenCount z. B. 5 setzen
-  Note over Editor,DB: Wert liegt im Quiz; Serverkopie bei quiz.upload
+  Note over Editor,DB: Wert liegt im Quiz, Serverkopie bei quiz.upload
 
   Note over BE: Session läuft …
 
@@ -49,11 +49,12 @@ sequenceDiagram
   else Manuell beenden
     Dozent ->> BE: session.end
     BE ->> DB: Session status FINISHED, endedAt
-    BE ->> BE: generateBonusTokens()
+    BE ->> BE: generateBonusTokens() (no-op wenn letzte Frage noch nicht erreicht)
   end
 
-  BE ->> DB: vote.findMany(sessionId, round 1)
+  BE ->> DB: vote.findMany(sessionId, round in [1, 2])
   DB -->> BE: Votes
+  BE ->> BE: Effektive Wettbewerbs-Votes: Runde 2 ersetzt Runde 1 je Frage
   BE ->> BE: Ranking Top X, nur Score > 0
   BE ->> DB: bonusToken.createMany
 
@@ -74,8 +75,11 @@ flowchart TD
   CHECK -- "[null oder 0]" --> STOP(( ))
   CHECK -- "[1..50]" --> DUP{"Tokens bereits vorhanden?"}
   DUP -- "[ja]" --> STOP
-  DUP -- "[nein]" --> LOAD["Alle Votes der Session laden (Runde 1)"]
-  LOAD --> AGG["Pro Teilnehmer summieren: totalScore, totalResponseTimeMs"]
+  DUP -- "[nein]" --> LAST{"letzte Frage erreicht?"}
+  LAST -- "[nein]" --> STOP
+  LAST -- "[ja]" --> LOAD["Alle Votes der Session laden (Runden 1 und 2)"]
+  LOAD --> EFFECTIVE["Effektive Votes bilden:<br/>Runde 2 ersetzt Runde 1 je Frage"]
+  EFFECTIVE --> AGG["Pro Teilnehmer summieren: totalScore, totalResponseTimeMs"]
   AGG --> SORT["Sortieren: Score absteigend, bei Gleichstand Antwortzeit aufsteigend"]
   SORT --> FILTER["Teilnehmer mit 0 Punkten ausschließen"]
   FILTER --> SLICE["Top X Einträge auswählen (slice)"]
@@ -84,12 +88,13 @@ flowchart TD
   SAVE --> E(( ))
 ```
 
-| Schritt             | Detail                                                                    |
-| ------------------- | ------------------------------------------------------------------------- |
-| Score-Summe         | Alle `vote.score`-Werte eines Teilnehmers werden addiert                  |
-| 0-Punkte-Ausschluss | Teilnehmer mit insgesamt 0 Punkten erhalten keinen Bonus                  |
-| Tiebreaker          | Bei gleichem Score: **kleinere** `totalResponseTimeMs` (schneller) zuerst |
-| Idempotenz          | Bereits vorhandene Tokens verhindern doppelte Generierung                 |
+| Schritt             | Detail                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Score-Summe         | Alle `vote.score`-Werte eines Teilnehmers werden addiert                                                     |
+| 0-Punkte-Ausschluss | Teilnehmer mit insgesamt 0 Punkten erhalten keinen Bonus                                                     |
+| Peer Instruction    | Wenn es für eine Frage Runde 2 gibt, zählt Runde 2 statt Runde 1                                             |
+| Tiebreaker          | Bei gleichem Score: **kleinere** `totalResponseTimeMs` (schneller) zuerst; Runde-2-Zeiten zählen dafür nicht |
+| Idempotenz          | Bereits vorhandene Tokens verhindern doppelte Generierung                                                    |
 
 ---
 
@@ -147,7 +152,9 @@ classDiagram
 ```
 
 `nickname` und `quizName` im BonusToken sind **Snapshots** – sie werden zum
-Generierungszeitpunkt eingefroren und bleiben auch nach Session-Löschung erhalten.
+Generierungszeitpunkt eingefroren und bleiben unverändert, solange die Token-Zeile existiert.
+Bei endgültiger Session-Löschung werden BonusTokens per Cascade entfernt; der Purge wartet deshalb
+auf die Token-Retention.
 
 ---
 
@@ -213,7 +220,7 @@ stateDiagram-v2
   active --> Generiert : status = FINISHED, generateBonusTokens()
   Generiert --> Abrufbar : getBonusTokens / getPersonalResult
 
-  Abrufbar --> Gelöscht : Session-Purge FINISHED > 24h (ohne aktiven Legal Hold)
+  Abrufbar --> Gelöscht : Token-Cleanup > 90 Tage, danach Session-Purge möglich
   Gelöscht --> [*]
 
   note right of Generiert
@@ -222,19 +229,19 @@ stateDiagram-v2
   end note
 
   note right of Gelöscht
-    Session delete CASCADE auf BonusToken
-    Zusätzlich: cleanupExpiredBonusTokens 90 Tage nach generatedAt
+    cleanupExpiredBonusTokens nach 90 Tagen
+    Session-Purge wartet auf Retention-Freigabe
   end note
 ```
 
-| Phase          | Zeitpunkt                                                      | Tokens vorhanden?   |
-| -------------- | -------------------------------------------------------------- | ------------------- |
-| Quiz erstellt  | Konfiguration (lokal + Upload)                                 | Nein                |
-| Session läuft  | bis FINISHED                                                   | Nein                |
-| Session endet  | FINISHED (`nextQuestion` oder `end`)                           | Ja (generiert)      |
-| Ergebnis-Phase | FINISHED, Abruf möglich                                        | Ja                  |
-| Session-Purge  | beendete Sessions > 24 h, kein `legalHoldUntil` in der Zukunft | CASCADE             |
-| Token-Cleanup  | `generatedAt` älter als 90 Tage                                | deleteMany (orphan) |
+| Phase          | Zeitpunkt                                                                                                | Tokens vorhanden?            |
+| -------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Quiz erstellt  | Konfiguration (lokal + Upload)                                                                           | Nein                         |
+| Session läuft  | bis FINISHED                                                                                             | Nein                         |
+| Session endet  | FINISHED (`nextQuestion` oder `end`)                                                                     | Ja (generiert)               |
+| Ergebnis-Phase | FINISHED, Abruf möglich                                                                                  | Ja                           |
+| Session-Purge  | beendete Sessions > 24 h, kein `legalHoldUntil` in der Zukunft und keine frischen Bonus-Tokens/Feedbacks | erst nach Retention-Freigabe |
+| Token-Cleanup  | `generatedAt` älter als 90 Tage                                                                          | deleteMany                   |
 
 ---
 
@@ -323,14 +330,14 @@ flowchart TD
   DRITTE --> NEIN2["Nicht möglich:\nCode nicht\nerratbar"]
 ```
 
-| Eigenschaft              | Garantie                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Keine Login-Pflicht**  | Teilnahme ohne Account möglich                                                                  |
-| **Pseudonym statt Name** | Teilnehmende wählen aus Nickname-Theme, frei oder Anonym (je nach Session)                      |
-| **Kein Tracking**        | Keine sessionübergreifende Wiedererkennung                                                      |
-| **Freiwilligkeit**       | Einreichung ist optional, Nicht-Einreichung hat keinen Nachteil in der App                      |
-| **Code-Sicherheit**      | Kryptografisch sicher (`randomBytes(8)` für die Zeichenwahl), nicht erratbar                    |
-| **Zeitlich begrenzt**    | Session-Purge FINISHED > 24 h (CASCADE) bzw. BonusToken > 90 Tage (`cleanupExpiredBonusTokens`) |
+| Eigenschaft              | Garantie                                                                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Keine Login-Pflicht**  | Teilnahme ohne Account möglich                                                                                                                  |
+| **Pseudonym statt Name** | Teilnehmende wählen aus Nickname-Theme, frei oder Anonym (je nach Session)                                                                      |
+| **Kein Tracking**        | Keine sessionübergreifende Wiedererkennung                                                                                                      |
+| **Freiwilligkeit**       | Einreichung ist optional, Nicht-Einreichung hat keinen Nachteil in der App                                                                      |
+| **Code-Sicherheit**      | Kryptografisch sicher (`randomBytes(8)` für die Zeichenwahl), nicht erratbar                                                                    |
+| **Zeitlich begrenzt**    | BonusToken > 90 Tage (`cleanupExpiredBonusTokens`); Session-Purge frühestens nach 24 h, blockiert durch frische Tokens/Feedbacks und Legal Hold |
 
 ---
 

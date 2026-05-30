@@ -1,7 +1,7 @@
 # Team-Modus (Story 7.1)
 
 > **Zielgruppe:** Product Owner, Entwickler  
-> **Stand:** 2026-04-01 (Abgleich mit `apps/backend/src/routers/session.ts`: `ensureSessionTeams`, `join`, `getTeamLeaderboard`)
+> **Stand:** 2026-05-30 (Abgleich mit `apps/backend/src/routers/session.ts`: `ensureSessionTeams`, Onboarding-Profil, `join`, `buildSessionTeamLeaderboard` / `getTeamLeaderboard`)
 
 ## Konzept
 
@@ -42,6 +42,11 @@ classDiagram
     +String id
     +String code
     +SessionStatus status
+    +Boolean onboardingProfileConfigured
+    +Boolean onboardingTeamMode
+    +Int onboardingTeamCount
+    +TeamAssignment onboardingTeamAssignment
+    +String[] onboardingTeamNames
   }
 
   class Team {
@@ -76,6 +81,7 @@ Besonderheiten:
 - `Team` gehoert immer zu genau einer Session (`@@unique(sessionId, name)`)
 - `Participant.teamId` ist optional (`onDelete: SetNull`)
 - `Team.color` ist eine feste Hex-Farbe aus einer Palette von 8 Farben
+- Beim Session-Start kann ein **Session-Onboarding-Profil** die Quiz-Werte spiegeln; die laufende Session nutzt dann die `onboarding*`-Felder, damit spätere Quiz-Edits die Live-Session nicht nachträglich verändern.
 
 ---
 
@@ -234,16 +240,20 @@ flowchart TD
 
   TCHECK -- "[ja]" --> LOAD["Teams, Participants, Votes laden"]
   LOAD --> MAP["Pro Team: memberCount zaehlen"]
-  MAP --> SUM["Pro Vote: score dem Team des Teilnehmers zurechnen"]
-  SUM --> AVG["averageScore = totalScore / memberCount"]
+  MAP --> EFFECTIVE["Peer-Instruction: Runde 2 ersetzt Runde 1 je Frage"]
+  EFFECTIVE --> SUM["Pro effektivem Vote: score dem Team zurechnen"]
+  SUM --> AVG["normalizedScore = rawTotalScore / memberCount<br/>(auf 1 Nachkommastelle)"]
   AVG --> FILTER["Teams ohne Mitglieder entfernen"]
-  FILTER --> SORT["Sortieren: totalScore DESC, memberCount DESC, teamName ASC"]
+  FILTER --> SORT["Sortieren: normalizedScore DESC,<br/>ResponseTime ASC, teamName ASC"]
   SORT --> RANK["Rang zuweisen (1-basiert)"]
   RANK --> E
 ```
 
-Entspricht `getTeamLeaderboard` in `session.ts`: Sortierung `totalScore` absteigend, bei Gleichstand
-`memberCount` absteigend, dann `teamName` lexikographisch.
+Entspricht `buildSessionTeamLeaderboard` in `session.ts`: Es zählen die effektiven
+Wettbewerbs-Votes. Bei Peer Instruction ersetzt Runde 2 die Runde 1 derselben Frage.
+Der Teamwert wird auf Teilnehmendenzahl normalisiert (`rawTotalScore / memberCount`,
+eine Nachkommastelle). Sortiert wird nach normalisiertem Score absteigend, dann nach
+Wettbewerbs-Antwortzeit aufsteigend, dann `teamName` lexikographisch.
 
 ### Darstellung in der UI
 
@@ -253,13 +263,13 @@ eingebunden (Signals / Templates in den jeweiligen Session-Komponenten).
 
 ### Berechnungsbeispiel
 
-| Team   | Mitglieder | Votes (Score)  | totalScore | averageScore | Rang |
-| ------ | ---------- | -------------- | ---------- | ------------ | ---- |
-| Team A | p1, p2     | p1: 40, p2: 60 | 100        | 50           | 1    |
-| Team B | p3         | p3: 70         | 70         | 70           | 2    |
+| Team   | Mitglieder | Votes (Score)  | rawTotalScore | angezeigter `totalScore` / `averageScore` | Rang |
+| ------ | ---------- | -------------- | ------------- | ----------------------------------------- | ---- |
+| Team A | p1, p2     | p1: 40, p2: 60 | 100           | 50.0                                      | 2    |
+| Team B | p3         | p3: 70         | 70            | 70.0                                      | 1    |
 
-Team A gewinnt trotz niedrigerem Durchschnitt, weil `totalScore` das primaere
-Sortierkriterium ist.
+Team B gewinnt im aktuellen Repo, weil Teamwerte gegen Teamgröße normalisiert werden.
+Das verhindert, dass größere Teams allein durch mehr Mitglieder automatisch dominieren.
 
 ---
 
@@ -340,7 +350,7 @@ stateDiagram-v2
 | `session.getTeams`           | Query    | Teams mit memberCount fuer Join/Lobby       |
 | `session.join`               | Mutation | Team-Zuweisung (AUTO/MANUAL) + Participant  |
 | `session.getParticipants`    | Query    | Teilnehmer inkl. teamId, teamName           |
-| `session.getTeamLeaderboard` | Query    | Team-Ranking nach totalScore                |
+| `session.getTeamLeaderboard` | Query    | Team-Ranking nach normalisiertem Score      |
 
 ---
 

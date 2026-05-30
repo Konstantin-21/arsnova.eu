@@ -3,7 +3,7 @@
 # Diagramme: arsnova.eu
 
 Alle Diagramme sind in Mermaid geschrieben und werden von GitHub nativ gerendert.
-**Stand:** 2026-04-17 · **Epics 0–5, 7.1, 8, 9, 10 (MOTD) umgesetzt;** Epic 6 größtenteils umgesetzt (**6.5 Barrierefreiheit** und **6.6 Thinking Aloud** noch offen). Plattformstatistik Rekordteilnehmer in `health.stats` (`PlatformStatistic`). Markdown-Erweiterungen **1.7a** und **1.7b** umgesetzt ([ADR-0015](../architecture/decisions/0015-markdown-images-url-only-and-lightbox.md), [ADR-0016](../architecture/decisions/0016-markdown-katex-editor-split-view-and-md3-toolbar.md)). `Blitzlicht` ist als Startseiten-Shortcut und Session-Kanal konsolidiert. Rollen/Routen/Autorisierung siehe [ADR-0006](../architecture/decisions/0006-roles-routes-authorization-host-admin.md), [ADR-0009](../architecture/decisions/0009-unified-live-session-channels.md), [ADR-0010](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md), [ADR-0018](../architecture/decisions/0018-message-of-the-day-platform-communication.md), [ROUTES_AND_STORIES.md](../ROUTES_AND_STORIES.md).
+**Stand:** 2026-05-30 · **Epics 0–5 inkl. 5.4a, 7.1, 8.1–8.4, 8.6/8.7, 9, 10 (MOTD) umgesetzt;** Epic 6 größtenteils umgesetzt (**6.5 Barrierefreiheit** und **6.6 Thinking Aloud** noch offen). Plattformstatistik Rekordteilnehmer und Tagesrekorde in `health.stats` (`PlatformStatistic`, `DailyStatistic`). Markdown-Erweiterungen **1.7a** und **1.7b** umgesetzt ([ADR-0015](../architecture/decisions/0015-markdown-images-url-only-and-lightbox.md), [ADR-0016](../architecture/decisions/0016-markdown-katex-editor-split-view-and-md3-toolbar.md)). `Blitzlicht` ist als Startseiten-Shortcut und Session-Kanal konsolidiert. Rollen/Routen/Autorisierung siehe [ADR-0006](../architecture/decisions/0006-roles-routes-authorization-host-admin.md), [ADR-0009](../architecture/decisions/0009-unified-live-session-channels.md), [ADR-0010](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md), [ADR-0018](../architecture/decisions/0018-message-of-the-day-platform-communication.md), [ROUTES_AND_STORIES.md](../ROUTES_AND_STORIES.md).
 
 > **VS Code:** Mermaid wird in der Standard-Markdown-Vorschau nicht gerendert. Bitte die Erweiterung **„Markdown Preview Mermaid Support“** (`bierner.markdown-mermaid`) installieren. Siehe [README.md](./README.md) in diesem Ordner.
 
@@ -31,12 +31,14 @@ graph LR
         vote[voteRouter]
         qa[qaRouter]
         quickfb[quickFeedbackRouter]
+        wordcloud[wordCloudRouter]
         admin[adminRouter - Epic 9]
         motd[motdRouter - Epic 10]
     end
 
     subgraph Modules["Domain/Infra-Module"]
         scoring[quizScoring lib]
+        wordcloudanalysis[wordCloudAnalysis lib]
         cleanup[sessionCleanup lib]
         ratelimit[rateLimit lib]
         adminauth[adminAuth lib]
@@ -64,12 +66,14 @@ graph LR
     trpcmw --> vote
     trpcmw --> qa
     trpcmw --> quickfb
+    trpcmw --> wordcloud
     trpcmw --> admin
     trpcmw --> motd
 
     session --> scoring
     session --> cleanup
     vote --> scoring
+    wordcloud --> wordcloudanalysis
     vote --> ratelimit
     qa --> ratelimit
     quickfb --> ratelimit
@@ -97,11 +101,13 @@ graph LR
     VOTE[voteRouter]
     QA[qaRouter]
     QUICKFB[quickFeedbackRouter]
+    WORDCLOUD[wordCloudRouter]
     ADMIN[adminRouter]
     MOTD[motdRouter]
     CLEANUP[sessionCleanup]
     RATELIMIT[rateLimit]
     SCORING[quizScoring]
+    WCANALYSIS[wordCloudAnalysis]
 
     PG[(PostgreSQL - Prisma 7)]
     REDIS[(Redis PubSub + Rate-Limit)]
@@ -111,6 +117,7 @@ graph LR
     SESSION --> SCORING
     SESSION --> CLEANUP
     VOTE --> SCORING
+    WORDCLOUD --> WCANALYSIS
     VOTE --> RATELIMIT
     QA --> RATELIMIT
     QUICKFB --> RATELIMIT
@@ -195,6 +202,7 @@ graph LR
     FBVOTE[FeedbackVoteComponent]
     ADMIN[AdminComponent]
     HELP[HelpComponent]
+    NEWS[NewsArchivePageComponent]
     LEGAL[LegalPageComponent]
 
     ROUTES --> HOME
@@ -205,6 +213,7 @@ graph LR
     ROUTES --> FBVOTE
     ROUTES --> ADMIN
     ROUTES --> HELP
+    ROUTES --> NEWS
     ROUTES --> LEGAL
 ```
 
@@ -235,12 +244,14 @@ graph LR
         FBHOST[FeedbackHostComponent]
         FBVOTE[FeedbackVoteComponent]
         WCLOUD[WordCloudComponent]
+        FOYER[FoyerEntranceLayerComponent]
         COUNTDOWN[CountdownFingersComponent]
         SROOT --> SHOST
         SROOT --> SPRESENT
         SROOT --> SVOTE
         SHOST --> FBHOST
         SVOTE --> FBVOTE
+        SHOST --> FOYER
         SPRESENT --> WCLOUD
         SHOST --> COUNTDOWN
         SVOTE --> COUNTDOWN
@@ -253,11 +264,13 @@ graph LR
         ADETAIL[Session-Detail]
         ADELETE[Delete-Flow]
         AEXPORT[Export PDF/JSON]
+        AMOTD[MOTD-Tab]
         AROOT --> ALOGIN
         AROOT --> ALIST
         ALIST --> ADETAIL
         ADETAIL --> ADELETE
         ADETAIL --> AEXPORT
+        AROOT --> AMOTD
     end
 ```
 
@@ -265,13 +278,15 @@ graph LR
 
 ## 3. Datenbank-Schema (PostgreSQL / Prisma)
 
+Die Diagramme zeigen eine fachlich lesbare Auswahl der wichtigsten Felder. Vollständige Quelle bleibt [`prisma/schema.prisma`](../../prisma/schema.prisma).
+
 ### 3.1 Kernsicht (Quiz, Session, Votes)
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 48, 'rankSpacing': 72, 'padding': 14}}}%%
 erDiagram
     Quiz ||--o{ Question : enthaelt
-    Quiz ||--o{ Session : verwendet_in
+    Quiz |o--o{ Session : verwendet_in
     Question ||--o{ AnswerOption : hat
     Question ||--o{ Vote : erhaelt
     Session ||--o{ Participant : hat
@@ -282,16 +297,37 @@ erDiagram
 
     Quiz {
         string id PK
+        string historyScopeId
         string name
+        string motifImageUrl
         boolean showLeaderboard
+        boolean allowCustomNicknames
+        int defaultTimer
+        boolean timerScaleByDifficulty
         int bonusTokenCount
         boolean readingPhaseEnabled
+        string preset
+        boolean teamMode
+        enum teamAssignment
+        string_array teamNames
     }
     Question {
         string id PK
         string text
         enum type
         enum difficulty
+        boolean skipReadingPhase
+        int ratingMin
+        int ratingMax
+        string shortTextEvaluationKind
+        string shortTextEvaluationMode
+        string shortTextToleranceLevel
+        boolean shortTextAllowPartialCredit
+        string numericToleranceMode
+        float numericAbsoluteTolerance
+        float numericRelativeTolerancePercent
+        string numericUnitFamily
+        boolean numericRequireUnit
     }
     AnswerOption {
         string id PK
@@ -301,16 +337,31 @@ erDiagram
     Session {
         string id PK
         string code UK
+        enum type
         enum status
+        datetime statusChangedAt
+        boolean qaEnabled
+        boolean qaOpen
+        boolean quickFeedbackEnabled
+        boolean quickFeedbackOpen
+        boolean onboardingProfileConfigured
+        string legalHoldUntil
+        json answerDisplayOrder
     }
     Participant {
         string id PK
         string nickname
+        string teamId FK
     }
     Vote {
         string id PK
+        string freeText
+        int ratingValue
+        int responseTimeMs
         int score
         int streakCount
+        float streakBonus
+        int round
     }
     VoteAnswer {
         string voteId FK
@@ -318,54 +369,159 @@ erDiagram
     }
 ```
 
-### 3.2 Erweiterungen (Team, Bonus, Q&A, Session-Kanaele, Admin-Audit)
+### 3.2 Session-Erweiterungen (Team, Bonus, Feedback, Q&A, Audit)
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 48, 'rankSpacing': 72, 'padding': 14}}}%%
 erDiagram
     Session ||--o{ Team : hat
-    Team ||--o{ Participant : besteht_aus
+    Team |o--o{ Participant : gruppiert
     Session ||--o{ BonusToken : generiert
     Participant ||--o{ BonusToken : erhaelt
+    Session ||--o{ SessionFeedback : bekommt
+    Participant ||--o{ SessionFeedback : bewertet
     Session ||--o{ QaQuestion : enthaelt
     Participant ||--o{ QaQuestion : stellt
     QaQuestion ||--o{ QaUpvote : erhaelt
     Participant ||--o{ QaUpvote : votet
-    Session ||--o{ AdminAuditLog : protokolliert
+    Session ||..o{ AdminAuditLog : snapshot
 
     Team {
         string id PK
         string name
         string color
+        string sessionId FK
     }
     BonusToken {
+        string id PK
         string token UK
+        string sessionId FK
+        string participantId FK
+        string nickname
+        string quizName
         int totalScore
         int rank
+        datetime generatedAt
+    }
+    SessionFeedback {
+        string id PK
+        string sessionId FK
+        string participantId FK
+        int overallRating
+        int questionQualityRating
+        boolean wouldRepeat
+        datetime createdAt
     }
     QaQuestion {
         string id PK
         string text
         int upvoteCount
+        enum status
+        string sessionId FK
+        string participantId FK
+        datetime createdAt
+        datetime updatedAt
     }
     QaUpvote {
+        string id PK
         string qaQuestionId FK
         string participantId FK
+        enum direction
     }
     AdminAuditLog {
         string id PK
-        string action
-        string sessionId FK
+        enum action
+        string sessionId
+        string sessionCode
+        string adminIdentifier
+        string reason
+        datetime createdAt
     }
 
     Session {
+        string title
         boolean qaEnabled
+        boolean qaOpen
+        string qaTitle
+        boolean qaModerationMode
         boolean quickFeedbackEnabled
+        boolean quickFeedbackOpen
+    }
+```
+
+### 3.3 Plattformdaten und MOTD
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 48, 'rankSpacing': 72, 'padding': 14}}}%%
+erDiagram
+    MotdTemplate |o--o{ Motd : vorlage_fuer
+    Motd ||--o{ MotdLocale : hat
+    Motd ||--o{ MotdInteractionCounter : zaehlt
+    Motd ||..o{ MotdAuditLog : audit_snapshot
+
+    PlatformStatistic {
+        string id PK
+        int maxParticipantsSingleSession
+        int completedSessionsTotal
+        datetime updatedAt
+    }
+    DailyStatistic {
+        string id PK
+        date date UK
+        int maxParticipantsSingleSession
+        datetime updatedAt
+    }
+    MotdTemplate {
+        string id PK
+        string name
+        string description
+        text markdownDe
+        text markdownEn
+        text markdownFr
+        text markdownEs
+        text markdownIt
+        datetime createdAt
+        datetime updatedAt
+    }
+    Motd {
+        string id PK
+        enum status
+        int priority
+        datetime startsAt
+        datetime endsAt
+        boolean visibleInArchive
+        int contentVersion
+        string templateId FK
+        datetime createdAt
+        datetime updatedAt
+    }
+    MotdLocale {
+        string id PK
+        string motdId FK
+        string locale
+        text markdown
+    }
+    MotdInteractionCounter {
+        string motdId PK
+        int contentVersion PK
+        int ackCount
+        int thumbUp
+        int thumbDown
+        int dismissClose
+        int dismissSwipe
+    }
+    MotdAuditLog {
+        string id PK
+        enum action
+        string motdId
+        string adminIdentifier
+        text metadataJson
+        datetime createdAt
     }
 ```
 
 **Hinweis (Data-Stripping):** `AnswerOption.isCorrect` wird im Status ACTIVE niemals an Studenten gesendet; erst nach RESULTS-Auflösung (`QuestionRevealedDTO`).
-**Session-Status (Story 2.6):** `LOBBY → QUESTION_OPEN` (Lesephase, nur Fragenstamm) → `ACTIVE` → `RESULTS` → `PAUSED` → … → `FINISHED`. Optional überspringbar: bei `readingPhaseEnabled=false` geht „Nächste Frage" direkt zu `ACTIVE`.
+**Session-Status:** `LOBBY → QUESTION_OPEN` (Lesephase, nur Fragenstamm) → `ACTIVE` → `RESULTS` → `PAUSED` oder `DISCUSSION` → … → `FINISHED`. Optional überspringbar: bei `readingPhaseEnabled=false` geht „Nächste Frage" direkt zu `ACTIVE`.
 
 ---
 

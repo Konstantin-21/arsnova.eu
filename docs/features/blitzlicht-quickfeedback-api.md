@@ -34,9 +34,12 @@ In der **UI** heißt der Modus **Blitzlicht** ([ADR-0010](../architecture/decisi
 | `toggleLock`       | Mutation     | Abstimmung sperren / entsperren (`locked`)                                                                                                                   |
 | `startDiscussion`  | Mutation     | Runde 1 einfrieren (API-Name „Discussion“); UI: **Vergleichsrunde** vorbereiten ([ADR-0010](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md)) |
 | `startSecondRound` | Mutation     | Zweite Abstimmung öffnen (`currentRound = 2`)                                                                                                                |
+| `isActive`         | Query        | Prüft, ob zum Code ein aktiver Redis-Snapshot existiert                                                                                                      |
 | `vote`             | Mutation     | Teilnehmer-Stimme (`voterId`, `value`); einmal pro Runde                                                                                                     |
 | `results`          | Query        | Aktueller `QuickFeedbackResult` inkl. berechneter Verschiebung (Runde 2)                                                                                     |
+| `hostResults`      | Query        | Host-Snapshot mit Host-Autorisierung                                                                                                                         |
 | `onResults`        | Subscription | Pollt Redis und liefert bei Änderung neuen Snapshot (aktives vs. idle Intervall)                                                                             |
+| `onHostResults`    | Subscription | Host-Subscription mit Host-Autorisierung                                                                                                                     |
 
 Eingaben/Ausgaben: Zod-Schemas in `@arsnova/shared-types` (z. B. `QuickFeedbackVoteInputSchema`, `QuickFeedbackResultSchema`).
 Aktuelle Formate: `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`.
@@ -54,6 +57,7 @@ flowchart LR
     H3[startDiscussion]
     H4[startSecondRound]
     H5[reset / end]
+    H6[hostResults / onHostResults]
   end
 
   subgraph Redis["Redis qf:*"]
@@ -70,6 +74,7 @@ flowchart LR
   H3 --> R1
   H4 --> R1
   H5 --> R1
+  R1 --> H6
   C1 --> R1
   R1 --> C2
 ```

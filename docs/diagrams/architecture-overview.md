@@ -3,10 +3,10 @@
 # 🏗️ Architektur-Übersicht: arsnova.eu
 
 **Erstellt:** 2026-02-20  
-**Zuletzt aktualisiert:** 2026-04-17  
+**Zuletzt aktualisiert:** 2026-05-30  
 **Zweck:** Visualisierung der gesamten Codebasis-Struktur und Architektur
 
-**Status:** Epics 0–5, 7.1, 8, 9, **10 (MOTD)** umgesetzt · Epic 6 größtenteils umgesetzt (6.5, 6.6 offen) · Plattformstatistik Rekordteilnehmer (`PlatformStatistic`) in `health.stats` · Host-Härtung, Feedback-Host-Token und besitzgebundene Quiz-Historie umgesetzt · Markdown-Stories **1.7a** und **1.7b** umgesetzt ([ADR-0015](../architecture/decisions/0015-markdown-images-url-only-and-lightbox.md), [ADR-0016](../architecture/decisions/0016-markdown-katex-editor-split-view-and-md3-toolbar.md), [ADR-0017](../architecture/decisions/0017-markdown-editor-ui-scope-and-ki-import-paste-field.md) — Geltungsbereich Editor vs. KI-Paste). Blitzlicht ist als Startseiten-Shortcut und Session-Kanal konsolidiert. Rollen/Routen/Autorisierung inkl. Admin, Host-Härtung und MOTD siehe [ADR-0006](../architecture/decisions/0006-roles-routes-authorization-host-admin.md), [ADR-0019](../architecture/decisions/0019-host-hardening-and-owner-bound-session-access.md), [ADR-0009](../architecture/decisions/0009-unified-live-session-channels.md), [ADR-0010](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md), [ADR-0018](../architecture/decisions/0018-message-of-the-day-platform-communication.md), [ROUTES_AND_STORIES.md](../ROUTES_AND_STORIES.md).
+**Status:** Epics 0–5 inkl. 5.4a, 7.1, 8.1–8.4, 8.6/8.7, 9, **10 (MOTD)** umgesetzt · Epic 6 größtenteils umgesetzt (6.5, 6.6 offen) · Plattformstatistik Rekordteilnehmer und Tagesrekorde (`PlatformStatistic`, `DailyStatistic`) in `health.stats` · Host-Härtung, Feedback-Host-Token und besitzgebundene Quiz-Historie umgesetzt · Markdown-Stories **1.7a** und **1.7b** umgesetzt ([ADR-0015](../architecture/decisions/0015-markdown-images-url-only-and-lightbox.md), [ADR-0016](../architecture/decisions/0016-markdown-katex-editor-split-view-and-md3-toolbar.md), [ADR-0017](../architecture/decisions/0017-markdown-editor-ui-scope-and-ki-import-paste-field.md) — Geltungsbereich Editor vs. KI-Paste). Blitzlicht ist als Startseiten-Shortcut und Session-Kanal konsolidiert. Rollen/Routen/Autorisierung inkl. Admin, Host-Härtung und MOTD siehe [ADR-0006](../architecture/decisions/0006-roles-routes-authorization-host-admin.md), [ADR-0019](../architecture/decisions/0019-host-hardening-and-owner-bound-session-access.md), [ADR-0009](../architecture/decisions/0009-unified-live-session-channels.md), [ADR-0010](../architecture/decisions/0010-blitzlicht-as-core-live-mode.md), [ADR-0018](../architecture/decisions/0018-message-of-the-day-platform-communication.md), [ROUTES_AND_STORIES.md](../ROUTES_AND_STORIES.md).
 
 ## System-Architektur-Diagramm
 
@@ -17,15 +17,15 @@ graph LR
         subgraph "Frontend - Angular 21"
             FE[Angular App<br/>Port 4200]
             FE_COMP[Standalone Components<br/>Signals · Angular Material 3]
-            FE_ROUTES["Routing<br/>/quiz<br/>/session/:code/(host|present|vote)<br/>/join/:code · /feedback/:code · /feedback/:code/vote<br/>/admin · /help · /legal/*<br/>optional locale prefix:<br/>/de /en /fr /es /it"]
+            FE_ROUTES["Routing<br/>/quiz<br/>/session/:code/(host|present|vote)<br/>/join/:code · /feedback/:code · /feedback/:code/vote<br/>/admin · /help · /news-archive · /legal/*<br/>optional locale prefix:<br/>/de /en /fr /es /it"]
             FE_SERVICES[Core Services<br/>tRPC Client · ws-connection · theme-preset<br/>locale guard · sound]
         end
 
         subgraph "Backend - Node.js + tRPC (Epic 0 ✅)"
             BE[Express Server<br/>Port 3000]
             TRPC["tRPC Router<br/>/trpc"]
-            ROUTERS[Router Layer<br/>health · quiz · session · vote · qa · quickFeedback · admin · motd]
-            SERVICES[Domain/Infra Layer<br/>quizScoring · rateLimit · sessionCleanup · adminAuth]
+            ROUTERS[Router Layer<br/>health · quiz · session · vote · qa · quickFeedback · wordCloud · admin · motd]
+            SERVICES[Domain/Infra Layer<br/>quizScoring · wordCloudAnalysis · rateLimit · sessionCleanup · adminAuth]
             DTO[DTO Layer<br/>Data Stripping<br/>QuestionPreviewDTO<br/>QuestionStudentDTO<br/>QuestionRevealedDTO]
         end
 
@@ -35,7 +35,7 @@ graph LR
     end
 
     subgraph "Datenbanken & Storage (Epic 0.1 ✅)"
-        PG[(PostgreSQL<br/>Prisma ORM<br/>Sessions · Votes · Participants<br/>MOTD · PlatformStatistic)]
+        PG[(PostgreSQL<br/>Prisma ORM<br/>Sessions · Votes · Feedback<br/>MOTD · Platform/DailyStatistic)]
         REDIS[(Redis<br/>Pub/Sub · Rate-Limit<br/>Docker Compose)]
         IDB[(IndexedDB<br/>Yjs CRDT<br/>Local-First Quizzes)]
     end
@@ -163,7 +163,7 @@ sequenceDiagram
     BE->>R: Pub/Sub: onResultsRevealed (MIT isCorrect!)
     R-->>S: Ergebnisse + Punkte
 
-    Note over D,S: Zwischen Fragen: PAUSED, dann erneut nextQuestion; Session-Ende: session.end → FINISHED
+    Note over D,S: Zwischen Fragen: PAUSED, dann erneut nextQuestion, Session-Ende mit session.end → FINISHED
 ```
 
 ### Admin-Datenfluss (Epic 9)
@@ -248,6 +248,7 @@ graph LR
     FEEDBACK_VOTE[FeedbackVoteComponent]
     ADMIN[AdminComponent]
     HELP[HelpComponent]
+    NEWS[NewsArchivePageComponent]
     LEGAL[LegalPageComponent]
 
     ROUTES --> HOME
@@ -258,6 +259,7 @@ graph LR
     ROUTES --> FEEDBACK_VOTE
     ROUTES --> ADMIN
     ROUTES --> HELP
+    ROUTES --> NEWS
     ROUTES --> LEGAL
 ```
 
@@ -288,12 +290,14 @@ graph LR
         FBHOST[FeedbackHostComponent]
         FBVOTE[FeedbackVoteComponent]
         WCLOUD[WordCloudComponent]
+        FOYER[FoyerEntranceLayerComponent]
         COUNTDOWN[CountdownFingersComponent]
         SROOT --> SHOST
         SROOT --> SPRESENT
         SROOT --> SVOTE
         SHOST --> FBHOST
         SVOTE --> FBVOTE
+        SHOST --> FOYER
         SPRESENT --> WCLOUD
         SHOST --> COUNTDOWN
         SVOTE --> COUNTDOWN
@@ -306,11 +310,13 @@ graph LR
         ADETAIL[Session-Detail]
         AEXPORT[Export PDF/JSON]
         ADELETE[Delete-Flow]
+        AMOTD[MOTD-Tab]
         AROOT --> ALOGIN
         AROOT --> ALIST
         ALIST --> ADETAIL
         ADETAIL --> AEXPORT
         ADETAIL --> ADELETE
+        AROOT --> AMOTD
     end
 ```
 
@@ -369,7 +375,9 @@ mindmap
 
 ## Datenbank-Schema Übersicht
 
-Session-Status (Story 2.6): `LOBBY`, `QUESTION_OPEN` (Lesephase), `ACTIVE`, `RESULTS`, `PAUSED`, `FINISHED`.
+Die Diagramme zeigen eine kompakte fachliche Auswahl der wichtigsten Felder. Vollständige Quelle bleibt [`prisma/schema.prisma`](../../prisma/schema.prisma).
+
+Session-Status: `LOBBY`, `QUESTION_OPEN` (Lesephase), `ACTIVE`, `PAUSED`, `RESULTS`, `DISCUSSION`, `FINISHED`.
 
 ### Kernsicht (Quiz, Session, Votes)
 
@@ -377,7 +385,7 @@ Session-Status (Story 2.6): `LOBBY`, `QUESTION_OPEN` (Lesephase), `ACTIVE`, `RES
 %%{init: {'flowchart': {'nodeSpacing': 46, 'rankSpacing': 70, 'padding': 14}}}%%
 erDiagram
     Quiz ||--o{ Question : enthaelt
-    Quiz ||--o{ Session : verwendet_in
+    Quiz |o--o{ Session : verwendet_in
     Question ||--o{ AnswerOption : hat
     Question ||--o{ Vote : erhaelt
     Session ||--o{ Participant : hat
@@ -388,21 +396,33 @@ erDiagram
 
     Quiz {
         string id PK
+        string historyScopeId
         string name
+        string motifImageUrl
         boolean showLeaderboard
         int bonusTokenCount
         boolean readingPhaseEnabled
+        string preset
     }
     Question {
         string id PK
         string text
         enum type
         enum difficulty
+        boolean skipReadingPhase
+        string shortTextEvaluationKind
+        string shortTextEvaluationMode
+        string shortTextToleranceLevel
+        string numericToleranceMode
+        string numericUnitFamily
     }
     Session {
         string id PK
         string code UK
+        enum type
         enum status
+        boolean qaEnabled
+        boolean quickFeedbackEnabled
     }
     Participant {
         string id PK
@@ -410,29 +430,136 @@ erDiagram
     }
     Vote {
         string id PK
+        string freeText
+        int ratingValue
         int score
         int streakCount
+        int round
     }
 ```
 
-### Erweiterungen (Team, Bonus, Q&A, Session-Kanaele, Admin)
+### Erweiterungen (Team, Bonus, Feedback, Q&A, Session-Kanaele, Admin)
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 46, 'rankSpacing': 70, 'padding': 14}}}%%
 erDiagram
     Session ||--o{ Team : hat
-    Team ||--o{ Participant : besteht_aus
+    Team |o--o{ Participant : gruppiert
     Session ||--o{ BonusToken : generiert
     Participant ||--o{ BonusToken : erhaelt
+    Session ||--o{ SessionFeedback : bekommt
+    Participant ||--o{ SessionFeedback : bewertet
     Session ||--o{ QaQuestion : enthaelt
     Participant ||--o{ QaQuestion : stellt
     QaQuestion ||--o{ QaUpvote : erhaelt
     Participant ||--o{ QaUpvote : votet
-    Session ||--o{ AdminAuditLog : protokolliert
+    Session ||..o{ AdminAuditLog : snapshot
 
     Session {
+        string title
         boolean qaEnabled
+        boolean qaOpen
+        boolean qaModerationMode
         boolean quickFeedbackEnabled
+        boolean quickFeedbackOpen
+    }
+    Team {
+        string id PK
+        string name
+        string color
+    }
+    BonusToken {
+        string token UK
+        int totalScore
+        int rank
+    }
+    SessionFeedback {
+        string id PK
+        int overallRating
+        int questionQualityRating
+        boolean wouldRepeat
+    }
+    QaQuestion {
+        string id PK
+        string text
+        int upvoteCount
+        enum status
+    }
+    QaUpvote {
+        string qaQuestionId FK
+        string participantId FK
+        enum direction
+    }
+    AdminAuditLog {
+        string id PK
+        enum action
+        string sessionId
+        string sessionCode
+    }
+```
+
+### Plattformdaten und MOTD
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 46, 'rankSpacing': 70, 'padding': 14}}}%%
+erDiagram
+    MotdTemplate |o--o{ Motd : vorlage_fuer
+    Motd ||--o{ MotdLocale : hat
+    Motd ||--o{ MotdInteractionCounter : zaehlt
+    Motd ||..o{ MotdAuditLog : audit_snapshot
+
+    PlatformStatistic {
+        string id PK
+        int maxParticipantsSingleSession
+        int completedSessionsTotal
+        datetime updatedAt
+    }
+    DailyStatistic {
+        string id PK
+        date date UK
+        int maxParticipantsSingleSession
+        datetime updatedAt
+    }
+    MotdTemplate {
+        string id PK
+        string name
+        text markdownDe
+        text markdownEn
+        text markdownFr
+        text markdownEs
+        text markdownIt
+    }
+    Motd {
+        string id PK
+        enum status
+        int priority
+        datetime startsAt
+        datetime endsAt
+        boolean visibleInArchive
+        int contentVersion
+        string templateId FK
+    }
+    MotdLocale {
+        string id PK
+        string motdId FK
+        string locale
+        text markdown
+    }
+    MotdInteractionCounter {
+        string motdId PK
+        int contentVersion PK
+        int ackCount
+        int thumbUp
+        int thumbDown
+        int dismissClose
+        int dismissSwipe
+    }
+    MotdAuditLog {
+        string id PK
+        enum action
+        string motdId
+        text metadataJson
+        datetime createdAt
     }
 ```
 

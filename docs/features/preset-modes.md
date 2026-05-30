@@ -1,6 +1,6 @@
 # Preset-Modi (Session-Voreinstellungen)
 
-> **Stand:** 2026-04-18 · Abgleich mit `QUIZ_PRESETS` / `CreateQuizInput` (`libs/shared-types/src/schemas.ts`), `ThemePresetService`, `preset-toast.component.ts` (`PRESET_OPTION_IDS`, `getPresetDefaults`), `PresetStorageEntrySchema`
+> **Stand:** 2026-05-30 · Abgleich mit `QUIZ_PRESETS` / `CreateQuizInput` (`libs/shared-types/src/schemas.ts`), `ThemePresetService`, `preset-toast.component.ts` (`PRESET_OPTION_IDS`, `getPresetDefaults`), `PresetStorageEntrySchema`, Foyer-Einflug im Preset `PLAYFUL`
 
 Die Preset-Modi sind ein zentrales Unterscheidungsmerkmal von arsnova.eu. Sie erlauben es Dozenten, mit **einem Klick** eine komplette Session-Konfiguration zu laden – optimiert für den jeweiligen Einsatzzweck. Kein langwieriges Zusammenklicken einzelner Optionen, kein versehentliches Vergessen eines Toggles.
 
@@ -50,6 +50,7 @@ Die Preset-Modi lösen dieses Problem mit **zwei Grundkonfigurationen**, die der
 - Zeitlimit: **an** (Standard-Sekundenwert aus `DEFAULT_TIMER_SECONDS` in shared-types)
 - **`anonymousMode`: false**, **`allowCustomNicknames`: false**, **`nicknameTheme`: Oberstufe** — vorgegebene Pseudonyme, kein reiner Anonym-Modus
 - Lesephase: **aus**
+- Foyer-Einflug im Live-Betrieb: In der Host-Lobby erscheinen neue Teilnehmende im Preset `PLAYFUL` als dezente Einflug-Chips, sofern `enableRewardEffects !== false`; auf Teilnehmendengeräten gibt es einen kurzen Ankunftsmoment.
 
 **Hinweis Startseite:** Im **Preset-Toast** (localStorage) kann die **Altersgruppe** für Nicks separat gewählt werden; beim **neuen Quiz** legt das Preset aber **`QUIZ_PRESETS`** fest (derzeit **Oberstufe** für beide Modi).
 
@@ -208,6 +209,9 @@ graph TD
     TPS["ThemePresetService<br/>core/theme-preset.service"]
     LS["localStorage<br/>home-preset, home-preset-options-*"]
     ST["@arsnova/shared-types<br/>PresetStorageEntrySchema, NicknameThemeEnum"]
+    QP["QuizPreview/List<br/>Live-Schaltung"]
+    SH["SessionHostComponent<br/>Lobby + FoyerEntranceLayer"]
+    SV["SessionVoteComponent<br/>Join Arrival Moment"]
 
     HC -->|"presetToastVisible signal"| PTC
     PTC -->|"closed output"| HC
@@ -216,12 +220,18 @@ graph TD
     PTC -->|"loadPreset()"| LS
     TPS -->|"setPreset / setTheme"| LS
     PTC -->|"safeParse / Import-Export"| ST
+    LS -->|"Preset-Overrides beim Live-Start"| QP
+    ST -->|"preset + enableRewardEffects"| QP
+    QP -->|"session.create / quiz.upload"| SH
+    QP -->|"session.create / quiz.upload"| SV
 
     style HC fill:#1a1a2e,stroke:#e94560,color:#fff
     style PTC fill:#1a1a2e,stroke:#0f3460,color:#fff
     style TPS fill:#1a1a2e,stroke:#16213e,color:#fff
     style LS fill:#0f3460,stroke:#533483,color:#fff
     style ST fill:#0f3460,stroke:#533483,color:#fff
+    style SH fill:#0f3460,stroke:#e94560,color:#fff
+    style SV fill:#0f3460,stroke:#e94560,color:#fff
 ```
 
 ## User-Flow: Preset konfigurieren
@@ -245,11 +255,15 @@ flowchart TD
     J --> F
     K --> E
     L --> M["Session starten<br/>mit gespeicherter Konfiguration"]
+    M --> N{"PLAYFUL +<br/>Reward-Effekte an?"}
+    N -->|Ja| O["Host-Lobby:<br/>Foyer-Einflug aktiv"]
+    N -->|Nein| P["Seriöser / reduzierter<br/>Lobby-Start"]
 
     style A fill:#16213e,stroke:#0f3460,color:#fff
     style E fill:#1a1a2e,stroke:#e94560,color:#fff
     style I fill:#0f3460,stroke:#533483,color:#fff
     style M fill:#1a1a2e,stroke:#0f3460,color:#fff
+    style O fill:#0f3460,stroke:#e94560,color:#fff
 ```
 
 ## Erweiterungspunkte
