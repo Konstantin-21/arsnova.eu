@@ -554,6 +554,12 @@ Das Skript führt aus:
 5. App-Container starten.
 6. Container-Healthcheck, `health.check` und Frontend-Shell unter `/de/` prüfen.
 
+Optionaler HTTP-Smoke aus Nutzerperspektive:
+
+```bash
+npm run verify:production-serving -- https://<domain>
+```
+
 **Manueller Fallback** ohne Skript:
 
 ```bash

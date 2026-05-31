@@ -10,13 +10,14 @@
 
 ## NPM-Skripte (Root)
 
-| Befehl                 | Bedeutung                                                             |
-| ---------------------- | --------------------------------------------------------------------- |
-| `npm run build`        | `shared-types` → Backend `tsc` → Frontend `ng build`                  |
-| `npm run typecheck`    | `shared-types` bauen (`dist`), dann Backend + Frontend `tsc --noEmit` |
-| `npm run lint`         | ESLint über `libs/` und `apps/`                                       |
-| `npm test`             | **Backend** Vitest + **Frontend** Vitest (sequentiell)                |
-| `npm run format:check` | Prettier (ohne Schreiben)                                             |
+| Befehl                              | Bedeutung                                                                                    |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- |
+| `npm run build`                     | `shared-types` → Backend `tsc` → Frontend `ng build`                                         |
+| `npm run typecheck`                 | `shared-types` bauen (`dist`), dann Backend + Frontend `tsc --noEmit`                        |
+| `npm run lint`                      | ESLint über `libs/` und `apps/`                                                              |
+| `npm test`                          | **Backend** Vitest + **Frontend** Vitest (sequentiell)                                       |
+| `npm run format:check`              | Prettier (ohne Schreiben)                                                                    |
+| `npm run verify:production-serving` | HTTP-Smoke gegen einen laufenden Production-Serve (`/`, `/de/`, Compression, `health.stats`) |
 
 Workspace-spezifisch:
 
@@ -51,10 +52,14 @@ Für produktionsrelevante Änderungen zusätzlich prüfen:
 
 ```bash
 npm run build:prod
+npm run start:prod
+npm run verify:production-serving
 docker compose -f docker-compose.prod.yml --env-file .env.production config
 ```
 
-Auf dem Server übernimmt `scripts/deploy.sh` die Reihenfolge **Build → Postgres/Redis starten → Prisma migrate deploy → App starten → Healthcheck**. Der Deploy ist erst erfolgreich, wenn der Container healthy ist, `http://127.0.0.1:3000/trpc/health.check` antwortet und die Frontend-Shell unter `/de/` ausgeliefert wird.
+`npm run verify:production-serving` erwartet einen laufenden Production-Serve und prüft standardmäßig `http://localhost:3000`. Für abweichende Ports oder Domains den Ziel-URL als Argument übergeben, z. B. `npm run verify:production-serving -- http://localhost:3010` oder `npm run verify:production-serving -- https://arsnova.eu`.
+
+Auf dem Server übernimmt `scripts/deploy.sh` die Reihenfolge **Build → Postgres/Redis starten → Prisma migrate deploy → App starten → Healthcheck**. Der Deploy ist erst erfolgreich, wenn der Container healthy ist, `http://127.0.0.1:3000/trpc/health.check` antwortet und die Frontend-Shell unter `/de/` ausgeliefert wird. Der manuelle HTTP-Smoke über `npm run verify:production-serving -- https://<domain>` ergänzt diesen Check aus Nutzerperspektive.
 
 ---
 

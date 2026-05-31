@@ -157,9 +157,10 @@ Willst du **lokal einen production-ähnlichen** Lauf (optimierter Build, ein Pro
 ```bash
 npm run build:prod    # Backend + Frontend für Production bauen
 npm run start:prod    # Port 3000 freigeben, Backend starten (liefert Frontend aus)
+npm run verify:production-serving
 ```
 
-Im Browser **`http://localhost:3000`** öffnen. Bei belegtem Port zuerst `npm run free-port-3000`, dann `npm run start:prod`; oder mit anderem Port: `PORT=3010 npm run start:prod` → dann **`http://localhost:3010`**. Für den Einstieg reicht das; Details zu Auslieferung, Gzip und Fallbacks stehen im Root-[`README.md`](../README.md).
+Im Browser **`http://localhost:3000`** öffnen. Bei belegtem Port zuerst `npm run free-port-3000`, dann `npm run start:prod`; oder mit anderem Port: `PORT=3010 npm run start:prod` → dann **`http://localhost:3010`** und `npm run verify:production-serving -- http://localhost:3010`. Für den Einstieg reicht das; Details zu Auslieferung, Gzip und Fallbacks stehen im Root-[`README.md`](../README.md).
 
 ---
 
