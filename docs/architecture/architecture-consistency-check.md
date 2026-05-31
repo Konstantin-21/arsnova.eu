@@ -62,42 +62,45 @@ ADR-0003 korrigieren: _„Das Frontend importiert den **Router-Typ (`AppRouter`)
 
 ## 3. Prisma-Client-Version: Root vs. Backend
 
-**Root `package.json`:**
+**Historischer Befund (2026-02-21), heute erledigt.**
+
+**Root `package.json` (aktueller Stand 2026-05-31):**
 
 ```json
-"@prisma/client": "^7.4.0",
-"prisma": "^7.4.0"
+"@prisma/client": "^7.4.2",
+"prisma": "^7.4.2"
 ```
 
-**Backend `apps/backend/package.json`:**
+**Backend `apps/backend/package.json` (aktueller Stand 2026-05-31):**
 
 ```json
-"@prisma/client": "^6.0.0"
+"@prisma/adapter-pg": "^7.4.1",
+"@prisma/client": "^7.4.2"
 ```
 
-**Widerspruch:**
-Root deklariert Prisma 7.x, Backend deklariert Prisma 6.x. Bei npm Workspaces wird normalerweise die Root-Version aufgelöst (Hoisting), sodass de facto Prisma 7.x verwendet wird. Die Backend-Deklaration ist aber irreführend.
+**Bewertung:**
+Der fruehere Widerspruch (Root Prisma 7.x, Backend Prisma 6.x) ist behoben. Root und Backend deklarieren Prisma 7.4.x; der Backend-Zugriff laeuft mit `@prisma/adapter-pg` passend zur Prisma-7-Linie.
 
 **Empfehlung:**
-In `apps/backend/package.json` die Version auf `"^7.4.0"` anheben, damit sie konsistent ist.
+Bei Prisma-Upgrades Root, Backend, `package-lock.json`, `prisma/schema.prisma`, Migrationen und Produktionsdoku gemeinsam pruefen.
 
-**Erledigt (2026-02-21):** Backend-Version auf `^7.4.0` angehoben.
+**Erledigt (2026-02-21, erneut abgeglichen 2026-05-31):** Backend-Version auf Prisma 7 angehoben; aktueller Stand ist 7.4.x.
 
 ---
 
 ## 4. Angular-Version in der Dokumentation
 
-| Dokument                     | Angabe                            |
-| ---------------------------- | --------------------------------- |
-| `AGENT.md`                   | „Angular (Version 17+)"           |
-| Handbook                     | „Angular (v21)"                   |
-| README Badges                | „Angular 17+"                     |
-| `architecture-overview.md`   | „Frontend - Angular (aktuell 21)" |
-| `diagrams.md`                | „Angular 21"                      |
-| `apps/frontend/package.json` | `"@angular/core": "^21.2.0"`      |
+| Dokument                     | Angabe                                  |
+| ---------------------------- | --------------------------------------- |
+| `AGENT.md`                   | Angular Standalone, Signals, Material 3 |
+| Handbook                     | Angular 21.2.x                          |
+| README Badges                | Angular 21.2                            |
+| `architecture-overview.md`   | Angular 21 / Material 3                 |
+| `diagrams.md`                | Angular 21                              |
+| `apps/frontend/package.json` | `"@angular/core": "^21.2.0"`            |
 
 **Bewertung:**
-Der damalige Widerspruch ist behoben. Die Referenzdokumente nennen inzwischen den aktuellen Projektstand mit Angular 21 oder eine bewusst allgemeine 17+-Formulierung.
+Der damalige Widerspruch ist behoben. Die Referenzdokumente nennen inzwischen den aktuellen Projektstand mit Angular 21.2 oder beschreiben bewusst nur die verbindlichen Angular-Patterns ohne alte Versionszahl.
 
 **Empfehlung:**
 Dokumentation bei Framework-Upgrades weiterhin zentral nachziehen.

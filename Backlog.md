@@ -631,7 +631,7 @@ Eine Story gilt als **fertig**, wenn **alle** folgenden Kriterien erfüllt sind:
       - **Shared Render-Pipeline:** Eine zentrale, wiederverwendbare Einheit (z. B. `renderMarkdownWithKatex(...)` + Sanitizing + URL-Policy aus ADR-0015) erzeugt das Preview-/Session-HTML. **Alle** Views (Editor-Preview, Host/Present/Vote/Preview) nutzen **denselben** Pfad bzw. dieselbe Konfiguration.
       - **Editor-Komponente:** Eine Standalone-Editor-Komponente kapselt `textarea` (Quelle), debounced Preview und Toolbar-State mit **Signals** (kein rxjs-Zwang). Sie ist so gebaut, dass sie für **Fragetext** und **Antwortoptionen** wiederverwendbar ist (Inputs: `value`, `disabled`, `placeholder`, optional `compact`; Output: `valueChange`).
       - **Toolbar + Actions:** Toolbar-Aktionen sind als kleine, testbare Funktionen/Services modelliert (Insert/Wrap/Replace anhand von Selection-Range), damit Edge-Cases (mehrzeilig, Cursor, Undo/Redo) robust bleiben. Dialoge/Sheets (Link/Bild/Formel) liefern strukturierte Werte zurück; das Einfügen erfolgt anschließend über dieselben Action-Funktionen.
-    - **Security (Angular v22 Best Practices):**
+    - **Security (Angular 21.2 / aktuelle Angular Security Best Practices):**
       - **Kein ungeprüftes HTML:** Es wird **kein** untrusted HTML ohne Sanitizing per `[innerHTML]` gerendert. `DomSanitizer.bypassSecurityTrustHtml(...)` wird **nur** als letzter Schritt auf **bereits sanitiztem** HTML eingesetzt (Angular Security Best Practices).
       - **Sanitizing explizit:** Die Render-Pipeline verwendet einen expliziten Sanitizer (z. B. **DOMPurify**) und eine dokumentierte Policy (Tags/Attributes/URL-Schemata). Links/Bilder müssen die URL-Policy aus ADR-0015 durchsetzen (mindestens `https:`); externe Links erhalten `rel="noopener noreferrer"` und ein sicheres `target`-Verhalten.
       - **Sanitizing-Policy (konkret, Allowlist-orientiert):**
@@ -639,7 +639,7 @@ Eine Story gilt als **fertig**, wenn **alle** folgenden Kriterien erfüllt sind:
         - **Erlaubte Attribute:** Für Links `href`, `title`; für Bilder `src`, `alt`, `title`. **Kein** User-`style`, **keine** `on*`-Handler, keine iframes/forms/embeds. Falls für KaTeX nötig: `class` auf `span`/KaTeX-Elementen zulassen (nur zur Darstellung, nicht als Authoring-Feature).
         - **URL-Schemata:** `img[src]` **nur `https:`** (ADR-0015). `a[href]` nur aus definierter Allowlist (mind. `https:`; optional `http:`/`mailto:`). Alle anderen Schemata entfernen/neutralisieren.
         - **Link-Härtung:** Externe Links werden mit `rel="noopener noreferrer"` versehen; `target="_blank"` nur, wenn UX-seitig explizit gewünscht und konsistent umgesetzt.
-    - **Empfohlene Libraries / Angular-Komponenten (Stand 2026, konform zu ADRs & Angular v22 Security):**
+    - **Empfohlene Libraries / Angular-Komponenten (Stand 2026, konform zu ADRs und aktuellen Angular-Security-Vorgaben):**
       - **Markdown-Parsing:** `marked` (wie Story 1.7); Security erfolgt **nicht** im Parser, sondern in der gemeinsamen Render-Pipeline.
       - **Sanitizing:** `dompurify` (Allowlist-Policy wie oben; optional `RETURN_TRUSTED_TYPE` bei strikter CSP/Trusted Types).
       - **KaTeX:** `katex` mit `trust: false` und gesetzten Limits (`maxExpand`, `maxSize`) gemäß „untrusted input“.
@@ -1291,7 +1291,7 @@ Epic 6 bündelt **Theming, Internationalisierung, rechtliche Pflichtseiten, Mobi
     - Quiz-Inhalte (Fragenstamm, Antworten) werden **nicht** übersetzt — sie bleiben in der von der Lehrperson eingegebenen Sprache.
     - Datums- und Zahlenformate passen sich der gewählten Locale an (`DatePipe`, `DecimalPipe`).
   - **Verifizierung:** Locales `de/en/fr/es/it` in `angular.json` aktiv; `messages.en.xlf`, `messages.fr.xlf`, `messages.es.xlf`, `messages.it.xlf` vorhanden und build-fähig (`npm run build:localize`). Sprachwähler und Locale-Subpfade aktiv (`/de`, `/en`, `/fr`, `/es`, `/it`); UI-Texte inkl. ARIA/Status in Templates und `$localize` markiert.
-- **Story 6.3 (Impressum & Datenschutzerklärung):** 🔴 Als Nutzer möchte ich ein Impressum und eine Datenschutzerklärung einsehen können, damit die App den gesetzlichen Anforderungen (TMG, DSGVO) entspricht.
+- **Story 6.3 (Impressum & Datenschutzerklärung):** 🔴 Als Nutzer möchte ich ein Impressum und eine Datenschutzerklärung einsehen können, damit die App den gesetzlichen Anforderungen (DDG, DSGVO) entspricht.
   - **Akzeptanzkriterien:**
     - Im Footer jeder Seite befinden sich Links zu „Impressum" und „Datenschutz".
     - Beide Seiten sind als eigene Angular-Routen erreichbar (`/legal/imprint`, `/legal/privacy`) — sprachneutrale Pfade für i18n-Kompatibilität.

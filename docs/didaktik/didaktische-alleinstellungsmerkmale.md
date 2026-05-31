@@ -2,7 +2,7 @@
 
 # Didaktische Alleinstellungsmerkmale & Ausbaupotenzial
 
-> Kurzfassung der USPs und konkrete Vorschläge zum weiteren Ausbau (Stand: Backlog 60 Storys).
+> Kurzfassung der USPs und konkrete Vorschläge zum weiteren Ausbau. Der konkrete Story- und Bearbeitungsstand steht im aktuellen [`Backlog.md`](../../Backlog.md).
 
 ---
 

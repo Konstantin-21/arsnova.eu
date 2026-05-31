@@ -1,6 +1,6 @@
 # Aviso legal
 
-Información conforme al § 5 de la ley alemana sobre los cibermedios (TMG)
+Información conforme al § 5 de la ley alemana de servicios digitales (Digitale-Dienste-Gesetz, DDG)
 
 ## Proveedor
 

@@ -4,7 +4,7 @@
 
 **Kontext:** Fallstudie **arsnova.eu** · **Zielgruppe:** Studierende nach dem Bearbeiten der **verbindlichen Ticket-Reihenfolge** (siehe [`STUDENT-STORY-REIHENFOLGE.md`](./STUDENT-STORY-REIHENFOLGE.md) und [`PRAKTIKUM.md`](./PRAKTIKUM.md))  
 **Zweck:** Dieses Dokument hilft dir dabei, dein Thema klar abzugrenzen, sinnvoll zu gewichten und mit belastbaren Repo-Bezügen vorzubereiten. Es ersetzt keine Prüfungsabsprachen mit der Betreuung.  
-**Backlog-Stand:** 93 Stories (80 erledigt, 13 offen) – bei größeren Änderungen in [`Backlog.md`](../../Backlog.md) bitte Themenabgrenzungen und Beispiele neu prüfen.
+**Backlog-Bezug:** Maßgeblich ist der aktuelle Stand in [`Backlog.md`](../../Backlog.md); dieses Dokument dupliziert bewusst keine Story-Zahlen mehr, damit Themenabgrenzungen bei Backlog-Änderungen nicht veralten. Bei größeren Änderungen bitte Beispiele und Repo-Bezüge neu prüfen.
 
 Wichtig: Deine **eigene praktische Arbeit** kann schmaler sein als die **sechs Vortragsthemen** zusammen. Genau deshalb dienen die Vorträge dazu, aus einzelnen Tickets oder Schwerpunkten wieder ein **größeres softwaretechnisches Bild** von **arsnova.eu** zu machen.
 

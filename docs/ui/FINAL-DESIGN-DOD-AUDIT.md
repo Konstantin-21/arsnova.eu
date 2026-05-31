@@ -1,134 +1,66 @@
 # Finaler Design- & DoD-Audit
 
-**Datum:** 2026-02-25  
-**Basis:** Backlog.md DoD, ADR 0005, BACKLOG-DESIGN-COMPLIANCE.md, DOD-AUDIT-REPORT.md
+**Stand:** 2026-05-31
+
+**Basis:** [Backlog.md](../../Backlog.md), ADR-0005, ADR-0008, [STYLEGUIDE.md](STYLEGUIDE.md), [TOKENS.md](TOKENS.md), [BACKLOG-DESIGN-COMPLIANCE.md](BACKLOG-DESIGN-COMPLIANCE.md). Der frühere Stand vom 2026-02-25 ist fachlich überholt.
 
 ---
 
-## 1) Design-Check (Material Design 3 / ADR 0005)
+## 1. Design-System
 
-| Kriterium                        | Status | Details                                                                                                           |
-| -------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| Kein Tailwind in `apps/frontend` | ✅     | Keine Tailwind-Klassen                                                                                            |
-| Material als Standard für UI     | ✅     | mat-button, mat-card, mat-form-field, mat-icon, mat-menu, mat-chip-set, mat-button-toggle                         |
-| Farben aus Tokens                | ✅     | Keine hardcoded Hex in Komponenten; `--app-status-healthy` (light-dark) für Status-Punkt – dokumentierte Ausnahme |
-| Typografie aus Tokens            | ✅     | `--mat-sys-body-*`, `--mat-sys-title-*`, `--mat-sys-headline-*`, `--mat-sys-label-*`                              |
-| Shape aus Tokens                 | ✅     | `--mat-sys-corner-*` durchgängig                                                                                  |
-| Layout-Patterns                  | ✅     | `l-page`, `l-section`, `l-stack` (xs, sm, md, lg, xl), `l-cluster`, `l-grid`                                      |
-| Keine fragilen Overrides         | ✅     | Kein `::ng-deep`, keine `.mat-mdc-*` Hacks                                                                        |
-| Theme Foundation                 | ✅     | `mat.theme()`, `html.dark`/`html.light`, `html.preset-playful`                                                    |
-| prefers-reduced-motion           | ✅     | Globale Regel in styles.scss                                                                                      |
-
----
-
-## 2) Backlog DoD – Frontend (Zeilen 96–107)
-
-| Kriterium                       | Status | Umsetzung                                                         |
-| ------------------------------- | ------ | ----------------------------------------------------------------- |
-| Standalone Components + Signals | ✅     | Durchgängig (Home, Quiz, Session, Legal, ServerStatusWidget, App) |
-| `@if` / `@for` Control-Flow     | ✅     | Kein `*ngIf` / `*ngFor`                                           |
-| Mobile-First ≤ 320px            | ⚠️     | Breakpoints 640/768/1024/1280; 320px nicht explizit getestet      |
-| Touch-Targets ≥ 44×44px         | ✅     | Material-Buttons (48×48px), mat-icon-button                       |
-| Tastatur erreichbar, Fokusring  | ✅     | `mat.strong-focus-indicators()`, Skip-Link, Tab-Navigation        |
-| Dark/Light Theme                | ✅     | Theme-Switcher (System/Dark/Light), Default: Dark                 |
-| prefers-reduced-motion          | ✅     | In styles.scss implementiert                                      |
-| Lighthouse Accessibility ≥ 90   | ⚠️     | Nicht geprüft                                                     |
+| Kriterium                        | Status | Details                                                                                 |
+| -------------------------------- | ------ | --------------------------------------------------------------------------------------- |
+| Kein Tailwind in `apps/frontend` | ✅     | Tailwind bleibt auf `apps/landing` beschränkt.                                          |
+| Material als Standard für UI     | ✅     | Angular Material 3 ist die Standardbasis für Buttons, Inputs, Dialoge, Menüs und Icons. |
+| Farben aus Tokens                | ✅     | App- und Statusfarben sind in `TOKENS.md` dokumentiert; harte Ausnahmen begründen.      |
+| Typografie aus Tokens            | ✅     | Material-Typografie und App-Ausnahmen nach Styleguide.                                  |
+| Shape/Elevation aus Tokens       | ✅     | Material- und App-Tokens sind verbindlich.                                              |
+| Layout-Patterns                  | ✅     | Gemeinsame Layout- und Shared-Styles statt lokaler Einmallösungen.                      |
+| Keine fragilen Overrides         | ✅     | Keine neuen `::ng-deep`- oder Material-DOM-Hacks ohne dokumentierte Ausnahme.           |
+| Theme Foundation                 | ✅     | Light/Dark/System, Presets und `prefers-color-scheme` sind umgesetzt.                   |
+| `prefers-reduced-motion`         | ✅     | Bewegte UI muss reduzierte Alternativen anbieten.                                       |
 
 ---
 
-## 3) Epic 6 (Theming & Barrierefreiheit)
+## 2. DoD Frontend
 
-### Story 6.1 (Dark/Light/System-Theme) – ✅ Erfüllt
-
-| Akzeptanzkriterium                      | Status           |
-| --------------------------------------- | ---------------- |
-| Theme-Umschalter (Light, Dark, System)  | ✅               |
-| System übernimmt `prefers-color-scheme` | ✅               |
-| Sofortiger Wechsel ohne Reload          | ✅               |
-| localStorage-Persistenz                 | ✅               |
-| Kontrast WCAG 2.1 AA                    | ✅ (Material M3) |
-
-### Story 6.2 (Internationalisierung) – ⚠️ Teilweise
-
-| Akzeptanzkriterium                | Status                           |
-| --------------------------------- | -------------------------------- |
-| 5 Sprachen (de, en, fr, it, es)   | ✅ Auswahl vorhanden             |
-| Sprachwähler in Navbar            | ✅                               |
-| localStorage-Persistenz           | ✅                               |
-| ngx-translate / @angular/localize | ❌ Nicht implementiert           |
-| i18n/\*.json Übersetzungsdateien  | ❌ Keine – UI-Texte noch deutsch |
-
-### Story 6.3 (Impressum & Datenschutz) – ✅ Erfüllt
-
-| Akzeptanzkriterium                        | Status |
-| ----------------------------------------- | ------ |
-| Footer-Links Impressum / Datenschutz      | ✅     |
-| Routen `/legal/imprint`, `/legal/privacy` | ✅     |
-| Markdown-Inhalte                          | ✅     |
-
-### Story 6.4 (Mobile-First & Responsive) – ✅ Erfüllt
-
-| Akzeptanzkriterium         | Status |
-| -------------------------- | ------ |
-| Mobile-First ≤ 640px Basis | ✅     |
-| Touch-Targets ≥ 44×44px    | ✅     |
-| Viewport-Meta              | ✅     |
-| PWA manifest.webmanifest   | ✅     |
-
-### Story 6.5 (Barrierefreiheit) – ✅ Teilweise
-
-| Akzeptanzkriterium     | Status                                  |
-| ---------------------- | --------------------------------------- |
-| Tastaturnavigation     | ✅                                      |
-| Fokus-Management       | ✅                                      |
-| aria-label / aria-live | ✅ (ServerStatusWidget, Offline-Banner) |
-| prefers-reduced-motion | ✅                                      |
+| Kriterium                       | Status | Umsetzung                                                                                |
+| ------------------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| Standalone Components + Signals | ✅     | Standard in `apps/frontend`.                                                             |
+| `@if` / `@for` Control Flow     | ✅     | Zielpfad für neue Templates.                                                             |
+| Mobile-First ab 320 px          | ✅     | `npm run check:viewport -w @arsnova/frontend`.                                           |
+| Touch-Targets ≥ 44 x 44 px      | ✅     | Material-Controls und Custom-Controls prüfen.                                            |
+| Tastatur erreichbar, Fokusring  | ✅     | Material-Fokus plus Custom-Fokus; sichtbare Fokuszustände bleiben Pflicht.               |
+| Theme und Presets               | ✅     | Light/Dark/System plus `Seriös`/`Spielerisch`.                                           |
+| i18n                            | ✅     | Fünf Locale-Builds per Angular-localize/XLF; frühere Deutsch-only-Annahmen sind obsolet. |
+| Lighthouse Accessibility ≥ 90   | ✅     | Kanonischer Check: `npm run lighthouse:a11y -w @arsnova/frontend`.                       |
 
 ---
 
-## 4) Startseite – Vollständigkeit
+## 3. Epic 6
 
-| Element                               | Status     |
-| ------------------------------------- | ---------- |
-| Theme, Presets, Sprache (5 Sprachen)  | ✅         |
-| Beitreten (Code, Zuletzt beigetreten) | ✅         |
-| Erstellen (Session, Quiz, Q&A)        | ✅ → /quiz |
-| Quiz-Sammlung (Zugang, Vorlage, Demo) | ✅ → /quiz |
-| Status (Widget, Retry)                | ✅         |
-| Trust-Badges, Offline-Indikator       | ✅         |
-| Impressum, Datenschutz                | ✅         |
-| Wertversprechen, Hero                 | ✅         |
+| Story                       | Status | Einordnung                                                                      |
+| --------------------------- | ------ | ------------------------------------------------------------------------------- |
+| **6.1** Theme               | ✅     | umgesetzt.                                                                      |
+| **6.2** i18n                | ✅     | umgesetzt mit `de`, `en`, `fr`, `es`, `it`.                                     |
+| **6.3** Legal               | ✅     | umgesetzt über lokalisierte Markdown-Assets.                                    |
+| **6.4** Mobile/PWA          | ✅     | umgesetzt; 320-px- und PWA-Checks bleiben Reviewpflicht.                        |
+| **6.5** Barrierefreiheit    | ⬜     | fortlaufender Qualitäts-Checkpoint; nicht als fehlende Basisfunktion behandeln. |
+| **6.6** Thinking-Aloud / UX | ⬜     | offene methodische Testreihe mit Umsetzung der Befunde.                         |
 
 ---
 
-## 5) Bekannte Ausnahmen (dokumentiert)
+## 4. Bekannte Ausnahmen
 
-| Ausnahme                                | Grund                                                   | Referenz            |
-| --------------------------------------- | ------------------------------------------------------- | ------------------- |
-| `index.html` theme-color (Hex)          | HTML meta unterstützt keine CSS-Variablen               | ADR 0005, TOKENS.md |
-| `--app-status-healthy` (light-dark Hex) | Semantisch grün für Status-Punkt unabhängig von Palette | styles.scss         |
-| `manifest.webmanifest` (Hex)            | JSON-Format                                             | ADR 0005            |
-| Landing Tailwind                        | Astro-App, separater Scope                              | ADR 0005            |
-
----
-
-## 6) Offene Punkte (nicht blockierend)
-
-| Punkt                    | Empfehlung                                  |
-| ------------------------ | ------------------------------------------- |
-| Lighthouse Accessibility | Vor Release manuell prüfen                  |
-| 320px Viewport           | Manuell testen                              |
-| i18n für 5 Sprachen      | Story 6.2 – Übersetzungsdateien fehlen noch |
-| Theme-Default „System“   | Aktuell „Dark“ – Backlog nennt „System“     |
+| Ausnahme                       | Grund                                                           | Referenz              |
+| ------------------------------ | --------------------------------------------------------------- | --------------------- |
+| `index.html` `theme-color`     | HTML-Meta-Tags unterstützen keine CSS-Variablen                 | ADR-0005, `TOKENS.md` |
+| Status-/Bewertungsfarben       | Semantische Ampel-, Stern- und Ergebnisfarben                   | `TOKENS.md`           |
+| Landing Tailwind               | Separate Astro-App, kein Angular-Frontend                       | ADR-0005              |
+| Fullscreen- und Lightbox-Flows | Fachlich begründete Abweichungen von Standard-Dialog-Containern | `STYLEGUIDE.md`       |
 
 ---
 
-## 7) Zusammenfassung
+## 5. Zusammenfassung
 
-| Kategorie            | Bestanden | Teilweise | Offen |
-| -------------------- | --------- | --------- | ----- |
-| Design (M3/ADR 0005) | 9         | 0         | 0     |
-| DoD Frontend         | 6         | 2         | 0     |
-| Epic 6 Stories       | 3         | 2         | 0     |
-
-**Gesamtbewertung: Konform.** Die Startseite und die von ihr erreichbaren Funktionen erfüllen die Design- und DoD-Anforderungen. Offene Punkte (i18n, Lighthouse) sind dokumentiert und nicht blockierend für den aktuellen Stand.
+Die Angular-Frontend-UI ist nach aktuellem Stand konform zur Material-3-/Token-Strategie. Offene Punkte sind keine überholten Basislücken mehr, sondern fortlaufende Qualitätsaufgaben: Barrierefreiheitsaudit (6.5), Thinking-Aloud-Testreihe (6.6), Word-Cloud-Ausbau (1.14a) und Review-Nachweise pro PR.

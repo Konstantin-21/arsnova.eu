@@ -61,8 +61,8 @@
 ## Nach der Vorlesung
 
 - Die **erste Vorlesungsdemo** bleibt vollständig bei **Story 1.7a / Lightbox**; andere fertige Referenzfeatures werden dafür **nicht** dazugenommen.
-- **Studierende** starten mit **Ticket 1** in [`STUDENT-STORY-REIHENFOLGE.md`](../praktikum/STUDENT-STORY-REIHENFOLGE.md) (**5.4a**), nicht mit 1.7a.
+- **Studierende** starten mit **Ticket 1** in der aktuellen [`STUDENT-STORY-REIHENFOLGE.md`](../praktikum/STUDENT-STORY-REIHENFOLGE.md), nicht mit 1.7a. Erledigte frühere Einstiegstickets wie 5.4a bleiben nur Referenz- und Reviewmaterial.
 
 ---
 
-**Stand:** 2026-04-01
+**Stand:** 2026-05-31

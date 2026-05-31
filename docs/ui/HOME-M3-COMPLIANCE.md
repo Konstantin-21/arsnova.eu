@@ -1,20 +1,22 @@
 # Startseite – Material Design 3 Compliance
 
-**Stand:** 2026-02-25
+**Stand:** 2026-05-31
+
+> Fokusaudit zur Startseite. Für verbindliche aktuelle UI-Regeln gelten [STYLEGUIDE.md](STYLEGUIDE.md), [TOKENS.md](TOKENS.md) und [PR-CHECKLIST-UI.md](PR-CHECKLIST-UI.md).
 
 ## Bereits M3-konform
 
-| Bereich | Status | Details |
-|--------|--------|---------|
-| **Theme & Tokens** | ✅ | `mat.theme()`, `--mat-sys-*` (Farben, Typo, Shape, Elevation), light/dark, Preset „Spielerisch“ mit Nunito |
-| **Komponenten** | ✅ | mat-card, mat-button, mat-form-field, mat-input, mat-button-toggle, mat-chip-set, mat-menu, mat-icon durchgängig |
-| **Typografie-Skala** | ✅ | display-small (Card-Titel), headline-small (Hero), title-large (Brand), body-small, label-small |
-| **Farben** | ✅ | Keine Hardcoded-Hex; Surface-Container für Header/Cards, Primary für Akzente |
-| **Shape** | ✅ | corner-extra-large (Cards), corner-large (Toast), corner-small (Icon) |
-| **Elevation** | ✅ | level1 (Header), level3 (Toast), level4 (Cards) – M3-konform |
-| **Layout** | ✅ | l-page (max-width 56rem), Grid für Main/Grid, responsive Breakpoints |
-| **A11y** | ✅ | strong-focus-indicators, prefers-reduced-motion, semantisches HTML |
-| **State** | ✅ | Buttons/Toggles mit Material-State-Layers; Disabled/Error-States |
+| Bereich              | Status | Details                                                                                                          |
+| -------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
+| **Theme & Tokens**   | ✅     | `mat.theme()`, `--mat-sys-*` (Farben, Typo, Shape, Elevation), light/dark, Preset „Spielerisch“ mit Nunito       |
+| **Komponenten**      | ✅     | mat-card, mat-button, mat-form-field, mat-input, mat-button-toggle, mat-chip-set, mat-menu, mat-icon durchgängig |
+| **Typografie-Skala** | ✅     | display-small (Card-Titel), headline-small (Hero), title-large (Brand), body-small, label-small                  |
+| **Farben**           | ✅     | Keine Hardcoded-Hex; Surface-Container für Header/Cards, Primary für Akzente                                     |
+| **Shape**            | ✅     | corner-extra-large (Cards), corner-large (Toast), corner-small (Icon)                                            |
+| **Elevation**        | ✅     | level1 (Header), level3 (Toast), level4 (Cards) – M3-konform                                                     |
+| **Layout**           | ✅     | l-page (max-width 56rem), Grid für Main/Grid, responsive Breakpoints                                             |
+| **A11y**             | ✅     | strong-focus-indicators, prefers-reduced-motion, semantisches HTML                                               |
+| **State**            | ✅     | Buttons/Toggles mit Material-State-Layers; Disabled/Error-States                                                 |
 
 ## Empfohlene Anpassungen (modernes M3)
 

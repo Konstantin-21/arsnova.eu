@@ -1,6 +1,6 @@
 # Impressum
 
-Angaben gemäß § 5 Telemediengesetz (TMG) bzw. § 5 Digitale-Dienste-Gesetz (DDG)
+Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG)
 
 ## Anbieter / Diensteanbieter
 
@@ -25,7 +25,7 @@ Juri-Gagarin-Ring 152, 99084 Erfurt
 
 ## Haftung für Inhalte
 
-Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für **eigene** Inhalte auf arsnova.eu nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben unberührt. Eine Haftung in diesem Zusammenhang ist erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von Rechtsverletzungen entfernen wir die betroffenen Inhalte umgehend.
+Als Diensteanbieter sind wir für **eigene** Inhalte auf arsnova.eu nach den allgemeinen Gesetzen verantwortlich. Nach den anwendbaren gesetzlichen Vorschriften sind Diensteanbieter nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen allgemein zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben unberührt. Eine Haftung in diesem Zusammenhang ist erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von Rechtsverletzungen entfernen wir die betroffenen Inhalte umgehend.
 
 ## Haftung für Links
 

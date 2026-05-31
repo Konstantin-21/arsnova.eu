@@ -1,6 +1,6 @@
 # Note legali
 
-Informazioni fornite ai sensi del § 5 della legge tedesca sui media telematici (TMG)
+Informazioni fornite ai sensi del § 5 della legge tedesca sui servizi digitali (Digitale-Dienste-Gesetz, DDG)
 
 ## Fornitore
 

@@ -8,7 +8,7 @@ Wenn du **nur kurz** Orientierung brauchst, triff zuerst diese vier Entscheidung
 1. **Welche Kurse laufen dieses Semester wirklich?**
    Standard: **FSE + SQM parallel**, **DA/NLP separat** oder versetzt.
 2. **Was ist im FSE-Praktikum realistisch Pflicht?**
-   Standard: **Pflichtkern + 1-2 Vertiefungen**, **nicht** der komplette offene Story-Katalog pro Person.
+   Standard im aktuellen Praktikumsmodell: die verbindliche offene Ticketstrecke aus [`STUDENT-STORY-REIHENFOLGE.md`](../praktikum/STUDENT-STORY-REIHENFOLGE.md). Für kurze Formate daraus bewusst eine betreute Auswahl schneiden.
 3. **Welche Tickets brauchen enge Betreuung?**
    Standard: **Security** und große **Querschnittsthemen** nur mit Pair-Review oder enger Lehrenden-Freigabe.
 4. **Welchen didaktischen Modus möchtest du in der Lehre betonen?**
@@ -18,11 +18,11 @@ Wenn du **nur kurz** Orientierung brauchst, triff zuerst diese vier Entscheidung
 
 ## 1. Empfohlenes Standardmodell
 
-| Kurs         | Empfohlener Modus                  | Praktische Leitlinie                                                                              |
-| ------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **FSE**      | Greenfield + betreute Story-Arbeit | Woche 1-3: **Story 1.7a** live; danach **Pflichtkern** und anschließend **Vertiefungen**.         |
-| **SQM**      | Parallel zum gleichen Produkt      | Nicht "hinterher testen", sondern ab Woche 4 Reviews, Tests, UX und Qualitätsartefakte mitführen. |
-| **DA / NLP** | Konzept- und evidenzlastig         | Produktbezug ja, volle Monorepo-Integration nur bei expliziter Kopplung an FSE.                   |
+| Kurs         | Empfohlener Modus                  | Praktische Leitlinie                                                                                  |
+| ------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **FSE**      | Greenfield + betreute Story-Arbeit | Woche 1-3: **Story 1.7a** live; danach die aktuelle Ticketstrecke oder eine bewusst gekürzte Auswahl. |
+| **SQM**      | Parallel zum gleichen Produkt      | Nicht "hinterher testen", sondern ab Woche 4 Reviews, Tests, UX und Qualitätsartefakte mitführen.     |
+| **DA / NLP** | Konzept- und evidenzlastig         | Produktbezug ja, volle Monorepo-Integration nur bei expliziter Kopplung an FSE.                       |
 
 **Empfohlener Lehrsatz:**
 FSE baut, SQM macht Qualität sichtbar und prüfbar, DA liefert Modelle, Prompting und Evidenz für die intelligente Moderationshilfe.
@@ -31,17 +31,18 @@ FSE baut, SQM macht Qualität sichtbar und prüfbar, DA liefert Modelle, Prompti
 
 ## 2. FSE in einem realistischen Zuschnitt
 
-Für **eine einzelne Person** im Rahmen von ca. **40 Stunden** ist der sinnvolle Standard:
+Für **eine einzelne Person** im Rahmen von ca. **40 Stunden** ist die vollständige offene Strecke meist zu groß. Der aktuelle Repo-Stand unterscheidet deshalb zwischen der **kanonischen Reihenfolge** und einem **kurzen Lehrzuschnitt**:
 
-- **Pflichtkern:** Einstieg + eine klar spezifizierte Feature-/Q&A-Strecke.
-- **Vertiefung:** 1-2 zusätzliche Tickets je nach Vorwissen, Gruppengröße und Semesterdynamik.
+- **Kanonisch:** die Reihenfolge in [`STUDENT-STORY-REIHENFOLGE.md`](../praktikum/STUDENT-STORY-REIHENFOLGE.md), aus der erledigte Stories entfernt sind.
+- **Kurzformat:** Einstieg + eine klar spezifizierte Feature-/Q&A-Strecke.
+- **Vertiefung:** zusätzliche Tickets je nach Vorwissen, Gruppengröße und Semesterdynamik.
 - **Nur mit enger Betreuung:** Security- und breit streuende Querschnittsthemen.
 
 Pragmatische Default-Regel:
 
-- **Pflichtkern:** `5.4a`, `8.7`, `8.6`
-- **Vertiefung nach Betreuungsauswahl:** `6.6`, `8.5`, `0.7`, `1.2d`, `1.14a`, `1.7b`
-- **Nur mit enger Betreuung / Pair-Review:** `2.1c`, `1.6c`, `6.5`
+- **Einstieg / sichtbarer Produktausbau:** `1.14a`, `8.5`, `8.8`
+- **Vertiefung nach Betreuungsauswahl:** `1.2ec`, `1.2ed`, `1.2d`, `1.2f–1.2i`, `2.9`, `6.6`
+- **Nur mit enger Betreuung / Pair-Review:** `0.7`, `0.8`, `1.6c`, `1.6d`, `6.5`
 
 Wenn die Kohorte klein ist, kann eine Person mehr übernehmen. Wenn die Kohorte groß oder heterogen ist, sollte die **Kohorte gemeinsam** den Katalog abdecken, nicht zwingend jede Person einzeln.
 
@@ -79,7 +80,7 @@ Geeignet für formelle Anerkennung oder kleine Leistungsanreize, ohne klassische
 
 - keine unnötigen personenbezogenen Daten verlangen
 - sensible Lehrsituationen eher mit anonymem oder druckarmem Setting fahren
-- externe KI oder LLMs nur serverseitig und nur nach geklärter Infrastruktur- und Datenschutzlage anbinden
+- externe KI oder LLMs nur über freigegebene Dienste und mit geklärter Datenschutzlage nutzen; Lehrmaterial nicht ungeprüft an arsnova.eu oder fremde Dienste hochladen
 
 Für die Lehrkommunikation reicht meist dieser kurze Satz:
 

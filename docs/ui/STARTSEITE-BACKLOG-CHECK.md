@@ -1,62 +1,42 @@
-# Startseite – Backlog-Funktionalitäts-Check
+# Startseite - Backlog-Funktionalitäts-Check
 
-**Datum:** 2026-03-20  
-**Basis:** Backlog.md – alle Optionen, die von der Startseite erreichbar oder sichtbar sein müssen
+**Stand:** 2026-05-31
+
+**Basis:** [Backlog.md](../../Backlog.md), aktuelle Startseiten-/Toolbar-Funktion, i18n- und Server-Status-Doku. Der frühere Stand vom 2026-03-20 ist ersetzt.
 
 ---
 
 ## Übersicht: Backlog vs. Startseite
 
-| Backlog-Anforderung                  | Story        | Sichtbar/Erreichbar | Ziel                           | Status                                                            |
-| ------------------------------------ | ------------ | ------------------- | ------------------------------ | ----------------------------------------------------------------- |
-| Theme-Umschalter (Light/Dark/System) | 6.1          | Header              | –                              | ✅ (Default: Dark)                                                |
-| Sprachwähler                         | 6.2          | Header              | –                              | ✅ 5 Sprachen (de, en, fr, it, es); i18n-Übersetzungen noch offen |
-| Quiz-Presets (Seriös/Spielerisch)    | 1.11         | Header              | –                              | ✅                                                                |
-| Session erstellen                    | 2.1a, Epic 1 | Erstellen-Karte     | /quiz                          | ⚠️ Platzhalter (Story 1.1 offen)                                  |
-| Quiz wählen                          | Epic 1       | Erstellen-Karte     | /quiz                          | ⚠️ Platzhalter                                                    |
-| Q&amp;A                              | 8.1          | Erstellen-Karte     | /quiz                          | ⚠️ Platzhalter (Story 8.1 offen)                                  |
-| Session-Code-Eingabe (Beitreten)     | 3.1          | Beitreten-Karte     | /session/:code                 | ✅ (Session-Info; Lobby Story 2.2 offen)                          |
-| Zuletzt beigetretene Sessions        | –            | Beitreten-Karte     | /session/:code                 | ✅ Zusatzfeature                                                  |
-| Zur Quiz-Sammlung                    | Epic 1       | Sammlungs-Karte     | /quiz                          | ✅                                                                |
-| Quiz aus Vorlage erstellen           | Epic 1       | Sammlungs-Karte     | /quiz                          | ⚠️ Platzhalter                                                    |
-| Demo starten                         | –            | Sammlungs-Karte     | /quiz                          | ✅                                                                |
-| Demo beitreten                       | –            | Sammlungs-Karte     | /session/DEMO01                | ⚠️ Platzhalter (Demo-Session im Backend optional)                 |
-| Server-Status-Widget                 | 0.4          | Status-Karte        | –                              | ✅                                                                |
-| Backend-Status / Retry               | –            | Status-Karte        | –                              | ✅ Zusatzfeature                                                  |
-| Impressum / Datenschutz              | 6.3          | Footer              | /legal/imprint, /legal/privacy | ✅                                                                |
-| Trust-Badges (DSGVO · Open Source)   | –            | Footer + Hero       | –                              | ✅ Zusatzfeature                                                  |
-| Offline-Indikator                    | –            | App-weit            | –                              | ✅ Zusatzfeature                                                  |
-| Hilfe (Onboarding)                   | –            | Erstellen-Karte     | GitHub/docs                    | ✅                                                                |
+| Backlog-Anforderung                  | Story        | Sichtbar/Erreichbar | Ziel                               | Status                                                   |
+| ------------------------------------ | ------------ | ------------------- | ---------------------------------- | -------------------------------------------------------- |
+| Theme-Umschalter (Light/Dark/System) | 6.1          | Header              | -                                  | ✅ umgesetzt                                             |
+| Sprachwähler                         | 6.2          | Header              | Locale-URL                         | ✅ `de`, `en`, `fr`, `it`, `es`                          |
+| Quiz-Presets (Seriös/Spielerisch)    | 1.11         | Header / Startseite | Quiz- und Home-Kontext             | ✅ umgesetzt                                             |
+| Session erstellen                    | 2.1a, Epic 1 | Erstellen / Quiz    | `/quiz`                            | ✅ Quiz-Sammlung, Editor und Live-Start sind umgesetzt   |
+| Quiz wählen                          | Epic 1       | Quiz-Sammlung       | `/quiz`                            | ✅ umgesetzt                                             |
+| Q&A                                  | 8.1-8.4      | Session / Host      | Session-Kanal                      | ✅ Q&A-Kern umgesetzt; Delegation 8.5 bleibt offen       |
+| Session-Code-Eingabe                 | 3.1          | Beitreten-Karte     | `/session/:code`                   | ✅ Join-Flow umgesetzt                                   |
+| Zuletzt beigetretene Sessions        | -            | Beitreten-Karte     | `/session/:code`                   | ✅ Zusatzfeature                                         |
+| Server-Status-Widget                 | 0.4 / 0.4a   | Footer / Hilfe      | `health.footerBundle`, `stats`     | ✅ Status, Rekordteilnehmende und Tagesrekorde umgesetzt |
+| Impressum / Datenschutz              | 6.3          | Footer              | `/legal/imprint`, `/legal/privacy` | ✅ lokalisierte Legal-Markdown-Dateien                   |
+| Trust-Badges / Produktversprechen    | -            | Startseite / Footer | -                                  | ✅ Zusatzfeature                                         |
+| Offline-/PWA-Verhalten               | 6.4          | App-weit            | PWA                                | ✅ PWA und Update-Hinweis umgesetzt                      |
 
 ---
 
-## Vollständigkeit: Von der Startseite erreichbare Funktionen
+## Aktuelle Lücken, die nicht durch Startseiten-Links entstehen
 
-### ✅ Vollständig erreichbar
-
-- **Beitreten:** Code-Eingabe → /session/:code (zeigt Session-Info oder Fehlermeldung)
-- **Impressum / Datenschutz:** Footer-Links → /legal/:slug
-- **Theme, Presets, Sprache:** Header-Controls (persistiert in localStorage)
-- **Server-Status:** Live-Daten + Retry bei Verbindungsfehler
-
-### ⚠️ Teilweise / Backlog offen
-
-- **Session erstellen, Quiz wählen, Q&amp;A** → /quiz (Quiz-Sammlung, Demo, Live-Start vorhanden; Rest siehe Backlog Epic 1 / 8)
-- **Quiz aus Vorlage** → /quiz (noch Platzhalter); **Zur Quiz-Sammlung / Demo starten** → /quiz ✅
-- **Demo beitreten** → /session/DEMO01 (funktioniert, wenn Demo-Session im Backend existiert)
-
-### Offene Backlog-Lücken (nicht von Startseite lösbar)
-
-- **Story 6.2:** Sprachauswahl ist vollständig (5 Sprachen); i18n-Übersetzungsdateien noch offen
-- **Story 6.1:** Theme-Default ist „Dark“, Backlog nennt „System“ als Default
-- **Story 2.2 (Lobby):** Beitreten führt zur Session-Info, nicht zur Lobby-Ansicht
-- **Story 1.1 (Quiz erstellen):** laut Backlog noch 🔴; `/quiz` ist dennoch funktional (Sammlung, Editor-Einstieg)
+- **6.5 Barrierefreiheit:** fortlaufender Audit- und Nachweispunkt.
+- **6.6 Thinking Aloud:** qualitative UX-Testreihe und Umsetzung der Befunde offen.
+- **8.5 Delegierbare Q&A-Moderation:** keine eigene Moderator-Route / kein Moderator-Token im Ist-Stand.
+- **8.8 Tempo-Blitzlicht:** als Zielbild beschlossen, aber noch nicht als Template im Code umgesetzt.
+- **1.14a Word Cloud 2.0:** weiterer UI-/Layout-Ausbau offen.
 
 ---
 
-## Zusammenfassung
+## Pflege-Regel
 
-- **Alle Startseiten-Links führen zu gültigen Zielen.** Keine toten Links.
-- **Platzhalter sind konsistent:** Quiz-Funktionen → /quiz; Beitreten → /session/:code.
-- **Zusatzfeatures:** Zuletzt beigetreten, Retry, Trust-Badges, Offline-Indikator, Demo-Buttons.
-- **Backlog-Stories:** Epic 1 (Quiz), Epic 2 (Lobby), Epic 8 (Q&amp;A) noch offen – Startseite ist vorbereitet.
+- Diese Datei beschreibt **Erreichbarkeit von der Startseite**, nicht den gesamten Produktstatus.
+- Der Produktstatus bleibt im [Backlog](../../Backlog.md) und in [APP-FUNKTIONSUEBERSICHT.md](../APP-FUNKTIONSUEBERSICHT.md) führend.
+- Bei Änderungen an Startseiten-Texten oder Toolbar-Labels immer alle XLF-Locale-Dateien synchronisieren.

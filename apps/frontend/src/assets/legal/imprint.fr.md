@@ -1,6 +1,6 @@
 # Mentions légales
 
-Informations fournies conformément à l'art. 5 de la loi allemande sur les télémédias (TMG) et à la directive européenne sur le commerce électronique.
+Informations fournies conformément à l'art. 5 de la loi allemande sur les services numériques (Digitale-Dienste-Gesetz, DDG).
 
 ## Éditeur
 

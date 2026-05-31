@@ -1,5 +1,7 @@
 # Arbeitsanweisung 01 - FSE
 
+> **Archivhinweis (2026-05-31):** Story **5.4a** ist im aktuellen Backlog umgesetzt. Diese Arbeitsanweisung dokumentiert einen früheren Praktikumsauftrag und ist nicht mehr das aktuelle Ticket 1. Die aktuelle Reihenfolge steht in [`../STUDENT-STORY-REIHENFOLGE.md`](../STUDENT-STORY-REIHENFOLGE.md).
+
 ## Auftrag
 
 Bearbeite bis zur nächsten Sitzung die Story **5.4a - Foyer-Einflug im Preset Spielerisch** vollständig und selbstständig.

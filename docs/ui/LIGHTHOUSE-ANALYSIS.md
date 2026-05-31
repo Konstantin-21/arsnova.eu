@@ -1,5 +1,7 @@
 # Lighthouse-Analyse (Lauf: 2026-02-25)
 
+> **Archivhinweis (2026-05-31):** Dies ist ein historischer Lighthouse-Lauf. Der aktuelle Build nutzt System-Schriften und selbst gehostete Material Icons; frühere Hinweise zu Google Fonts, Font-Preconnects oder Icon-Stylesheets nach `window.load` sind nicht mehr der Ist-Stand. Aktuelle Messanleitung: [LIGHTHOUSE-PERFORMANCE.md](LIGHTHOUSE-PERFORMANCE.md).
+
 **Ziel-URL:** http://localhost:4174/ (Production-Build, `dist/browser`)  
 **Lighthouse:** 12.x, Kategorien Performance, Best Practices, SEO (Headless Chrome)
 
@@ -7,29 +9,29 @@
 
 ## Gesamtergebnisse
 
-| Kategorie        | Score  |
-|------------------|--------|
-| **Performance** | 85 %   |
-| **Best Practices** | 96 % |
-| **SEO**          | 91 %   |
-| **Accessibility** | 100 % (DoD ≥ 90) |
+| Kategorie          | Score            |
+| ------------------ | ---------------- |
+| **Performance**    | 85 %             |
+| **Best Practices** | 96 %             |
+| **SEO**            | 91 %             |
+| **Accessibility**  | 100 % (DoD ≥ 90) |
 
 ---
 
 ## 1. Performance (85 %)
 
-| Metrik | Wert | Bewertung |
-|--------|------|-----------|
-| First Contentful Paint (FCP) | ~2 s | 84 % |
-| Largest Contentful Paint (LCP) | ~2,4 s | 92 % |
-| Speed Index | ~2 s | 99 % |
-| Total Blocking Time (TBT) | ~80 ms | 99 % |
-| Cumulative Layout Shift (CLS) | ~0,12 | 83 % |
-| Time to Interactive (TTI) | ~3,7 s | 91 % |
+| Metrik                         | Wert   | Bewertung |
+| ------------------------------ | ------ | --------- |
+| First Contentful Paint (FCP)   | ~2 s   | 84 %      |
+| Largest Contentful Paint (LCP) | ~2,4 s | 92 %      |
+| Speed Index                    | ~2 s   | 99 %      |
+| Total Blocking Time (TBT)      | ~80 ms | 99 %      |
+| Cumulative Layout Shift (CLS)  | ~0,12  | 83 %      |
+| Time to Interactive (TTI)      | ~3,7 s | 91 %      |
 
-**Stärken:** Geringe Main-Thread-Blockierung (async Fonts, Icons nach Load), guter Speed Index, keine render-blocking Resources im kritischen Pfad.
+**Stärken im damaligen Lauf:** Geringe Main-Thread-Blockierung, guter Speed Index, keine render-blocking Resources im kritischen Pfad.
 
-**Potenzial:** font-display bei Material-Icons (Google liefert ohne), CLS durch Font-Nachladen, Unused JS im Home-Chunk (~20 KiB), Cache-Header in Production prüfen.
+**Potenzial im damaligen Lauf:** CLS, Unused JS im Home-Chunk (~20 KiB), Cache-Header in Production prüfen. Die damaligen Font-/Icon-Hinweise sind seit der Umstellung auf System-Schriften und selbst gehostete Material Icons erledigt.
 
 ---
 
@@ -37,9 +39,9 @@
 
 ### Fehlgeschlagen / Warnung
 
-| Audit | Score | Ursache |
-|-------|--------|--------|
-| **errors-in-console** | 0 % | Browser-Fehler in der Konsole |
+| Audit                 | Score | Ursache                       |
+| --------------------- | ----- | ----------------------------- |
+| **errors-in-console** | 0 %   | Browser-Fehler in der Konsole |
 
 **Details zu „errors-in-console“:**  
 Während des Lighthouse-Laufs werden **WebSocket-Verbindungen zu `ws://localhost:3001/`** (tRPC/Backend) versucht und schlagen fehl, weil beim reinen Statik-Serve (**`npx serve dist/browser`**) kein Backend läuft. Die App versucht beim Start, eine Verbindung zum API-Server aufzubauen.
@@ -55,21 +57,21 @@ Während des Lighthouse-Laufs werden **WebSocket-Verbindungen zu `ws://localhost
 
 ### Bestanden (Auswahl)
 
-| Audit | Score |
-|-------|--------|
-| is-crawlable | 100 % |
-| document-title | 100 % |
-| meta-description | 100 % |
-| http-status-code | 100 % |
-| link-text | 100 % |
+| Audit             | Score |
+| ----------------- | ----- |
+| is-crawlable      | 100 % |
+| document-title    | 100 % |
+| meta-description  | 100 % |
+| http-status-code  | 100 % |
+| link-text         | 100 % |
 | crawlable-anchors | 100 % |
-| hreflang | 100 % |
+| hreflang          | 100 % |
 
 ### Fehlgeschlagen
 
-| Audit | Score | Maßnahme |
-|-------|--------|----------|
-| **robots.txt** | 0 % | **Umgesetzt:** `src/robots.txt` mit minimal gültigem Inhalt (`User-agent: *` + `Disallow:` leer = alles erlauben). Wichtig: Server **muss** aus **`dist/browser`** bedienen; bei SPA-Fallback liefert `/robots.txt` sonst **index.html** → der Parser sieht HTML und meldet viele Fehler (z. B. „40 errors“). Also: `npx serve dist/browser -s` und nur die Root-URL testen. |
+| Audit          | Score | Maßnahme                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **robots.txt** | 0 %   | **Umgesetzt:** `src/robots.txt` mit minimal gültigem Inhalt (`User-agent: *` + `Disallow:` leer = alles erlauben). Wichtig: Server **muss** aus **`dist/browser`** bedienen; bei SPA-Fallback liefert `/robots.txt` sonst **index.html** → der Parser sieht HTML und meldet viele Fehler (z. B. „40 errors“). Also: `npx serve dist/browser -s` und nur die Root-URL testen. |
 
 ---
 

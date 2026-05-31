@@ -1,6 +1,6 @@
 # Legal Notice
 
-Required disclosures under Section 5 of the German Telemedia Act (TMG)
+Required disclosures under Section 5 of the German Digital Services Act (Digitale-Dienste-Gesetz, DDG)
 
 ## Site Operator
 

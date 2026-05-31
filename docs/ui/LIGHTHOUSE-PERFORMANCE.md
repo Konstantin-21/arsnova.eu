@@ -9,13 +9,12 @@ Mit **Angular + Angular Material** sind **50–70 % Performance** bei Lighthou
 **Lighthouse immer gegen einen Production-Build laufen lassen.** Im Development-Modus (`ng serve`) ist das Bundle unminifiziert und nicht optimiert – das führt zu schlechten Performance-Werten (~50 %).
 
 ```bash
-cd apps/frontend
-npm run build -- --configuration=production
-npx serve dist/browser -s
-# Dann in Chrome: http://localhost:3000 → DevTools → Lighthouse → Performance (Mobile)
+npm run build:prod
+npm run serve:localize -w @arsnova/frontend
+# Dann in Chrome: http://localhost:4200/de/ → DevTools → Lighthouse → Performance (Mobile)
 ```
 
-Hinweis: Der Build-Output liegt unter **`dist/browser/`** (Angular Application Builder). Beim Servieren immer **`dist/browser`** als Dokument-Wurzel nutzen, damit `/` die App lädt und nicht ein Verzeichnislisting.
+Hinweis: Der lokalisierte Build-Output liegt unter **`apps/frontend/dist/browser/`**. Beim Servieren immer **`dist/browser`** als Dokument-Wurzel nutzen, damit `/de/`, `/en/`, `/fr/`, `/it/` und `/es/` die App laden und nicht ein Verzeichnislisting.
 
 Alternativ: `npx http-server dist/browser -p 8080 -c-1`
 
@@ -30,28 +29,27 @@ Wenn der Server **nicht** aus **`dist/browser`** bedient wird, liefert die SPA b
 
 ## Umgesetzte Optimierungen
 
-| Maßnahme | Zweck |
-|----------|--------|
-| **Fonts async + optional** | Google Fonts mit `display=optional` und `media="print"` + `onload="this.media='all'"` – blockieren nicht, weniger Layout-Shift (CLS). |
-| **Material Icons nach Load** | Icon-Stylesheet wird per Script erst nach `window.load` eingebunden, damit der kritische Pfad frei bleibt. Icons erscheinen kurz nach dem ersten Paint. |
-| **Preconnect** | `preconnect` zu `fonts.googleapis.com` und `fonts.gstatic.com` für frühen Verbindungsaufbau. |
-| **Lazy Loading** | Alle Routen (Home, Quiz, Session, Legal) laden ihre Komponenten per `loadComponent()` (Code-Splitting). |
-| **Bundle-Budgets** | `angular.json`: initial max. 500 kB (Warning), 1 MB (Error). |
-| **Service Worker** | PWA/ngsw für Production – Caching bei wiederholten Besuchen. |
+| Maßnahme                            | Zweck                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **System-Schriften**                | Keine Google-Fonts-Requests; dadurch kein externer Font-Fetch und kein Google-Verbindungsaufbau.        |
+| **Selbst gehostete Material Icons** | `material-icons.woff2` liegt unter `assets/fonts/`; Icons laden vom eigenen Server.                     |
+| **Keine Font-Preconnects**          | Keine `preconnect`-Einträge zu Google-Font-Domains mehr notwendig.                                      |
+| **Lazy Loading**                    | Alle Routen (Home, Quiz, Session, Legal) laden ihre Komponenten per `loadComponent()` (Code-Splitting). |
+| **Bundle-Budgets**                  | `angular.json`: initial max. 1.70 MB (Warning), 1.85 MB (Error).                                        |
+| **Service Worker**                  | PWA/ngsw für Production – Caching bei wiederholten Besuchen.                                            |
 
 ## DoD-Checks: 320px & Accessibility
 
 - **Kein horizontales Scrollen ab 320px (Story 6.4):**  
-  Nach dem Build: `npx serve dist/browser -s` starten, dann `npm run check:viewport` (erwartet `BASE_URL`, Default `http://localhost:3000`). Prüft 320px-Viewport für `/`, `/legal/imprint`, `/legal/privacy`, `/quiz`, `/session/DEMO01`.
+  Nach dem Build: `npm run serve:localize -w @arsnova/frontend` starten, dann `BASE_URL=http://localhost:4200 npm run check:viewport -w @arsnova/frontend`. Prüft den 320px-Viewport für die konfigurierten Kernrouten.
 
 - **Lighthouse Accessibility ≥ 90 (DoD):**  
-  `npm run lighthouse:a11y` – startet bei Bedarf einen lokalen Serve und gibt den Accessibility-Score aus. Optional: `LIGHTHOUSE_URL=http://localhost:3000 npm run lighthouse:a11y`, wenn bereits ein Serve läuft.
+  `npm run lighthouse:a11y -w @arsnova/frontend` – startet bei Bedarf einen lokalen Serve und gibt den Accessibility-Score aus. Optional: `LIGHTHOUSE_URL=http://localhost:4200/de/ npm run lighthouse:a11y -w @arsnova/frontend`, wenn bereits ein Serve läuft.
 
 ---
 
 ## Weitere Tipps bei Bedarf
 
 - **Bundle analysieren:** `cd apps/frontend && npm run build -- --configuration=production --stats-json`, dann mit [source-map-explorer](https://www.npmjs.com/package/source-map-explorer) oder [webpack-bundle-analyzer](https://www.npmjs.com/package/webpack-bundle-analyzer) die größten Pakete prüfen (z. B. Angular Material, tRPC).
-- **Font-Subset:** Nur benötigte Schriftschnitte laden – bereits umgesetzt (Roboto 400/500, Nunito 400/700).
-- **Material Icons:** Falls Performance weiter Priorität hat, auf SVG-Icons oder ein selbst gehostetes Icon-Subset wechseln, um die Icon-Font-Größe zu reduzieren.
-- **LCP:** Hero und erste Card bleiben schlank; `display=optional` vermeidet längeren unsichtbaren Text (FOIT) und reduziert CLS.
+- **Icon-Subset:** Falls Performance weiter Priorität hat, die selbst gehostete Material-Icon-Font durch SVG-Icons oder ein kleineres Icon-Subset ersetzen.
+- **LCP:** Hero und erste Card bleiben schlank; System-Schriften vermeiden FOIT durch externe Font-Ladepfade.
