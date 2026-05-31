@@ -1,6 +1,8 @@
 # Admin-Flow (Epic 9)
 
-Diese Dokumentation beschreibt den technischen und operativen Ablauf des Admin-Bereichs (`/admin`) inklusive Authentifizierung, Session-Löschung, Behördenexport und Fehlerbehebung.
+Diese Dokumentation beschreibt den technischen und operativen Ablauf des Admin-Bereichs (`/admin`) inklusive Authentifizierung, Session-Recherche, Legal Hold, Löschung, Behördenexport, Plattformstatistik und Fehlerbehebung.
+
+**Stand:** 2026-05-31 — abgeglichen mit `apps/backend/src/routers/admin.ts`, `apps/backend/src/lib/adminAuth.ts`, `apps/frontend/src/app/features/admin/`, [ENVIRONMENT.md](../ENVIRONMENT.md) und [deployment-debian-root-server.md](../deployment-debian-root-server.md).
 
 ## 1. Zweck und Geltungsbereich
 
@@ -9,6 +11,7 @@ Der Admin-Flow deckt drei Kernaufgaben ab:
 - **Story 9.1:** Sessions und Session-Details recherchieren
 - **Story 9.2:** Sessions (inkl. ggf. unreferenziertem Quiz) final löschen, mit Audit-Log
 - **Story 9.3:** Behördenauszug als PDF (primär) oder JSON (optional) exportieren, mit Audit-Log
+- zusätzliche Betreiberfunktionen: Legal Hold setzen/lösen, alle Sessions mit Sicherheitsphrase löschen, Rekordteilnehmerzahl zurücksetzen und Session als Quiz-Importformat exportieren
 
 Der Flow ist als **Shared-Secret-Login** umgesetzt:
 
@@ -20,7 +23,7 @@ Der Flow ist als **Shared-Secret-Login** umgesetzt:
 
 ### 2.1 Umgebungsvariablen
 
-In `.env` müssen mindestens diese Werte gesetzt sein:
+Für reproduzierbare lokale Admin-Tests sollten diese Werte gesetzt sein:
 
 ```dotenv
 ADMIN_SECRET="set-a-strong-admin-secret"
@@ -38,16 +41,26 @@ Hinweis:
 
 - Backend: `http://localhost:3000` (`/trpc`)
 - Frontend (Dev): `http://localhost:4200`
+- Redis: Admin-Session-Tokens werden mit TTL in Redis gespeichert
 - Optional lokalisierter Build mit API-Proxy: `npm run serve:localize:api -w @arsnova/frontend`
+
+### 2.3 Produktion
+
+In Produktion kommen dieselben Variablen aus `.env.production`:
+
+- `ADMIN_SECRET` stark setzen; niemals aus `.env.example` übernehmen.
+- `ADMIN_SESSION_TTL_SECONDS=28800` ist der Standard für 8 Stunden.
+- `ADMIN_LEGAL_HOLD_DEFAULT_DAYS=30` steuert die Default-Dauer beim Setzen eines Legal Hold.
+- `REDIS_URL` muss erreichbar sein, sonst können Admin-Login und Tokenprüfung nicht zuverlässig funktionieren.
 
 ## 3. Authentifizierungsmodell
 
-## 3.1 Wichtige Regel
+### 3.1 Wichtige Regel
 
 Der `ADMIN_SECRET` ist **nur** für `admin.login` gedacht.  
 Alle geschützten Admin-Prozeduren (`admin.listSessions`, `admin.getSessionDetail`, `admin.deleteSession`, `admin.exportForAuthorities`, ...) akzeptieren **nur** ein gültiges Admin-Session-Token.
 
-## 3.2 Technischer Ablauf
+### 3.2 Technischer Ablauf
 
 1. Client ruft `admin.login` mit Secret auf.
 2. Backend verifiziert Secret (`verifyAdminSecret`).
@@ -57,8 +70,9 @@ Alle geschützten Admin-Prozeduren (`admin.listSessions`, `admin.getSessionDetai
      oder
    - `Authorization: Bearer <token>`
 5. `adminProcedure` validiert das Token zentral gegen Redis.
+6. `admin.logout` löscht das Token serverseitig aus Redis.
 
-## 3.3 Token im Frontend
+### 3.3 Token im Frontend
 
 - Storage-Key: `arsnova-admin-token`
 - Speicherort: `window.sessionStorage`
@@ -77,7 +91,10 @@ Alle geschützten Admin-Prozeduren (`admin.listSessions`, `admin.getSessionDetai
 7. Optional:
    - Legal Hold setzen/lösen
    - Behördenexport starten (PDF/JSON)
+   - Session als Quiz-Importformat exportieren
    - Session endgültig löschen
+   - alle Sessions mit Sicherheitsphrase löschen
+   - Rekord maximale Teilnehmerzahl zurücksetzen
 
 **Wichtig:** Im aktuellen Frontend gibt es dafür **keinen separaten Angular-Route-Guard**; das Gating passiert komponentenintern plus serverseitig über `adminProcedure`.
 
@@ -90,6 +107,7 @@ Zusätzliche Sicherheits-/Bedienregeln:
 - Der Admin-Schlüssel ist **nicht** der Bestätigungscode.
 - Bei Retention-Status `PURGED` wird Löschen serverseitig abgelehnt.
 - Ein Audit-Log-Eintrag mit Action `SESSION_DELETE` wird angelegt.
+- Zusätzlich gibt es eine Massenlöschung aller Sessions mit Sicherheitsphrase **`ALLE SESSIONS LOESCHEN`** und erwarteter Session-Anzahl. Sie ist für Betreiber-Reset/Notfall gedacht, nicht für normale Wartung.
 
 ### 4.2 Export-Flow (Story 9.3)
 
@@ -97,6 +115,13 @@ Zusätzliche Sicherheits-/Bedienregeln:
 - Ausgabe enthält normalisierte Markdown-/KaTeX-Inhalte in lesbarer Textform
 - Bei `PURGED` wird Export serverseitig abgelehnt
 - Audit-Log-Eintrag mit Action `EXPORT_FOR_AUTHORITIES`
+- Optional kann ein Grund und eine Fallreferenz mitgegeben werden.
+
+### 4.3 Plattformstatistik
+
+- `admin.resetMaxParticipantsRecord` setzt den Allzeit-Rekord `PlatformStatistic.maxParticipantsSingleSession` auf `0`.
+- Die UI verlangt die Sicherheitsphrase **`REKORD RESETZEN`**.
+- Tagesrekorde (`DailyStatistic`) werden dadurch nicht gelöscht.
 
 ## 5. API-Kurzreferenz (tRPC)
 
@@ -114,33 +139,61 @@ Die folgenden Prozedurnamen und Aufgaben sind **kanonisch**. Für Rohaufrufe per
 - Erfordert gültiges Admin-Token
 - Output: `{ authenticated: true }`
 
-## 5.3 Sessions laden
+## 5.3 Sessions laden / suchen
 
 - Procedure: `admin.listSessions`
 - Input: `page`, `pageSize`, optional Filter `status`, `type`, `code`
 - Output: paginierte Session-Liste innerhalb des Recherchefensters
+- Procedure: `admin.getSessionByCode`
+- Input: `code`
+- Output: Session-Detailansicht oder Fehler, wenn nicht gefunden
 
-## 5.4 Session löschen
+## 5.4 Sessiondetail und Legal Hold
+
+- Procedure: `admin.getSessionDetail`
+- Input: `sessionId`
+- Output: Session-Metadaten und Quizfragen/-antworten für Admin-Inspektion
+- Procedure: `admin.setLegalHold`
+- Input: `sessionId`, `enabled`, optional `reason`, optional `holdDays`
+- Output: aktualisierter Retention-Status
+
+## 5.5 Session löschen
 
 - Procedure: `admin.deleteSession`
 - Input: `sessionId`, optional `reason`
 - Output: `deleted`, `sessionId`, `sessionCode`
+- Procedure: `admin.deleteAllSessions`
+- Input: `confirmationText`, `expectedSessionCount`, optional `reason`
+- Output: Anzahl gelöschter Sessions und unreferenzierter Quizze
 
-## 5.5 Export
+## 5.6 Export
 
 - Procedure: `admin.exportForAuthorities`
-- Input: `sessionId`, Format (`PDF` oder `JSON`)
+- Input: `sessionId`, Format (`PDF` oder `JSON`), optional `reason`, optional `caseReference`
 - Output: Export-Metadaten plus Nutzdaten/Dateiinhalt gemäß DTO
+- Procedure: `admin.exportSessionAsQuizImport`
+- Input: `sessionId`
+- Output: Quiz-Importdatei aus der Session-Struktur
+
+## 5.7 Plattformstatistik
+
+- Procedure: `admin.resetMaxParticipantsRecord`
+- Input: `confirmationText`
+- Output: vorheriger und aktueller Wert von `maxParticipantsSingleSession`
 
 ## 6. Troubleshooting
 
-| Symptom                                                            | Ursache                                                             | Lösung                                                   |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------- |
-| `Admin-Authentifizierung ist nicht konfiguriert.`                  | `ADMIN_SECRET` fehlt im Backend-Prozess                             | `.env` prüfen, Backend neu starten                       |
-| `Unexpected token 'B', "Backend ni"... is not valid JSON`          | Proxy liefert Klartext-Fehler statt JSON (Backend nicht erreichbar) | Backend starten, Proxy-Ziel (`/trpc -> :3000`) prüfen    |
-| Login klappt, aber `deleteSession` schlägt mit `UNAUTHORIZED` fehl | Token fehlt/ist falsch/abgelaufen/gegen falschen Port verwendet     | `admin.whoami` mit demselben Token testen, Header prüfen |
-| Delete-Button in UI bleibt deaktiviert                             | Bestätigungscode stimmt nicht mit Session-Code überein              | Exakten 6-stelligen Session-Code eingeben                |
-| Löschen/Export nicht möglich wegen Retention                       | Session ist bereits `PURGED`                                        | Erwartetes Verhalten; keine Daten mehr verfügbar         |
+| Symptom                                                            | Ursache                                                             | Lösung                                                               |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `Admin-Authentifizierung ist nicht konfiguriert.`                  | `ADMIN_SECRET` fehlt im Backend-Prozess                             | `.env` / `.env.production` prüfen, Backend neu starten               |
+| Login schlägt trotz korrektem Secret sporadisch fehl               | Redis nicht erreichbar oder falsche `REDIS_URL`                     | Redis-Container prüfen, `REDIS_URL` und Container-Logs kontrollieren |
+| `Unexpected token 'B', "Backend ni"... is not valid JSON`          | Proxy liefert Klartext-Fehler statt JSON (Backend nicht erreichbar) | Backend starten, Proxy-Ziel (`/trpc -> :3000`) prüfen                |
+| Login klappt, aber `deleteSession` schlägt mit `UNAUTHORIZED` fehl | Token fehlt/ist falsch/abgelaufen/gegen falschen Port verwendet     | `admin.whoami` mit demselben Token testen, Header prüfen             |
+| Delete-Button in UI bleibt deaktiviert                             | Bestätigungscode stimmt nicht mit Session-Code überein              | Exakten 6-stelligen Session-Code eingeben                            |
+| Massenlöschung bleibt deaktiviert                                  | Sicherheitsphrase oder erwartete Session-Anzahl passt nicht         | Liste aktualisieren und exakt `ALLE SESSIONS LOESCHEN` eingeben      |
+| Rekord-Reset bleibt deaktiviert                                    | Sicherheitsphrase fehlt/falsch                                      | Exakt `REKORD RESETZEN` eingeben                                     |
+| Löschen/Export nicht möglich wegen Retention                       | Session ist bereits `PURGED`                                        | Erwartetes Verhalten; keine Daten mehr verfügbar                     |
+| Admin sieht falsche IP-/Rate-Limit-Effekte hinter Nginx            | Proxy-Header oder `TRUST_PROXY_HOPS` falsch                         | Nginx `X-Forwarded-For`/`X-Real-IP` und `TRUST_PROXY_HOPS=1` prüfen  |
 
 ## 7. Sicherheitsnotizen
 
@@ -148,3 +201,4 @@ Die folgenden Prozedurnamen und Aufgaben sind **kanonisch**. Für Rohaufrufe per
 - Alle kritischen Aktionen laufen über serverseitig geschützte `adminProcedure`.
 - Lösch- und Exportaktionen werden auditiert.
 - Token lebt bewusst nur in `sessionStorage` (tab-/sitzungsgebunden).
+- Admin-Flow ersetzt keinen formalen Datenschutz-/Legal-Prozess; Betreiber müssen Zuständigkeiten, Aufbewahrung, Exportfreigabe und Incident-Kommunikation außerhalb der App festlegen.

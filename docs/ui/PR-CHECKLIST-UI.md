@@ -1,70 +1,93 @@
 # PR-Checklist UI (Angular Material 3)
 
-Diese Checkliste ist fuer alle PRs mit UI-Aenderungen in `apps/frontend` verpflichtend.
+Diese Checkliste ist für alle PRs mit UI-Änderungen in `apps/frontend` verpflichtend.
 
-## 1) Design-System-Konformitaet
+**Stand:** 2026-05-31 — abgeglichen mit [STYLEGUIDE.md](STYLEGUIDE.md), [TOKENS.md](TOKENS.md), Angular 21.2, den aktuellen Frontend-Skripten und der i18n-Dokumentation.
 
-- [ ] Es wurden keine Tailwind-Klassen, Tailwind-Configs oder Tailwind-Utilities eingefuehrt.
-- [ ] Neue interaktive UI nutzt primaer Angular-Material-Komponenten.
+## 1) Design-System-Konformität
+
+- [ ] Neue interaktive UI nutzt primär Angular-Material-Komponenten.
 - [ ] Eigenkomponenten wurden nur dort verwendet, wo Material funktional nicht ausreicht.
+- [ ] Es wurden keine Tailwind-Klassen, Tailwind-Configs oder Tailwind-Utilities eingeführt.
+- [ ] Spielerisch/Seriös bleiben über `html.preset-playful` und Tokens getrennt; keine Preset-Sonderlogik über freie Hex-Werte.
 
 ## 2) Theming und Tokens
 
 - [ ] Farben, Typografie, Shape und Elevation kommen aus Tokens.
-- [ ] Keine hardcoded Hex-/RGB-Werte fuer Standard-UI-Semantik.
-- [ ] App-Semantik-Tokens (`--app-*`) sind auf System-Tokens (`--mat-sys-*`) gemappt.
-- [ ] Neue Token-Bedarfe sind in `docs/ui/TOKENS.md` ergaenzt oder begruendet.
+- [ ] Keine hardcoded Hex-/RGB-Werte für Standard-UI-Semantik.
+- [ ] App-Semantik-Tokens (`--app-*`, `--arsnova-*`) sind in [TOKENS.md](TOKENS.md) dokumentiert oder bewusst komponentenspezifisch scoped.
+- [ ] Neue Token-Bedarfe sind begründet, möglichst eng gescoped und in Light/Dark sowie Spielerisch/Seriös geprüft.
+- [ ] Status-, Bewertungs- und Chart-Farben nutzen die dokumentierten Ausnahmen statt neuer Einzelfarben.
 
-## 3) Angular-Material-Overrides
+## 3) Angular-Material-Overrides und Overlays
 
+- [ ] Anpassungen an Material-Komponenten erfolgen über `mat.theme-overrides(...)` oder `<component>-overrides(...)`.
 - [ ] Keine fragilen Overrides gegen interne Material-DOM-Strukturen.
-- [ ] Anpassungen an Material-Komponenten erfolgen ueber `mat.theme-overrides(...)` oder `<component>-overrides(...)`.
-- [ ] Keine Deep-Selector-Hacks fuer Material-Komponenten.
+- [ ] Kein neues `::ng-deep`.
+- [ ] Globale Overlay-Regeln sind über enge `panelClass` / `backdropClass` begrenzt.
+- [ ] Standard-Dialoge nutzen `dialog-title-header`; Fullscreen-Tools (Word Cloud, Bild-Lightbox) sind als Ausnahme begründet und separat auf Fokus/Close/Scroll geprüft.
 
 ## 4) Layout und SCSS-Patterns
 
-- [ ] Layout wurde ueber zentrale Pattern (Stack, Cluster, Grid, Inset, Section) umgesetzt.
+- [ ] Seiten nutzen passende globale Layouts: `.l-page`, `.l-section` oder `.content-page-layer`.
+- [ ] Layout wurde über zentrale Pattern (Stack, Cluster, Grid, Inset, Section) umgesetzt.
 - [ ] Kein einmaliger Spacing-/Layout-Hack ohne Wiederverwendungsabsicht.
 - [ ] Struktur-Styles und visuelle Semantik sind getrennt.
-- [ ] Lesbarkeits-Mindestwerte eingehalten (Body `line-height >= 1.5`, Hint/Error `>= 1.4`, Feldabstand `>= 1rem`).
-- [ ] Luftiger Vertikalrhythmus eingehalten (zwischen Hilfetext und Widget `>= 0.45rem`, zwischen aufeinanderfolgenden Aktions-Widgets `>= 0.65rem`).
+- [ ] Lesbarkeits-Mindestwerte eingehalten: Body `line-height >= 1.5`, Hint/Error `>= 1.4`, Feldabstand `>= 1rem`.
+- [ ] Luftiger Vertikalrhythmus eingehalten: Hilfetext zu Widget `>= 0.45rem`, aufeinanderfolgende Aktions-Widgets `>= 0.65rem`.
+- [ ] 320 px Breite ohne horizontales Scrollen geprüft.
 
-## 5) Accessibility und States
+## 5) Accessibility und Interaction States
 
-- [ ] Light/Dark wurde geprueft.
-- [ ] Fokuszustand ist sichtbar und kontrastreich.
-- [ ] Disabled, Error, Hover, Focus wurden getestet.
-- [ ] Kontrast ist fuer relevante Text/Surface-Kombinationen plausibel.
-- [ ] Bei ungueltigem Submit springt der Fokus auf das erste fehlerhafte Feld (inkl. Scroll).
+- [ ] Light/Dark wurde geprüft.
+- [ ] Spielerisch/Seriös wurde geprüft, wenn Farben, Flächen oder Schatten betroffen sind.
+- [ ] Fokuszustand ist sichtbar, logisch erreichbar und kontrastreich.
+- [ ] Disabled, Error, Hover, Focus und Loading wurden getestet.
+- [ ] Kontrast ist für relevante Text/Surface-Kombinationen plausibel.
+- [ ] Bei ungültigem Submit springt der Fokus auf das erste fehlerhafte Feld inklusive Scroll.
+- [ ] Motion ist bei `prefers-reduced-motion: reduce` nutzbar und ohne Informationsverlust.
+- [ ] Touch-Targets sind auf Mobile groß genug und nicht überlappt.
 
-## 6) Regression und Qualitaet
+## 6) Wording, Locale und Content
 
-- [ ] Betroffene Screens wurden manuell geprueft (Desktop + relevante Breakpoints).
+- [ ] Neue oder geänderte UI-Texte sind in `de`, `en`, `fr`, `es`, `it` synchron.
+- [ ] Bei Legal-Texten sind die passenden Markdown-Dateien je Locale geprüft.
+- [ ] Wording entspricht dem Styleguide: Du-Ansprache, zielgruppenneutral, keine unnötigen Anglizismen.
+- [ ] Feste Übersetzungs-IDs (`@@...`) bleiben stabil oder wurden bewusst migriert.
+- [ ] Datum/Zeit ist in deutscher UI als `de-DE` formatiert.
+- [ ] Deutsche UI nutzt „Vorschau“, „Tastenkürzel“, „gültig“ und vermeidet technische Begriffe in Primärtexten.
+
+## 7) Feature-spezifische Regression
+
+- [ ] Betroffene Screens wurden manuell geprüft: Desktop, 840 px, 600 px und 320 px soweit relevant.
 - [ ] Es gibt keine visuelle Regression bei bestehenden Material-Komponenten.
-- [ ] Ueberfluessige Alt-Styles wurden entfernt (kein paralleler Stilpfad).
-- [ ] Overflow-Menues enthalten keine redundanten Duplikate einer bereits sichtbaren Primaeraktion.
+- [ ] Überflüssige Alt-Styles wurden entfernt; kein paralleler Stilpfad.
+- [ ] Overflow-Menüs enthalten keine redundanten Duplikate einer bereits sichtbaren Primäraktion.
 - [ ] Preview-Ansichten sind nicht interaktiv (Radio/Checkbox nur visuell).
-- [ ] Markdown/KaTeX wird in allen relevanten Ansichten konsistent gerendert (Liste, Edit, Preview).
+- [ ] Markdown/KaTeX wird in Liste, Edit, Preview und Live-Ansicht konsistent gerendert.
+- [ ] Markdown-Bilder und Lightbox wurden geprüft, wenn Markdown-Rendering betroffen ist.
+- [ ] Word-Cloud-Fullscreen-Dialoge wurden auf Desktop/Mobile geprüft, wenn Wortwolken betroffen sind.
 
-## 7) Dokumentation
+## 8) Checks
+
+Mindestens passend zur Änderung ausführen oder im PR begründen, warum nicht:
+
+- [ ] fokussierter Frontend-Test: `npm run test -w @arsnova/frontend -- <path-to-spec>`
+- [ ] Frontend-Typecheck: `npm run typecheck -w @arsnova/frontend`
+- [ ] UI-/Copy-Änderung: `npm run build:localize -w @arsnova/frontend` oder Root `npm run build:prod`
+- [ ] Viewport-Smoke bei laufender App: `BASE_URL=http://localhost:4200 npm run check:viewport -w @arsnova/frontend`
+- [ ] A11y-Smoke bei laufender App: `BASE_URL=http://localhost:4200 npm run lighthouse:a11y -w @arsnova/frontend`
+- [ ] Markdown-only: `npx prettier --check <dateien>` und `git diff --check -- <dateien>`
+
+## 9) Dokumentation
 
 - [ ] ADR `0005` wurde beachtet.
-- [ ] Styleguide und Tokens-Doku wurden bei Bedarf aktualisiert.
-- [ ] Ausnahmen (falls vorhanden) sind dokumentiert mit Scope, Dauer und Rueckbauplan.
-
-## 8) Wording und Locale
-
-- [ ] Wording entspricht dem Glossar im Styleguide (z. B. "Vorschau", "Tastenkürzel", "gueltig").
-- [ ] Primaertexte sind nutzerorientiert und enthalten keinen unnötigen Technik-Jargon.
-- [ ] Datum/Zeit ist in deutscher UI als `de-DE` formatiert.
-
-## 9) Guardrails (quick checks)
-
-- [ ] Kein `::ng-deep` in geaenderten Feature-SCSS-Dateien.
-- [ ] Keine Selektoren gegen interne Material-Elemente (`.mat-mdc-*`, `.mdc-*`) ohne dokumentierte Ausnahme.
+- [ ] [STYLEGUIDE.md](STYLEGUIDE.md) und [TOKENS.md](TOKENS.md) wurden bei Bedarf aktualisiert.
+- [ ] i18n-Regeln aus `docs/I18N-ANGULAR.md` wurden beachtet.
+- [ ] Ausnahmen sind dokumentiert mit Scope, Dauer und Rückbauplan.
 
 ## Reviewer-Entscheidung
 
 - [ ] Freigabe
 - [ ] Freigabe mit Auflagen
-- [ ] Aenderungen erforderlich
+- [ ] Änderungen erforderlich

@@ -1,5 +1,7 @@
 # Deployment: arsnova.eu auf Debian Root-Server
 
+> **Stand:** 2026-05-31 — abgeglichen mit `docker-compose.prod.yml`, `.env.production.example`, `scripts/deploy.sh`, Root-[README](../README.md), [ENVIRONMENT.md](ENVIRONMENT.md), [SECURITY-OVERVIEW.md](SECURITY-OVERVIEW.md) und [TESTING.md](TESTING.md).
+>
 > **Domain:** Die hier beschriebene Produktionsinstanz ist unter
 > https://arsnova.eu erreichbar. Falls bei künftigen Deployments ein
 > anderer Hostname verwendet wird, passe die Nginx-Konfiguration sowie
@@ -279,121 +281,32 @@ Nach dem Lauf steht in `/etc/nginx/sites-available/arsnova-click` bereits ein fu
 
 ### 5.3 Schritt 2 – Finale Nginx-Konfiguration (HTTPS + App-Proxy)
 
-Jetzt ergänzen wir die Nginx-Konfiguration um die **Upstreams** (Weiterleitung an die Docker-Container), **Security-Header** und **WebSocket-Proxy-Regeln**.
+Jetzt ergänzen wir die Nginx-Konfiguration um die **Upstreams** (Weiterleitung an die lokal gebundenen Docker-Ports), **Security-Header** und **WebSocket-Proxy-Regeln**.
 
 Öffne `/etc/nginx/sites-available/arsnova-click` und ersetze den gesamten Inhalt durch die vollständige Konfiguration unten.
 
-> **Wichtig:** Die `ssl_certificate`-Pfade unten (`/etc/letsencrypt/live/arsnova.eu/...`) sollten mit euren übereinstimmen. Kurz prüfen mit: `ls /etc/letsencrypt/live/`
+> **Wichtig:** Die `ssl_certificate`-Pfade unten (`/etc/letsencrypt/live/arsnova.eu/...`) müssen zu deiner Domain passen. Kurz prüfen mit: `ls /etc/letsencrypt/live/`
 
-````nginx
-# Upstreams: Weiterleitung an die Docker-Container auf localhost
+```nginx
+# Upstreams: Docker-Ports sind in docker-compose.prod.yml nur auf 127.0.0.1 gebunden.
 upstream app_http {
     server 127.0.0.1:3000;   # HTTP (tRPC + Angular-Frontend)
 }
+
 upstream app_ws_trpc {
     server 127.0.0.1:3001;   # WebSocket (tRPC-Subscriptions)
 }
+
 upstream app_ws_yjs {
     server 127.0.0.1:3002;   # WebSocket (Yjs Quiz-Sync)
 }
 
-
-> **Vollständiges Beispiel**
->
-> Die nachfolgende Konfiguration entspricht der kompletten
-> `/etc/nginx/sites-available/arsnova-click`-Datei, wie sie auf einem
-> Produktionsserver liegt. Du kannst sie 1:1 übernehmen und nur den
-> `server_name`/`ssl_certificate`-Pfad anpassen.
->
-> ```nginx
-> # Upstreams (wie oben) …
-> upstream app_http {
->     server 127.0.0.1:3000;
-> }
-> upstream app_ws_trpc {
->     server 127.0.0.1:3001;
-> }
-> upstream app_ws_yjs {
->     server 127.0.0.1:3002;
-> }
->
-> # HTTP → HTTPS Redirect
-> server {
->     listen 80;
->     listen [::]:80;
->     server_name arsnova.eu www.arsnova.eu;
->
->     location /.well-known/acme-challenge/ {
->         root /var/www/certbot;
->         allow all;
->     }
->
->     location / {
->         return 301 https://$host$request_uri;
->     }
-> }
->
-> # HTTPS – verschlüsselter Zugang + WebSocket-Proxy
-> server {
->     listen 443 ssl;
->     listen [::]:443 ssl;
->     http2 on;
->     server_name arsnova.eu www.arsnova.eu;
->
->     ssl_certificate     /etc/letsencrypt/live/arsnova.eu/fullchain.pem;
->     ssl_certificate_key /etc/letsencrypt/live/arsnova.eu/privkey.pem;
->     include /etc/letsencrypt/options-ssl-nginx.conf;
->     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
->
->     # Security Headers … (unchanged) …
->
->     access_log /var/log/nginx/arsnova_click_access.log;
->     error_log  /var/log/nginx/arsnova_click_error.log;
->
->     location / {
->         proxy_pass http://app_http;
->         proxy_http_version 1.1;
->         proxy_set_header Host $host;
->         proxy_set_header X-Real-IP $remote_addr;
->         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
->         proxy_set_header X-Forwarded-Proto $scheme;
->     }
->
->     location /trpc-ws {
->         proxy_pass http://app_ws_trpc/;
->         proxy_http_version 1.1;
->         proxy_set_header Upgrade $http_upgrade;
->         proxy_set_header Connection "upgrade";
->         proxy_set_header Host $host;
->         proxy_set_header X-Real-IP $remote_addr;
->         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
->         proxy_set_header X-Forwarded-Proto $scheme;
->     }
->
->     location /yjs-ws {
->         proxy_pass http://app_ws_yjs/;
->         proxy_http_version 1.1;
->         proxy_set_header Upgrade $http_upgrade;
->         proxy_set_header Connection "upgrade";
->         proxy_set_header Host $host;
->         proxy_set_header X-Real-IP $remote_addr;
->         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
->         proxy_set_header X-Forwarded-Proto $scheme;
->         proxy_read_timeout 86400;
->     }
-> }
-> ```
->
-> Die vorherige Anleitung erklärt Schritt für Schritt, wie du diese Datei
-> erstellst; falls du manuelle Anpassungen brauchst, findest du sie dort.
->
-# HTTP → HTTPS Redirect (alle Anfragen auf Port 80 → verschlüsselt auf 443)
+# HTTP → HTTPS Redirect
 server {
     listen 80;
     listen [::]:80;
     server_name arsnova.eu www.arsnova.eu;
 
-    # Certbot braucht diesen Pfad für die Zertifikatserneuerung
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         allow all;
@@ -405,31 +318,27 @@ server {
 }
 
 # HTTPS – verschlüsselter Zugang + WebSocket-Proxy
-# Ab Nginx 1.25.1: HTTP/2 mit „http2 on;“ statt „listen … http2“ (sonst Deprecation-Warnung).
+# Kompatibel mit Debian-12-Nginx; neuere Versionen können dafür eine Deprecation-Warnung zeigen.
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name arsnova.eu www.arsnova.eu;
 
-    # TLS-Zertifikate (von Certbot in Schritt 5.2 generiert)
     ssl_certificate     /etc/letsencrypt/live/arsnova.eu/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/arsnova.eu/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Security Headers – schützen vor gängigen Angriffen
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
-    # Logs
     access_log /var/log/nginx/arsnova_click_access.log;
     error_log  /var/log/nginx/arsnova_click_error.log;
 
-    # API + tRPC + statisches Frontend → App-Container auf Port 3000
+    # API + tRPC HTTP + statisches Frontend → App-Container auf Port 3000
     location / {
         proxy_pass http://app_http;
         proxy_http_version 1.1;
@@ -437,6 +346,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Language $http_accept_language;
     }
 
     # tRPC WebSocket (Echtzeit-Subscriptions) → Port 3001
@@ -449,6 +359,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
     }
 
     # Yjs WebSocket (Quiz-Sync zwischen Geräten) → Port 3002
@@ -458,9 +369,15 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
     }
 }
-````
+```
+
+Hinweis für Nginx **ab 1.25.1**: Falls `nginx -t` wegen `listen ... http2` nur eine Deprecation-Warnung ausgibt, kannst du stattdessen `listen 443 ssl;`, `listen [::]:443 ssl;` und darunter `http2 on;` verwenden.
 
 Konfiguration testen und aktivieren:
 
@@ -554,106 +471,59 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 ## 6. Produktions-Docker-Compose und Umgebung
 
-### 6.1 Nur App-Ports auf localhost binden
+### 6.1 Produktions-Compose
 
-Die App soll nicht direkt aus dem Internet erreichbar sein, nur über Nginx. Dafür die Ports in `docker-compose` nur auf `127.0.0.1` binden.
+Das Repository enthält die aktuelle Produktionsvorlage in [`docker-compose.prod.yml`](../docker-compose.prod.yml). Diese Datei ist die Quelle der Wahrheit; die wichtigsten Eigenschaften:
 
-**Beispiel:** `docker-compose.prod.yml` (im Projekt oder auf dem Server):
+- `postgres`, `redis` und `app` laufen in einem internen Docker-Netzwerk.
+- App-Ports `3000`, `3001`, `3002` sind nur auf `127.0.0.1` gebunden; externer Zugriff läuft ausschließlich über Nginx/TLS.
+- `.env.production` wird per `env_file` in die Container geladen. Das vermeidet leere Secrets, wenn `docker compose` ohne Shell-Export gestartet wird.
+- Der App-Healthcheck prüft `http://localhost:3000/trpc/health.check`.
+- Fixe Laufzeitwerte (`PORT`, `HOST`, `WS_PORT`, `YJS_WS_PORT`, `NODE_ENV`) sind im Compose gesetzt; Secrets und Verbindungsdaten kommen aus `.env.production`.
 
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: arsnova-v3-postgres
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U arsnova_user -d arsnova_v3']
-      interval: 5s
-      timeout: 5s
-      retries: 5
+Start immer mit der Repo-Datei:
 
-  redis:
-    image: redis:7-alpine
-    container_name: arsnova-v3-redis
-    restart: always
-    volumes:
-      - redis_data:/data
-    command: redis-server --save 60 1 --loglevel warning
-    networks:
-      - app
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: arsnova-v3-app
-    restart: always
-    ports:
-      # Nur auf localhost binden! Nginx leitet von außen weiter.
-      # Ohne "127.0.0.1:" wären die Ports direkt aus dem Internet erreichbar
-      # (Docker umgeht UFW-Regeln – das ist ein häufiger Fehler).
-      - '127.0.0.1:3000:3000'
-      - '127.0.0.1:3001:3001'
-      - '127.0.0.1:3002:3002'
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      PORT: '3000'
-      WS_PORT: '3001'
-      YJS_WS_PORT: '3002'
-      NODE_ENV: 'production'
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/trpc/health.check']
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
-
-networks:
-  app:
-    driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
 ### 6.2 Umgebungsvariablen (Produktion)
 
-**Datei:** `.env.production` (nicht ins Git, nur auf dem Server):
+**Datei:** `.env.production` (nicht ins Git, nur auf dem Server). Ausgangspunkt ist [`.env.production.example`](../.env.production.example):
 
 ```dotenv
 POSTGRES_USER=arsnova_user
-POSTGRES_PASSWORD=<starkes-geheimes-Passwort>
+POSTGRES_PASSWORD=<starkes-Passwort-setzen>
 POSTGRES_DB=arsnova_v3
-
-DATABASE_URL="postgresql://arsnova_user:<starkes-geheimes-Passwort>@postgres:5432/arsnova_v3?schema=public"
+DATABASE_URL="postgresql://arsnova_user:<starkes-Passwort>@postgres:5432/arsnova_v3?schema=public"
 REDIS_URL="redis://redis:6379"
 JWT_SECRET=<starker-zufälliger-Schlüssel>
+ADMIN_SECRET=<starker-admin-schlüssel>
+
+NODE_ENV=production
+PORT=3000
+HOST=0.0.0.0
+WS_PORT=3001
+YJS_WS_PORT=3002
+YJS_WS_HOST=0.0.0.0
+TRUST_PROXY_HOPS=1
+
+ADMIN_SESSION_TTL_SECONDS=28800
+ADMIN_LEGAL_HOLD_DEFAULT_DAYS=30
+
+RATE_LIMIT_SESSION_CODE_ATTEMPTS=20
+RATE_LIMIT_SESSION_CODE_WINDOW_MINUTES=5
+RATE_LIMIT_SESSION_CODE_LOCKOUT_SECONDS=45
+RATE_LIMIT_VOTE_REQUESTS_PER_SECOND=2
+RATE_LIMIT_SESSION_CREATE_PER_HOUR=480
+RATE_LIMIT_SESSION_CREATE_BYPASS_LOCALHOST=false
+RATE_LIMIT_MOTD_GET_CURRENT_PER_MINUTE=1200
+RATE_LIMIT_MOTD_GET_CURRENT_BYPASS_LOCALHOST=false
+RATE_LIMIT_MOTD_LIST_ARCHIVE_PER_MINUTE=180
+RATE_LIMIT_MOTD_RECORD_INTERACTION_PER_MINUTE=120
 ```
 
-Starke Passwörter und `JWT_SECRET` z. B. mit `openssl rand -base64 32` erzeugen.
+Starke Passwörter und `JWT_SECRET` z. B. mit `openssl rand -base64 32`, `ADMIN_SECRET` mit `openssl rand -base64 48` erzeugen. `HOST_SESSION_TTL_SECONDS` ist optional; fehlt der Wert, nutzt das Backend 8 Stunden.
 
 ### 6.3 WebSocket-URLs im Frontend
 
@@ -668,29 +538,38 @@ Lokale Entwicklung (localhost) verwendet weiterhin die Ports 3001 und 3002. Kein
 
 ## 7. Deployment-Ablauf
 
-1. **Code auf den Server:** z. B. `git clone` in `/home/deploy/arsnova.eu` oder CI/CD-Artefakt.
-2. **Secrets:** `.env.production` anlegen (siehe 6.2).
-3. **Build & Start** (siehe Befehl unten).
-4. **Prisma-Migrationen** ausführen (einmalig bzw. bei Schema-Änderungen).
-5. **Health prüfen.**
-
-**Build & Start:**
+Empfohlen ist das versionierte Deploy-Skript:
 
 ```bash
 cd /home/deploy/arsnova.eu
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+DEPLOY_BRANCH=main ./scripts/deploy.sh
 ```
 
-**Prisma-Migrationen:**
+Das Skript führt aus:
+
+1. Git-Sync auf den Zielbranch.
+2. App-Image bauen (`docker compose build --pull app`).
+3. PostgreSQL und Redis starten.
+4. Prisma-Migrationen mit deaktiviertem App-Entrypoint ausführen (`npx prisma migrate deploy`).
+5. App-Container starten.
+6. Container-Healthcheck, `health.check` und Frontend-Shell unter `/de/` prüfen.
+
+**Manueller Fallback** ohne Skript:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app npx prisma migrate deploy
+cd /home/deploy/arsnova.eu
+docker compose -f docker-compose.prod.yml --env-file .env.production build --pull app
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d postgres redis
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm --entrypoint "" app npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d app
 ```
 
 **Health prüfen:**
 
 ```bash
-curl -s https://arsnova.eu/trpc/health.check
+curl -fsS http://127.0.0.1:3000/trpc/health.check
+curl -fsS http://127.0.0.1:3000/de/ | grep -qi "<app-root"
+curl -fsS https://arsnova.eu/de/ | grep -qi "<app-root"
 ```
 
 ### 7.1 Laufende Quiz-Sessions während eines Deployments
@@ -717,36 +596,41 @@ Ein Rollout ersetzt den **App-Container** (Node/tRPC). Das bedeutet:
 - [ ] Nginx: TLS 1.2/1.3, HSTS, Security-Headers (Referrer-Policy, Permissions-Policy)
 - [ ] Let's Encrypt Zertifikat installiert, Timer für Erneuerung aktiv
 - [ ] Docker: App-Ports nur auf 127.0.0.1 gebunden
-- [ ] Starke Passwörter und JWT_SECRET, keine Defaults aus .env.example
+- [ ] Starke Passwörter, `JWT_SECRET`, `ADMIN_SECRET`; keine Defaults aus `.env.example`
+- [ ] `.env.production` entspricht `.env.production.example`; `TRUST_PROXY_HOPS=1` hinter Nginx gesetzt
+- [ ] Admin-Login, Legal-Hold, Löschung, Behördenexport, MOTD-Admin und Rekord-Reset getestet
+- [ ] Test-Session mit Host-, Present- und Teilnehmergerät inkl. tRPC-WebSocket und Yjs-Sync durchgeführt
+- [ ] `health.footerBundle` / Footer-Dot und `health.stats` / Detaildialog prüfen
 - [ ] Fail2ban aktiv (optional)
 - [ ] Unattended-Upgrades für Sicherheits-Updates
-- [ ] Backups für PostgreSQL (z. B. cron + pg_dump) geplant
+- [ ] Backups für PostgreSQL (z. B. cron + pg_dump) geplant und Restore praktisch getestet
 
 ---
 
 ## 9. Kurzreferenz Befehle
 
-| Aktion              | Befehl                                                                       |
-| ------------------- | ---------------------------------------------------------------------------- |
-| App starten         | `docker compose -f docker-compose.prod.yml --env-file .env.production up -d` |
-| App stoppen         | `docker compose -f docker-compose.prod.yml down`                             |
-| Logs anzeigen       | `docker compose -f docker-compose.prod.yml logs -f app`                      |
-| Nginx neu laden     | `sudo systemctl reload nginx`                                                |
-| Zertifikat erneuern | `sudo certbot renew` (läuft automatisch per Timer)                           |
+| Aktion              | Befehl                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Deploy ausführen    | `DEPLOY_BRANCH=main ./scripts/deploy.sh`                                                                                      |
+| App starten         | `docker compose -f docker-compose.prod.yml --env-file .env.production up -d app`                                              |
+| Stack starten       | `docker compose -f docker-compose.prod.yml --env-file .env.production up -d`                                                  |
+| App stoppen         | `docker compose -f docker-compose.prod.yml --env-file .env.production stop app`                                               |
+| Logs anzeigen       | `docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app`                                            |
+| Migrationen         | `docker compose -f docker-compose.prod.yml --env-file .env.production run --rm --entrypoint "" app npx prisma migrate deploy` |
+| Nginx neu laden     | `sudo systemctl reload nginx`                                                                                                 |
+| Zertifikat erneuern | `sudo certbot renew` (läuft automatisch per Timer)                                                                            |
 
 ---
 
 ## 10. CI/CD (GitHub Actions)
 
-Deployments laufen automatisch, **nur wenn alle CI-Jobs erfolgreich sind** (Build, Lint, Tests, Docker-Build). Es wird nur bei **Push auf den Branch `main`** deployt (kein Deploy bei Pull Requests).
+Deployments laufen automatisch, **nur wenn alle CI-Jobs erfolgreich sind** (Build, Lint, Tests, Docker-Build). Standard ist ein Deploy bei **Push auf `main`**; ein eigener Deploy-Branch funktioniert nur, wenn er zusätzlich im Workflow-Trigger steht (siehe 10.4). Pull Requests deployen nicht.
 
 ### 10.1 Ablauf
 
-1. Push auf `main` → CI startet (Build, Lint, Tests, Docker Build).
+1. Push auf `main` oder einen zusätzlich konfigurierten Deploy-Branch → CI startet (Build, Lint, Tests, Docker Build).
 2. Sind alle Jobs grün und die Variable **`DEPLOY_ENABLED`** ist auf `true` gesetzt → **Deploy-Job** startet. **Ohne Server:** `DEPLOY_ENABLED` nicht setzen → Deploy wird übersprungen, CI bleibt grün.
-3. Deploy-Job verbindet sich per SSH mit dem Server, führt im Repo-Verzeichnis aus:
-   - `git fetch` / `git checkout main` / `git reset --hard origin/main`
-   - `./scripts/deploy.sh` (Docker Compose up --build, Prisma migrate deploy).
+3. Deploy-Job verbindet sich per SSH mit dem Server, synchronisiert den Zielbranch und führt `./scripts/deploy.sh` aus.
 
 ### 10.2 Server-Voraussetzung
 
@@ -776,10 +660,8 @@ Soll nur ein eigener Branch (z. B. `deploy`) deployen statt `main`:
 
 1. In `.github/workflows/ci.yml` im Trigger `branches` um `deploy` erweitern:  
    `push: branches: [main, deploy]`
-2. `env.DEPLOY_BRANCH` auf `deploy` setzen:  
-   `DEPLOY_BRANCH: deploy`
-3. Im **deploy-Job** die Bedingung anpassen:  
-   `github.ref == 'refs/heads/deploy'` (oder `refs/heads/${{ env.DEPLOY_BRANCH }}` bleibt korrekt).
+2. In den Repository-Variablen `DEPLOY_BRANCH=deploy` setzen.
+3. Die bestehende Deploy-Bedingung liest `vars.DEPLOY_BRANCH || 'main'`; weitere YAML-Anpassungen sind dafür nicht nötig.
 
 Dann wird nur bei Push auf `deploy` deployt; Merge von `main` → `deploy` löst das Deployment aus.
 
@@ -801,7 +683,7 @@ Wenn ihr bei Hetzner startet und noch keinen Server habt:
 
 1. **Server anlegen:** Hetzner Cloud oder Root – Image **Debian 12** (oder 13). (Optional: Cloud Firewall anlegen mit Regeln für 22, 80, 443.)
 2. **Zugang:** Per SSH mit Root (oder angelegtem User); sofort SSH-Keys einrichten, Root-Login/Passwort-Login deaktivieren (Abschnitt 2.2).
-3. **Reihenfolge:** System aktualisieren (2.1) → User `deploy` anlegen (2.2) → UFW: 22, 80, 443 erlauben, dann aktivieren (2.3) → Docker (3) → Nginx nur mit HTTP starten (4.2) → Certbot Zertifikat beantragen (5.2) → finale Nginx-Config (5.3) → Repo klonen, `.env.production` anlegen (6.2) → einmalig `docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build` und Prisma migrate (7). Danach CI/CD-Secrets setzen und `DEPLOY_ENABLED=true` (10.3).
+3. **Reihenfolge:** System aktualisieren (2.1) → User `deploy` anlegen (2.2) → UFW: 22, 80, 443 erlauben, dann aktivieren (2.3) → Docker (3) → Nginx nur mit HTTP starten (4.2) → Certbot Zertifikat beantragen (5.2) → finale Nginx-Config (5.3) → Repo klonen, `.env.production` anlegen (6.2) → `DEPLOY_BRANCH=main ./scripts/deploy.sh` ausführen (7). Danach CI/CD-Secrets setzen und `DEPLOY_ENABLED=true` (10.3).
 
 **Vereinfachung mit Hetzner:** Es gibt keine speziellen Hetzner-Pakete für diese App – der Stack (Debian + Docker + Nginx + Certbot) ist Standard. Die Hetzner Cloud Firewall ist optional und kann UFW ergänzen oder (wenn gewünscht) ersetzen; UFW auf dem System bleibt für viele Setups die einfachste Option.
 
@@ -809,34 +691,32 @@ Wenn ihr bei Hetzner startet und noch keinen Server habt:
 
 ---
 
-## 12. Hetzner Cloud: Instanzen, Kosten & voraussichtliche Max.-Auslastung
+## 12. Hetzner Cloud: Instanzen und voraussichtliche Auslastung
 
 Für die **Erstphase** mit geringem Lastaufkommen reicht die kleinste sinnvolle Instanz (4 GB). Die Werte unten sind **konservative Schätzungen** aus dem aktuellen Architekturstand (ein Node-Prozess, ein WebSocket-Server, Redis, PostgreSQL, Yjs); Basis: `docs/capacity-estimate-16gb-16cores.md` (16 GB = 20–25 Quizze, ~1.000 Teilnehmer). Engpass ist vor allem der Node-Heap für WebSocket-Verbindungen (~1–2 MB pro Client).
 
-### 12.1 Alle CX/CAX Cloud-Server (Shared & Dedicated)
+### 12.1 Größenklassen
 
-| Server    | vCPU | RAM   | SSD    | Preis/Monat (DE/FI, Stand 2025) | Vorauss. max. gleichz. Quizze (Ø 30 Teiln./Quiz) | Vorauss. max. Teilnehmer (alle verbunden) |
-| --------- | ---- | ----- | ------ | ------------------------------- | ------------------------------------------------ | ----------------------------------------- |
-| **CX23**  | 2    | 4 GB  | 40 GB  | ca. 3,49 €                      | **3–6**                                          | **~150–250**                              |
-| **CAX11** | 2    | 4 GB  | 40 GB  | ca. 3,79 €                      | 3–6                                              | ~150–250                                  |
-| **CX33**  | 4    | 8 GB  | 80 GB  | ca. 5,49 €                      | **8–12**                                         | **~400–600**                              |
-| **CAX21** | 4    | 8 GB  | 80 GB  | ca. 6,49 €                      | 8–12                                             | ~400–600                                  |
-| **CX43**  | 8    | 16 GB | 160 GB | ca. 9,49 €                      | **20–25**                                        | **~1.000**                                |
-| **CAX31** | 8    | 16 GB | 160 GB | ca. 12,49 €                     | 20–25                                            | ~1.000                                    |
-| **CX53**  | 16   | 32 GB | 320 GB | ca. 17,49 €                     | **25–35**                                        | **~1.200–1.500**                          |
-| **CAX41** | 16   | 32 GB | 320 GB | ca. 24,49 €                     | 25–35                                            | ~1.200–1.500                              |
+| Größenklasse | Typische Ausstattung | Vorauss. max. gleichz. Quizze (Ø 30 Teiln./Quiz) | Vorauss. max. Teilnehmer (alle verbunden) |
+| ------------ | -------------------- | ------------------------------------------------ | ----------------------------------------- |
+| Klein        | 2 vCPU / 4 GB RAM    | 3–6                                              | ~150–250                                  |
+| Mittel       | 4 vCPU / 8 GB RAM    | 8–12                                             | ~400–600                                  |
+| Stabil       | 8 vCPU / 16 GB RAM   | 20–25                                            | ~1.000                                    |
+| Groß         | 16 vCPU / 32 GB RAM  | 25–35                                            | ~1.200–1.500                              |
 
-- **Bedeutung:** „Gleichzeitige Quizze“ = Sessions mit Status ≠ FINISHED. „Teilnehmer (alle verbunden)“ = alle mit WebSocket verbunden (praktische Obergrenze). Bei höherer Teilnehmerzahl pro Quiz sinkt die Quiz-Anzahl.- **CX vs. CAX:** **CX** = x86_64 (Intel/AMD), **CAX** = ARM64 (Ampere Altra). Für diese App kein funktionaler Unterschied – Node.js, Docker, PostgreSQL und Redis laufen auf beiden Architekturen. **Empfehlung: CX (x86)** für maximale Kompatibilität; vereinzelt liefern npm-Pakete mit nativen Binaries kein ARM-Build mit, was den Docker-Build auf CAX brechen kann.- **2 vCPU:** Bei hoher Last kann CPU (Node Event-Loop + PostgreSQL) zum Engpass werden; für Dauerlast ab mittlerer Auslastung 4 vCPU oder mehr empfehlenswert.
-- **Preise:** Abrechnung minütlich, monatlicher Deckel. 20 TB Traffic inklusive (EU). Andere Standorte (z. B. USA/Singapore) teurer.
+- **Bedeutung:** „Gleichzeitige Quizze“ = Sessions mit Status ≠ `FINISHED`. „Teilnehmer (alle verbunden)“ = gleichzeitig verbundene Clients (praktische Obergrenze). Bei höherer Teilnehmerzahl pro Quiz sinkt die Quiz-Anzahl.
+- **CX vs. CAX:** **CX** = x86_64 (Intel/AMD), **CAX** = ARM64 (Ampere Altra). Node.js, Docker, PostgreSQL und Redis laufen grundsätzlich auf beiden Architekturen. **Empfehlung: CX (x86)** für maximale Kompatibilität, weil native npm-Binaries auf ARM vereinzelt mehr Risiko bedeuten.
+- **2 vCPU:** Bei hoher Last kann CPU (Node Event-Loop + PostgreSQL) zum Engpass werden; für Dauerlast ab mittlerer Auslastung 4 vCPU oder mehr wählen.
+- **Preise:** Anbieterpreise ändern sich. Vor Beschaffung immer die aktuelle Preisliste und den gewünschten Standort prüfen.
 
 ### 12.2 Empfehlung nach Phase
 
-| Phase / Last               | Sinnvolle Instanz | Ungefährer Bereich                  |
-| -------------------------- | ----------------- | ----------------------------------- |
-| Erstphase, geringe Last    | CX23 oder CAX11   | 1–2 Quizze, wenige Teilnehmer       |
-| Wachsende Nutzung          | CX33 oder CAX21   | Mehrere Quizze, bis ~400–600 Teiln. |
-| Stabile Produktion         | CX43 oder CAX31   | Bis ~20–25 Quizze, ~1.000 Teiln.    |
-| Hohe Last / viele Sessions | CX53 oder CAX41   | Bis ~35 Quizze, ~1.500 Teiln.       |
+| Phase / Last               | Sinnvolle Größenklasse | Ungefährer Bereich                  |
+| -------------------------- | ---------------------- | ----------------------------------- |
+| Erstphase, geringe Last    | Klein                  | 1–2 Quizze, wenige Teilnehmer       |
+| Wachsende Nutzung          | Mittel                 | Mehrere Quizze, bis ~400–600 Teiln. |
+| Stabile Produktion         | Stabil                 | Bis ~20–25 Quizze, ~1.000 Teiln.    |
+| Hohe Last / viele Sessions | Groß                   | Bis ~35 Quizze, ~1.500 Teiln.       |
 
 - **Aufrüsten ohne Neuinstallation:** In der Hetzner Cloud Console „Resize“ / Servertyp ändern → größeren Typ wählen. Nach Neustart bleiben OS, Docker, App und Daten erhalten. Nur nach oben aufrüsten; Verkleinern oft nicht möglich.
 
@@ -863,21 +743,14 @@ Für **geringes bis mittleres Lastaufkommen** reicht ein einzelner Server (Absch
 | **Nachteile** | Single Point of Failure: Ausfall oder Wartung = Downtime. Skalierung nur vertikal (größerer Server).         | Deutlich mehr Aufwand: mehrere Server, LB, Sticky Sessions, gemeinsame DB/Redis, Deployment auf alle App-Server, ggf. PgBouncer. Höhere Kosten.                                                           |
 | **Betrieb**   | Ein Server, ein Docker Compose, ein Nginx.                                                                   | LB + N App-Server + 1 DB-Server (+ optional 1 Redis-Server oder Redis auf DB-Server). CI/CD muss alle App-Server deployen oder über zentralen Platz (shared storage) laufen.                              |
 
-### 13.3 Grobe Kosten (Hetzner Cloud, monatlich, Richtwerte)
+### 13.3 Kosten- und Betriebswirkung
 
-| Modell                 | Komponenten                                                             | Grobe Kosten (DE/FI)           |
-| ---------------------- | ----------------------------------------------------------------------- | ------------------------------ |
-| **Ein-Server**         | 1 × CX43 (16 GB)                                                        | ca. 9,49 €                     |
-| **Ein-Server (klein)** | 1 × CX23 (4 GB)                                                         | ca. 3,49 €                     |
-| **Cluster (minimal)**  | 1 × LB11 (ca. 5 €) + 2 × CX23 (App) + 1 × CX22 (DB/Redis oder getrennt) | ca. 5 + 7 + 4 ≈ **16–18 €**    |
-| **Cluster (stabil)**   | 1 × LB11 + 2 × CX33 (App) + 1 × CX33 (PostgreSQL + Redis)               | ca. 5 + 11 + 5,5 ≈ **21–22 €** |
-
-Der Cluster ist also **deutlich teurer** und lohnt sich vor allem bei Anforderungen an **Verfügbarkeit** (kein Single Point of Failure) oder **mehr Last**, als ein einzelner CX53/CAX41 stemmen kann.
+Ein Cluster ist immer spürbar teurer und operativ aufwendiger als ein Ein-Server-Setup: Load Balancer, mehrere App-Instanzen, getrennte Datenhaltung, Backups, Monitoring, Rollout-Koordination und Sticky-Session-Konfiguration kommen hinzu. Er lohnt sich vor allem bei Anforderungen an **Verfügbarkeit** (kein einzelner App-Ausfallpunkt) oder **mehr Last**, als ein großer Ein-Server stemmen kann.
 
 ### 13.4 Technische Anforderungen für einen Cluster
 
 - **Sticky Sessions:** Nginx oder HAProxy mit `ip_hash` oder Cookie-basierter Affinität, sodass HTTP und WebSocket eines Clients dieselbe App-Instanz treffen. Ohne Sticky brechen tRPC-Subscriptions und Yjs-Verbindungen beim nächsten Request.
-- **Gemeinsame Daten:** PostgreSQL und Redis müssen für alle App-Instanzen erreichbar sein (privates Netzwerk). Redis wird für tRPC Pub/Sub (falls umgesetzt) und Rate-Limiting gemeinsam genutzt.
+- **Gemeinsame Daten:** PostgreSQL und Redis müssen für alle App-Instanzen erreichbar sein (privates Netzwerk). Redis wird für Rate-Limits, Token-TTLs und Live-Hilfsdaten gemeinsam genutzt.
 - **Deployment:** Identischer Code auf allen App-Servern; CI/CD z. B. per Ansible, parallelem SSH oder „golden image“ mit Neuaufsetzen der Instanzen.
 - **Zertifikate:** TLS am Load Balancer (Hetzner LB: TLS Termination) oder am zentralen Nginx/HAProxy (Let’s Encrypt wie bisher).
 
@@ -907,16 +780,11 @@ Der Cluster ist also **deutlich teurer** und lohnt sich vor allem bei Anforderun
 |                      | Vorteile                                                                                                                                                                            | Nachteile                                                                                                                                                                                                                                                                                                                                                     |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Kubernetes**       | Automatische Skalierung (mehr Pods bei Last), Self-Healing (abgestürzte Pods werden neu gestartet), Rolling Updates ohne komplette Downtime, deklarative Konfiguration (YAML/Helm). | Hoher Einstieg: Konzepte (Pods, Services, Ingress, ConfigMaps, Secrets), Betrieb und Updates der Control Plane (wenn self-managed). Managed K8s (GKE, EKS, AKS) kostet Aufpreis; auf **Hetzner** gibt es **kein** offizielles Managed Kubernetes – Optionen sind z. B. selbst gebaut (kubeadm, Cluster API, k3s) oder Drittanbieter (z. B. Cloudfleet, Edka). |
-| **Managed DB/Redis** | Weniger Betrieb: Backups, Patches, Failover oft inklusive. Weniger eigene Fehlerquellen.                                                                                            | Kosten (oft ab ca. 15–30 €/Monat für kleine Instanzen), Abhängigkeit vom Anbieter, Daten außerhalb der eigenen VM (Datenschutz/Standort prüfen). **Hetzner** bietet derzeit **keinen** eigenen Managed PostgreSQL/Redis; nutzbar wären z. B. Aiven, Ubicloud (auf Hetzner-Infrastruktur), oder DB in anderer Cloud.                                           |
+| **Managed DB/Redis** | Weniger Betrieb: Backups, Patches, Failover oft inklusive. Weniger eigene Fehlerquellen.                                                                                            | Zusätzliche laufende Kosten, Abhängigkeit vom Anbieter, Daten außerhalb der eigenen VM (Datenschutz/Standort prüfen). **Hetzner** bietet derzeit **keinen** eigenen Managed PostgreSQL/Redis; nutzbar wären z. B. Aiven, Ubicloud (auf Hetzner-Infrastruktur), oder DB in anderer Cloud.                                                                      |
 
-### 14.3 Kosten (Richtwerte, cloud-native)
+### 14.3 Kostenhinweis (cloud-native)
 
-- **Kubernetes:**
-  - **Managed K8s (GKE/EKS/AKS):** Control Plane oft kostenpflichtig (z. B. ~70–150 €/Monat) plus Worker-Nodes.
-  - **Hetzner:** Kein Managed K8s; selbst gebaut = Kosten nur für die VMs (z. B. 2–3 × CX33 als Worker), dafür Betriebsaufwand selbst.
-- **Managed PostgreSQL:** Ab ca. 15–40 €/Monat (kleine Instanz), je Anbieter.
-- **Managed Redis:** Ab ca. 0–15 €/Monat (kleine/freie Tiers möglich).
-- **Gesamt** für eine kleine cloud-native Variante (z. B. K8s auf Hetzner-VMs + Managed DB extern): grob **30–80 €/Monat**, je nach Wahl. Deutlich mehr als Ein-Server (3–10 €), vergleichbar oder teurer als manuelles Cluster (16–22 €).
+Cloud-native Betrieb ist nicht primär ein Sparmodell. Rechne mit zusätzlichen Kosten für Control Plane oder zusätzliche Worker, Managed PostgreSQL/Redis, Backups, Netzwerk, Container Registry und Observability. Preise ändern sich je Anbieter und Region; für Beschaffungsentscheidungen immer aktuelle Anbieterpreise und Datenschutzstandort prüfen.
 
 ### 14.4 Wann cloud-native sinnvoll ist
 
@@ -925,11 +793,11 @@ Der Cluster ist also **deutlich teurer** und lohnt sich vor allem bei Anforderun
 
 ### 14.5 Kurzvergleich aller Optionen
 
-| Modell                              | Komplexität | Kosten (grob)  | Skalierung                       | Verfügbarkeit                 |
-| ----------------------------------- | ----------- | -------------- | -------------------------------- | ----------------------------- |
-| **Ein-Server**                      | Niedrig     | 3–10 €/Monat   | Vertikal (Resize)                | Ein Ausfallpunkt              |
-| **Cluster (LB + VMs)**              | Mittel      | 16–25 €/Monat  | Horizontal (mehr App-Server)     | Höher (mehrere App-Instanzen) |
-| **Cloud-native (K8s + Managed DB)** | Hoch        | 30–80+ €/Monat | Horizontal + automatisch möglich | Hoch (K8s + Managed Services) |
+| Modell                              | Komplexität | Kostenwirkung   | Skalierung                       | Verfügbarkeit                 |
+| ----------------------------------- | ----------- | --------------- | -------------------------------- | ----------------------------- |
+| **Ein-Server**                      | Niedrig     | Niedrig         | Vertikal (Resize)                | Ein Ausfallpunkt              |
+| **Cluster (LB + VMs)**              | Mittel      | Mittel          | Horizontal (mehr App-Server)     | Höher (mehrere App-Instanzen) |
+| **Cloud-native (K8s + Managed DB)** | Hoch        | Mittel bis hoch | Horizontal + automatisch möglich | Hoch (K8s + Managed Services) |
 
 Für **arsnova.eu** in der Erstphase reicht der **Ein-Server**; Cluster oder cloud-native lohnen sich, wenn Last oder Anforderungen an Verfügbarkeit und Skalierung wachsen.
 

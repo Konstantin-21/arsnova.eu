@@ -1,54 +1,74 @@
-# 🚀 Cursor Rules: arsnova.eu (Monorepo)
+# Cursor Rules: arsnova.eu
 
-Du bist der Lead-Architekt. Wir arbeiten in einem **npm Workspaces Monorepo**.
+Du arbeitest als Lead-Architekt in einem npm-Workspaces-Monorepo. Halte diese Datei kurz im Kopf, lade bei Bedarf aber die kanonischen Dokumente: `AGENT.md`, `CONTRIBUTING.md`, `docs/README.md`, `docs/cursor-context.md`, `docs/architecture/handbook.md`, `docs/SECURITY-OVERVIEW.md`, `docs/TESTING.md`.
 
-## 📁 Projekt-Struktur & Pfade
+## Projektstruktur
 
-- **Backend:** `apps/backend/` (Node.js, tRPC Server, Prisma)
-- **Frontend:** `apps/frontend/` (Angular 17+, Signals). App unter `src/app/`: **core/** (ws-urls, trpc.client, theme-preset), **shared/** (wiederverwendbare UI), **features/** (home, quiz, session, legal, help).
-- **Shared Types:** `libs/shared-types/` (Zod Schemas, Interfaces)
-- **Unit-Tests:** Pro Komponente/Service eine Spec-Datei **im gleichen Ordner**, Name: `<dateiname>.spec.ts` (z.B. `home.component.spec.ts` neben `home.component.ts`). Siehe Angular Style Guide; Vitest in `apps/frontend`.
+- **Backend:** `apps/backend/` — Node.js, Express, tRPC v11, Prisma 7, Redis.
+- **Frontend:** `apps/frontend/` — Angular 21.2, Standalone Components, Signals, Angular Material 3. App-Struktur: `core/`, `shared/`, `features/`.
+- **Shared Types:** `libs/shared-types/` — Zod v4 Schemas und TypeScript-Typen. Import immer über `@arsnova/shared-types`.
+- **Prisma:** `prisma/schema.prisma` — Datenmodell.
+- **Docs:** `docs/README.md` ist die Landkarte; produktionsrelevant sind Deployment, ENVIRONMENT, SECURITY-OVERVIEW, TESTING und Admin-Flow.
+- **Cursor modern:** `.cursor/rules/core.mdc` ergänzt diese Legacy-Datei und verweist auf den stabilen Cursor-Kontext.
 
-## 🛡️ Monorepo-Regeln (Strikt!)
+## Monorepo-Regeln
 
-1. **Shared Types:** Jede tRPC-Eingabe/Ausgabe MUSS ein Zod-Schema aus `@arsnova/shared-types` nutzen. Erstelle/ändere IMMER erst das Schema dort, bevor du Code in Apps schreibst.
-2. **Imports:** Nutze für Shared-Logik `@arsnova/shared-types`. Cursor, achte darauf, dass `tsconfig.json` Pfade korrekt aufgelöst werden.
-3. **Kein REST:** Alle Kommunikation erfolgt über tRPC (v11) Subscriptions/Queries/Mutations.
-4. **Rechte nicht aus Routen ableiten:** `/session/:code/host`, `/session/:code/present` oder `/feedback/:code` sind nie selbst der Berechtigungsnachweis. Host-/Feedback-Host-Rechte kommen aus serverseitig geprüften Tokens.
-5. **Host-only Schutz:** Neue Host-only-Prozeduren im Backend MUESSEN über `hostProcedure` oder gleichwertige serverseitige Token-Prüfung laufen.
-6. **Besitzgebundene Historie:** Endpunkte für Quiz-Sammlungs-Historie oder ähnliche owner-gebundene Daten duerfen nicht nur auf `quizId` vertrauen; wenn der Besitz lokal gebunden ist, `accessProof` oder ein gleichwertiges Modell verwenden.
-7. **Datenminimierung:** Oeffentliche Teilnehmer-Endpunkte nur mit Minimaldaten aufbauen; keine oeffentliche Voll-Liste, wenn Nickname-Kollisionen oder Self-Lookups reichen.
+1. **Schema-first:** Jede tRPC-Eingabe/Ausgabe muss ein Zod-Schema aus `@arsnova/shared-types` nutzen. Schema zuerst ändern, dann Backend und Frontend.
+2. **Nur tRPC:** Keine neuen REST-Endpunkte, keine parallelen DTO-Definitionen in App-Code.
+3. **Backend/Frontend zusammen denken:** Neue Procedures brauchen Router, Shared Schema, Client-Nutzung und Tests im gleichen Arbeitszusammenhang.
+4. **Keine Secrets:** `.env`, `.env.production`, Tokens und Zugangsdaten nie committen oder in Prompts übernehmen.
+5. **Bestehende Änderungen schützen:** Vor Edits `git status` prüfen; fremde Änderungen nicht überschreiben.
 
-## 🏗️ Technischer Stack (DoD)
+## Sicherheit und Datenschutz
 
-- **Angular:** NUR Signals, Standalone Components und `@if`/`@for`. KEIN `rxjs` für UI-State.
-- **Security:** "Zero-Knowledge"-Prinzip. Wende IMMER das DTO-Pattern an (`Data-Stripping`).
-- **Data:** Redis für Realtime-Sync, Yjs für Quiz-Inhalte.
+- Rechte nie aus URL, Session-Code oder UI-State ableiten. `/session/:code/host`, `/session/:code/present`, `/feedback/:code` und `/admin` sind keine Berechtigungsnachweise.
+- Host-only Backend-Logik muss über `hostProcedure` oder gleichwertige serverseitige Token-Prüfung laufen.
+- Standalone-Blitzlicht nutzt ein eigenes Feedback-Host-Token-Modell; nicht implizit mit Session-Host-Rechten vermischen.
+- Admin-Zugriff: `ADMIN_SECRET` nur für `admin.login`; danach Admin-Session-Token mit TTL in Redis, geschützt über `adminProcedure`.
+- Owner-gebundene Quiz-Historie oder ähnliche Daten dürfen nicht allein über `quizId` enumerierbar sein; `accessProof` oder ein gleichwertiges Besitzmodell verwenden.
+- Öffentliche Teilnehmer-Endpunkte minimal halten. Keine öffentliche Voll-Liste, wenn Nickname-Kollisionen oder Self-Lookups reichen.
+- DTO/Data-Stripping ist Pflicht: `isCorrect` und andere lösungsrelevante Daten nicht im Status `ACTIVE` an Teilnehmende ausliefern.
+- Effective-Vote-Regel für Peer Instruction bei Scoring, Leaderboards, Bonuscodes und Exporten nicht umgehen.
 
-## 🎨 UX & Design-Regeln (Startseite)
+## Stack- und UI-Regeln
 
-1. **Wording:** Nutzenorientiert, aktivierend, rollenunabhaengig. Verben statt Nomen in CTAs. Siehe `docs/ui/STYLEGUIDE.md` Abschnitt "Wording-Konventionen".
-2. **Session-Code-Eingabe:** 6 Segment-Boxen mit transparentem Overlay-Input. KEIN `mat-form-field` fuer den Session-Code. Details siehe STYLEGUIDE.
-3. **Micro-Interactions:** Alle Animationen (Pulse, Shake, Glow) MUESSEN in `@media (prefers-reduced-motion: no-preference)` stehen.
-4. **Snackbar statt Modal** fuer schnelle Bestaetigungen (z. B. Preset-Wechsel). Modals nur fuer Detail-Konfiguration.
-5. **Button-Hierarchie:** Max. 1 gefuellter CTA pro Karte. Sekundaere Aktionen als `tonal`-Buttons in `home-cta-row`.
-6. **Conditional Chips:** Abhaengige Optionen (z. B. "Teams zuweisen") nur anzeigen wenn die Eltern-Option aktiv ist (`isOptionVisible`-Pattern).
-7. **Status-Dot:** In Brand-SVG integriert, nicht als separates HTML-Element.
+- **Node:** Lokal Node 20 aus `.nvmrc` oder passende Node 22 LTS nutzen; CI prüft Node 20 und 22.
+- **Angular:** Standalone Components, Signals, `@if`/`@for`; RxJS nur für echte Streams, nicht als Standard-UI-State.
+- **Styling:** Angular Material 3, Tokens und vorhandene SCSS-Patterns. Kein Tailwind in `apps/frontend`.
+- **Tests:** Frontend-Specs neben der Datei als `<dateiname>.spec.ts`; Backend-Tests unter `apps/backend/src/**/*.test.ts`.
+- **Data:** PostgreSQL für persistente Session-, Audit-, MOTD- und Statistikdaten. Redis für Rate-Limits, Token-TTLs, Presence-/Live-Hilfsdaten und flüchtiges Blitzlicht. Yjs/IndexedDB/y-websocket für Local-First Quiz-Sync.
 
-## 🌐 i18n (Story 6.2, ADR-0008)
+## UX und i18n
 
-- **Quellsprache:** Deutsch; nur UI-Texte übersetzen, Quiz-Inhalte (Fragen/Antworten) nicht.
-- **Pflicht bei UI-Weiterentwicklung:** Neue oder geänderte deutschsprachige UI-Texte (Template, `$localize`, ARIA, Fehlermeldungen, Placeholders, Hilfetexte, Legal-Texte) MUESSEN im gleichen Arbeitsschritt in allen 5 Sprachen (`de`, `en`, `fr`, `es`, `it`) nachgezogen werden.
-- **Keine Teilübersetzung mergen:** Änderungen an DE-Texten gelten als unvollständig, solange die zugehörigen Targets in `messages.en.xlf`, `messages.fr.xlf`, `messages.es.xlf`, `messages.it.xlf` (und bei Legal-Seiten `imprint/privacy.{locale}.md`) nicht synchron aktualisiert sind.
-- **Stabile Übersetzungs-IDs:** Wo sinnvoll `i18n="@@…"` / `$localize`:@@…: nutzen, damit XLF-Einheiten beim Textwechsel erkennbar bleiben; verwaiste `trans-unit`-Einträge nach Copy-Umbauten entfernen.
-- **Stil:** Informell (Duzen), zeitgemäß. Deutsch = Referenz für Form und Länge.
-- **Prüfung:** Darstellung mit Übersetzungen **zuerst auf Smartphone** (Mobile-First), dann Desktop; bei Überlänge Strukturbrüche vermeiden (kürzere Formulierung oder zwei Varianten Mobile/Desktop).
-- **Datum/Einheiten/Idiomatik:** Zielsprache/Locale beachten; Formulierungen idiomatisch.
-- **Sprachwechsel:** Auf Quiz Edit/Quiz New bei ungespeichertem Inhalt Hinweis-Dialog oder Deaktivierung der Sprachwahl (ADR-0008 §3). Details: `docs/architecture/decisions/0008-i18n-internationalization.md`, `docs/I18N-ANGULAR.md`.
+- Quellsprache ist Deutsch; UI spricht informell per Du.
+- Neue oder geänderte UI-Texte, ARIA-Labels, Fehlermeldungen, Platzhalter und Hilfetexte in `de`, `en`, `fr`, `es`, `it` synchron halten.
+- Legal-Texte pro Locale nur bewusst ändern und die passenden Markdown-Dateien mitziehen.
+- Stabile Übersetzungs-IDs (`i18n="@@..."`, `$localize`:@@...:) bevorzugen; verwaiste XLF-Einträge nach Copy-Umbauten entfernen.
+- Mobile-First prüfen, besonders 320 px und längere lokalisierte Texte.
+- Micro-Interactions in `@media (prefers-reduced-motion: no-preference)` kapseln.
+- Startseiten- und UI-Patterns stehen in `docs/ui/STYLEGUIDE.md`, `docs/ui/TOKENS.md`, `docs/ui/PR-CHECKLIST-UI.md`.
 
-## 📋 Arbeitsweise in Cursor
+## Produktionsrelevante Änderungen
 
-- **AGENT.md** gilt als ergänzende KI-Leitplanken: Baby-Steps, Backend-oder-Frontend zuerst, kein `BehaviorSubject` für UI-State, Styling (Material 3, kein Tailwind), Integrationstest vor Story-Fertigstellung. Bei Unklarheiten oder fehlendem Kontext: User bitten, `@AGENT.md` zu laden.
-- **Abschluss-Flow ist verpflichtend:** Vor „fertig“, Commit oder Push den in `AGENT.md` definierten **Abschluss-Flow für Feature-/Bugfix-Arbeit** durchlaufen (inkl. relevanter Tests und lokalisiertem Production-Build bei Frontend-Änderungen).
-- Nutze `@Codebase` bzw. das **Backlog** (`Backlog.md` im Repo-Root), um vor Story-Start die Akzeptanzkriterien und DoD zu prüfen.
-- Wenn du im **Composer (`Cmd+I`)** arbeitest, stelle sicher, dass du Änderungen in `apps/backend` und `apps/frontend` gleichzeitig vornimmst, um die tRPC-Typsicherheit zu wahren.
+Wenn Env, Deploy, Nginx, Docker, Admin, Rate-Limits, Health, Backups, CI/CD oder Betreiberabläufe betroffen sind:
+
+- `docs/deployment-debian-root-server.md`
+- `docs/ENVIRONMENT.md`
+- `docs/SECURITY-OVERVIEW.md`
+- `docs/TESTING.md`
+- `docs/implementation/ADMIN-FLOW.md`
+- `.env.production.example`
+- `docker-compose.prod.yml`
+- `scripts/deploy.sh`
+- `.github/workflows/ci.yml`
+
+gegen Code und Konfiguration abgleichen. Hinter genau einem Nginx/Reverse Proxy ist `TRUST_PROXY_HOPS=1` produktionsrelevant, damit Rate-Limits echte Client-IPs sehen.
+
+## Arbeitsweise in Cursor
+
+- `AGENT.md` ist der kurze KI-Einstieg; bei Unklarheit zuerst laden.
+- `Backlog.md` vor Story-Arbeit lesen; Akzeptanzkriterien und DoD sind verbindlich.
+- `docs/cursor-context.md` ist nützlich für lange Sessions, kann aber veralten. Aktuelle Aussagen immer gegen fokussierte Doku und Code prüfen.
+- Für Feature-/Bugfix-Arbeit kleinste sinnvolle Scheibe umsetzen, dann gezielt testen, dann erst breitere Checks.
+- Für Markdown-only Arbeit mindestens Prettier-Check und `git diff --check` über die berührten Dateien ausführen.
+- Vor „fertig“, Commit oder Push die relevanten Checks aus `AGENT.md` und `docs/TESTING.md` durchlaufen oder Abweichungen dokumentieren.

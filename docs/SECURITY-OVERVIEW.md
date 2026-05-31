@@ -2,9 +2,9 @@
 
 # Sicherheit & Datenschutz — Überblick
 
-Kurzreferenz für **Annahmen, Grenzen und eingebaute Kontrollen**. Kein vollständiges Threat-Model; technische Tiefe: Handbuch, ADRs, Prisma, `session.ts` / DTO-Schicht.
+Kurzreferenz für **Annahmen, Grenzen und eingebaute Kontrollen**. Kein vollständiges Threat-Model und keine Rechtsberatung; technische Tiefe: Handbuch, ADRs, Prisma, `session.ts` / DTO-Schicht.
 
-**Stand:** 2026-04-03 — ergänzt um **Host-Härtung** (Host-/Feedback-Host-Token, `hostProcedure`, Route-Guards), **besitzgebundene Quiz-Historie** (`accessProof`), **MOTD** (Epic 10, öffentliche Lesepfade + Admin) und **Plattformstatistik** (`PlatformStatistic` / Rekordteilnehmer in `health.stats`).
+**Stand:** 2026-05-31 — abgeglichen mit Root-[README](../README.md), [deployment-debian-root-server.md](deployment-debian-root-server.md), [ENVIRONMENT.md](ENVIRONMENT.md), Admin-Flow und aktuellem Backend. Enthalten sind Host-/Feedback-Host-Token, Admin-Tokens, besitzgebundene Quiz-Historie (`accessProof`), MOTD, Server-Status (`health.footerBundle` / `health.stats`) und Plattformstatistik (`PlatformStatistic`, `DailyStatistic`).
 
 ---
 
@@ -19,6 +19,7 @@ Kurzreferenz für **Annahmen, Grenzen und eingebaute Kontrollen**. Kein vollstä
 
 - **Data-Stripping:** `AnswerOption.isCorrect` wird im Status **`ACTIVE`** nicht an Teilnehmende ausgeliefert; Auflösung erst in **`RESULTS`** über geeignete DTOs. Maßgeblich sind hier die DTO-Schemas, der Session-Router und die zugehörigen Tests ([libs/shared-types/src/schemas.ts](../libs/shared-types/src/schemas.ts), [apps/backend/src/routers/session.ts](../apps/backend/src/routers/session.ts), [apps/backend/src/**tests**/dto-security.test.ts](../apps/backend/src/__tests__/dto-security.test.ts)).
 - **Phasen-DTOs:** `QUESTION_OPEN` (Lesephase) liefert nur Fragenstamm ohne Antwortoptionen, sofern Lesephase aktiv — siehe Story 2.6.
+- **Effective Vote:** Bei Peer Instruction zählt für Scoring, Leaderboards, Bonuscodes und Exporte die wirksame Runde gemäß ADR-0028; alte Zwischenstände dürfen keine alternative Auswertung erzeugen.
 
 ---
 
@@ -29,8 +30,8 @@ Kurzreferenz für **Annahmen, Grenzen und eingebaute Kontrollen**. Kein vollstä
 - **Blitzlicht-Host:** Standalone-Blitzlicht (`/feedback/:code`) nutzt ein eigenes **Feedback-Host-Token** via `x-feedback-host-token`. Session-gebundenes Blitzlicht nutzt dagegen das normale Session-Host-Token. Dadurch bleiben Session-Host und Standalone-Blitzlicht getrennte Besitzkontexte.
 - **Teilnehmende:** Öffentliche Join-/Vote-Pfade mit Session-Code. Teilnehmerdaten sind auf Minimalzwecke geschnitten: Nickname-Kollisionen für Join, eigener Datensatz für Vote, keine öffentliche Voll-Liste. Rate-Limits greifen je nach Pfad unterschiedlich: Session-Code-Fehlversuche und Session-Erstellung pro IP, Vote-Submit pro Teilnehmenden-ID.
 - **Quiz-Sammlungs-Historie:** Endpunkte wie `session.getBonusTokensForQuiz`, `session.getLastSessionFeedbackForQuiz` und `session.getActiveQuizIds` verlangen zusätzlich einen **besitzgebundenen `accessProof`** zur hochgeladenen Quizkopie. Die Historie ist damit nicht mehr allein über `quizId` öffentlich enumerierbar.
-- **Admin:** Separater Pfad `/admin`; **`ADMIN_SECRET`** (Env), danach Admin-Session mit TTL in Redis. Token-Transport über `Authorization: Bearer ...` oder `x-admin-token`; Schutz zentral über `adminProcedure` (Epic 9 in [Backlog.md](../Backlog.md); Code: `adminAuth`, `trpc.ts`, `admin.ts`).
-- **MOTD (Epic 10):** **Öffentlich:** `motd.getCurrent`, `listArchive`, `getHeaderState`, `recordInteraction` — **rate-limited** pro IP ([ENVIRONMENT.md](ENVIRONMENT.md), `rateLimit.ts`). **Schreibend:** nur `adminProcedure` — `admin.motd.*` / Templates, Audit-Log `MotdAuditLog`.
+- **Admin:** Separater Pfad `/admin`; **`ADMIN_SECRET`** (Env), danach Admin-Session mit TTL in Redis. Token-Transport über `Authorization: Bearer ...` oder `x-admin-token`; Schutz zentral über `adminProcedure`. Umgesetzt sind Recherche, Detailansicht, Legal Hold, Einzel-/Massenlöschung, Behördenexport, Quiz-Import-Export und Rekord-Reset.
+- **MOTD (Epic 10):** **Öffentlich:** `motd.getCurrent`, `listArchive`, `getHeaderState`, `recordInteraction` — **rate-limited** pro IP ([ENVIRONMENT.md](ENVIRONMENT.md), `rateLimit.ts`). **Schreibend:** nur Admin-Prozeduren — MOTD, Vorlagen, Statistiken und Audit-Log `MotdAuditLog`.
 
 Die App **ersetzt keine** organisationsweite IAM- oder VPN-Lösung.
 
@@ -38,7 +39,7 @@ Die App **ersetzt keine** organisationsweite IAM- oder VPN-Lösung.
 
 ## 4. Missbrauch & Last (Rate-Limiting)
 
-Redis-basierte Limits u. a. für Session-Code-Fehlversuche und Session-Erstellung **pro IP**, Votes **pro Teilnehmenden-ID** sowie die **MOTD-Öffentliche-API pro IP** — konfigurierbar über Env ([ENVIRONMENT.md](ENVIRONMENT.md), `rateLimit.ts`). Die Client-IP wird dabei primär aus `x-forwarded-for`, sonst aus `socket.remoteAddress` gelesen (`trpc.ts`).
+Redis-basierte Limits u. a. für Session-Code-Fehlversuche und Session-Erstellung **pro IP**, Votes **pro Teilnehmenden-ID** sowie die **MOTD-Öffentliche-API pro IP** — konfigurierbar über Env ([ENVIRONMENT.md](ENVIRONMENT.md), `rateLimit.ts`). Hinter Nginx muss `TRUST_PROXY_HOPS=1` gesetzt sein, damit `x-forwarded-for` / `x-real-ip` korrekt ausgewertet werden und nicht alle Clients im Proxy-Bucket landen.
 
 ---
 
@@ -46,15 +47,25 @@ Redis-basierte Limits u. a. für Session-Code-Fehlversuche und Session-Erstellun
 
 - **Sessions:** Aktive, verwaiste Sessions werden nach **24 Stunden** auf `FINISHED` gesetzt. Bereits beendete Sessions werden nach weiteren **24 Stunden** gelöscht, sofern kein aktiver **Legal Hold** greift. Diese Fenster sind derzeit **fest im Code** definiert, nicht per Env konfigurierbar ([apps/backend/src/lib/sessionCleanup.ts](../apps/backend/src/lib/sessionCleanup.ts)).
 - **Bonus-Tokens:** Zusätzliche Bereinigung nach **90 Tagen** ([apps/backend/src/lib/sessionCleanup.ts](../apps/backend/src/lib/sessionCleanup.ts)).
+- **Session-Feedback:** Zusätzliche Bereinigung nach **90 Tagen** ([apps/backend/src/lib/sessionCleanup.ts](../apps/backend/src/lib/sessionCleanup.ts)).
 - **Blitzlicht / Quick Feedback:** Nur Redis, TTL **30 Minuten** — kein langfristiges PII dort ([apps/backend/src/routers/quickFeedback.ts](../apps/backend/src/routers/quickFeedback.ts)).
 
-Aggregierte **Server-Statistiken** (`health.stats`) ohne Einzelpersonenbezug (Story 0.4): aktive/abgeschlossene Sessions, Teilnehmende in aktiven Sessions, Blitz-Runden, sowie **Rekord** `maxParticipantsSingleSession` aus **`PlatformStatistic`** (Hilfe-Dialog — keine personenbezogenen Einzelwerte).
+Aggregierte **Server-Statistiken** (`health.footerBundle`, `health.stats`) ohne Einzelpersonenbezug: aktive/abgeschlossene Sessions, Teilnehmende in aktiven Sessions, Blitz-Runden, Service-/Laststatus, Allzeit-Rekord `maxParticipantsSingleSession` aus **`PlatformStatistic`** und Tagesrekorde aus **`DailyStatistic`**.
 
 ---
 
 ## 6. Transport & Infrastruktur (Grenzen der App)
 
 TLS-Terminierung, Firewall, Secret-Management auf dem Server und Härtung des Host-Systems sind **Betriebssache** — siehe [deployment-debian-root-server.md](deployment-debian-root-server.md), Docker-/Compose-Vorlagen.
+
+Vor öffentlichem Betrieb müssen Betreiber zusätzlich klären und testen:
+
+- eigene Impressums-/Datenschutztexte und Kontaktwege,
+- PostgreSQL-Backups inklusive Restore-Test,
+- Admin-Verantwortlichkeiten für Legal Hold, Löschung, Export und MOTD,
+- Monitoring/Logzugriff und Incident-Prozess,
+- Rate-Limit-Profil im tatsächlichen Proxy-/Shared-NAT-Umfeld,
+- WebSocket-Erreichbarkeit für `/trpc-ws` und `/yjs-ws`.
 
 ---
 

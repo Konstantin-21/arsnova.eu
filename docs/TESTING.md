@@ -4,7 +4,7 @@
 
 **Lokal** vor PR: mindestens `npm run build`, `npm run lint`, `npm test` (entspricht den wesentlichen CI-Gates). Vollständige DoD: [Backlog.md](../Backlog.md) „Definition of Done“. Nach größeren Änderungen an **`@arsnova/shared-types`**: wie in Root-[README](../README.md) zuerst `npm run build -w @arsnova/shared-types` bzw. Root-`npm run build` nutzen.
 
-**Stand:** 2026-05-31 · Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (Node **20** und **22**; Jobs: `build`, `typecheck`, `lint`, `audit` informational, `test`, `docker`, optional `deploy`)
+**Stand:** 2026-05-31 · Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (Node **20** und **22**; Jobs: `build`, `typecheck`, `lint`, `audit` informational, `test`, `docker`, optional `deploy`) · Deploy-Skript: [`scripts/deploy.sh`](../scripts/deploy.sh)
 
 ---
 
@@ -33,17 +33,28 @@ Workspace-spezifisch:
 
 Auslöser: **Push** und **Pull Request** auf `main`.
 
-| Job / Phase                            | Inhalt                                                                                                                                                                             |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **build** (Node 20 & 22)               | `npm ci` → `prisma validate` → `prisma generate` → `tsc -b apps/backend` → Frontend `tsc --noEmit` → `build:localize` (Frontend, **alle** konfigurierten Locales `de/en/fr/it/es`) |
-| **typecheck** (Node 20 & 22, parallel) | `npm ci` → `prisma validate` → `prisma generate` → `npm run typecheck` (inkl. `build` für `shared-types`, dann `--noEmit`)                                                         |
-| **lint**                               | `npm run lint` (nach build)                                                                                                                                                        |
-| **audit**                              | `npm audit --audit-level=high` (informational, blockiert nicht)                                                                                                                    |
-| **test**                               | `npm test` (nach build)                                                                                                                                                            |
-| **docker**                             | Docker-Image-Build (ohne Push), nach build                                                                                                                                         |
-| **deploy**                             | Nur bei Push auf `main` (oder `DEPLOY_BRANCH`) **und** Repository-Variable `DEPLOY_ENABLED=true`; läuft nach **`lint`, `test`, `docker`, `typecheck`** (alle müssen grün sein)     |
+| Job / Phase                            | Inhalt                                                                                                                                                                                                                                                                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **build** (Node 20 & 22)               | `npm ci` → `prisma validate` → `prisma generate` → `tsc -b apps/backend` → Frontend `tsc --noEmit` → `build:localize` (Frontend, **alle** konfigurierten Locales `de/en/fr/it/es`)                                                                                         |
+| **typecheck** (Node 20 & 22, parallel) | `npm ci` → `prisma validate` → `prisma generate` → `npm run typecheck` (inkl. `build` für `shared-types`, dann `--noEmit`)                                                                                                                                                 |
+| **lint**                               | `npm run lint` (nach build)                                                                                                                                                                                                                                                |
+| **audit**                              | `npm audit --audit-level=high` (informational, blockiert nicht)                                                                                                                                                                                                            |
+| **test**                               | `npm test` (nach build)                                                                                                                                                                                                                                                    |
+| **docker**                             | Docker-Image-Build (ohne Push), nach build                                                                                                                                                                                                                                 |
+| **deploy**                             | Nur bei Push auf `main` oder einen zusätzlich im Workflow-Trigger eingetragenen `DEPLOY_BRANCH` **und** Repository-Variable `DEPLOY_ENABLED=true`; läuft nach **`lint`, `test`, `docker`, `typecheck`** (alle müssen grün sein); ruft serverseitig `scripts/deploy.sh` auf |
 
 Matrix: **zwei** LTS-Versionen (**20** und **22**), `fail-fast: false`.
+
+### Produktions-/Deploy-Checks
+
+Für produktionsrelevante Änderungen zusätzlich prüfen:
+
+```bash
+npm run build:prod
+docker compose -f docker-compose.prod.yml --env-file .env.production config
+```
+
+Auf dem Server übernimmt `scripts/deploy.sh` die Reihenfolge **Build → Postgres/Redis starten → Prisma migrate deploy → App starten → Healthcheck**. Der Deploy ist erst erfolgreich, wenn der Container healthy ist, `http://127.0.0.1:3000/trpc/health.check` antwortet und die Frontend-Shell unter `/de/` ausgeliefert wird.
 
 ---
 
@@ -121,4 +132,5 @@ Gezielte Regressionen für die aktuelle Host-Härtung:
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — PR-Checkliste
 - [ENVIRONMENT.md](ENVIRONMENT.md) — lokale Ausführung
+- [deployment-debian-root-server.md](deployment-debian-root-server.md) — Produktions-Deployment und Go-Live-Checks
 - [README.md](../README.md) — `npm run dev`, Setup

@@ -2,54 +2,62 @@
 
 # UI Styleguide (Angular Material 3)
 
+**Stand:** 2026-05-31 — abgeglichen mit Angular 21.2, `apps/frontend/src/styles.scss`, `apps/frontend/src/styles/playful-inner-chrome.scss`, den Shared-Styles unter `apps/frontend/src/app/shared/styles/`, [TOKENS.md](TOKENS.md) und [PR-CHECKLIST-UI.md](PR-CHECKLIST-UI.md).
+
 ## Ziel und Geltungsbereich
 
-Dieser Styleguide definiert verbindliche UI-Regeln fuer `apps/frontend` von arsnova.eu.
-Ergaenzend zur ADR `docs/architecture/decisions/0005-use-angular-material-design.md` beschreibt er die operative Umsetzung im Alltag.
+Dieser Styleguide definiert verbindliche UI-Regeln für `apps/frontend` von arsnova.eu.
+Ergänzend zur ADR `docs/architecture/decisions/0005-use-angular-material-design.md` beschreibt er die operative Umsetzung im Alltag.
 
 ## Grundsaetze
 
-- Angular Material ist der Standard fuer interaktive UI-Elemente.
+- Angular Material ist der Standard für interaktive UI-Elemente.
 - Material 3 ist die visuelle und semantische Grundlage.
 - Styling ist tokenbasiert und zentral gesteuert.
-- Kein Tailwind im Repository.
-- Eigenes SCSS ist erlaubt fuer Layout-Patterns und app-spezifische Strukturen.
+- Kein Tailwind in `apps/frontend`.
+- Eigenes SCSS ist erlaubt für Layout-Patterns, app-spezifische Strukturen und klar begrenzte globale Overlay-Surfaces.
 
 ## Theming und Farbmodus
 
 - Das globale Theme wird auf Root-Ebene (`html`) mit `mat.theme(...)` definiert.
+- Standard-Preset **Seriös:** Primary `mat.$azure-palette`, Tertiary `mat.$cyan-palette`.
+- Preset **Spielerisch:** `html.preset-playful` überschreibt die Palette mit `mat.$magenta-palette` und `mat.$violet-palette` und setzt zusätzliche app-spezifische Surface-/Shadow-Tokens.
 - `color-scheme` steuert Light/Dark-Verhalten.
 - Bei Komponenten gilt: Farben nur aus Tokens, keine ad-hoc Hex-Werte.
-- Standard-Hintergrund/Farbe fuer die App orientiert sich an `--mat-sys-surface` und `--mat-sys-on-surface`.
+- Standard-Hintergrund/Farbe für die App orientiert sich an `--app-bg-root`, `--mat-sys-surface` und `--mat-sys-on-surface`.
+- Material Icons sind selbst gehostet und nutzen `font-display: block`; keine externen Font-Requests einführen.
 
 ## Komponentenrichtlinien
 
 - Neue Features verwenden zuerst Angular-Material-Komponenten.
 - Eigenkomponenten sind erlaubt, wenn Material funktional nicht reicht.
-- Eigene Komponenten muessen dieselben Tokens verwenden wie Material-Komponenten.
+- Eigene Komponenten müssen dieselben Tokens verwenden wie Material-Komponenten.
 - Keine CSS-Selektoren gegen interne Material-DOM-Strukturen.
-- Komponentenanpassungen nur ueber offizielle Override-APIs.
+- Komponentenanpassungen nur über offizielle Override-APIs.
+- Globale Overlay-Regeln sind nur mit enger `panelClass` / `backdropClass` zulässig, z. B. für MOTD-Archiv, Admin-MOTD-Template, Server-Status-Hilfe, Markdown-Bild-Lightbox und Word-Cloud-Fullscreen-Dialoge.
 
-## Material-Dialoge: Titelzeile mit Icon (MUSS)
+## Material-Dialoge: Titelzeile mit Icon (MUSS, Standarddialoge)
 
-- **Einheitliche Gestaltung:** Alle `MatDialog`-Komponenten im Frontend nutzen fuer die **Kopfzeile** dieselbe Struktur und Typografie wie der **Bonus-Codes-Dialog** (Icon-Kachel links, Ueberschrift rechts, optional zweite Zeile).
+- **Einheitliche Gestaltung:** Standard-`MatDialog`-Komponenten im Frontend nutzen für die **Kopfzeile** dieselbe Struktur und Typografie wie der **Bonus-Codes-Dialog** (Icon-Kachel links, Überschrift rechts, optional zweite Zeile).
 - **Stylesheet:** `apps/frontend/src/app/shared/styles/dialog-title-header.scss` — Klassen `dialog-title-header`, `dialog-title-header__icon`, `dialog-title-header__copy`, `dialog-title-header__heading`, optional `dialog-title-header__sub`.
-- **Markup:** `h2` mit `mat-dialog-title` und Klasse `dialog-title-header`; das Icon liegt in `dialog-title-header__icon` mit `mat-icon`, der Text in `dialog-title-header__copy` (Ueberschrift mindestens in `dialog-title-header__heading`).
-- **Einbindung:** Zusaetzlich zur Komponenten-SCSS `styleUrls` um diese Datei erweitern (Pfad je nach Ordner, z. B. `../../../shared/styles/dialog-title-header.scss` aus `features/quiz/quiz-list/`).
-- **Warnung / Verlassen:** Bestaetigungsdialoge mit kritischem Inhalt: Icon-Wrapper mit `dialog-title-header__icon dialog-title-header__icon--warn` (Farbton aus Error-/Error-Container-Tokens).
-- **Neue Dialoge:** Keine rein textlichen `mat-dialog-title`-Zeilen ohne Icon-Kachel; bei Sonderfaellen (z. B. Schließen-Button in derselben Zeile wie beim News-Archiv) bleibt die **linke Gruppe** trotzdem die Icon+Titel-Struktur innerhalb des `h2`.
+- **Markup:** `h2` mit `mat-dialog-title` und Klasse `dialog-title-header`; das Icon liegt in `dialog-title-header__icon` mit `mat-icon`, der Text in `dialog-title-header__copy` (Überschrift mindestens in `dialog-title-header__heading`).
+- **Einbindung:** Zusätzlich zur Komponenten-SCSS `styleUrls` um diese Datei erweitern (Pfad je nach Ordner, z. B. `../../../shared/styles/dialog-title-header.scss` aus `features/quiz/quiz-list/`).
+- **Warnung / Verlassen:** Bestätigungsdialoge mit kritischem Inhalt: Icon-Wrapper mit `dialog-title-header__icon dialog-title-header__icon--warn` (Farbton aus Error-/Error-Container-Tokens).
+- **Seiten- und Kartenköpfe:** Für große Seitenköpfe kann dieselbe Struktur mit `dialog-title-header--page` genutzt werden, wenn Icon+Titel semantisch zur Orientierung beitragen.
+- **Ausnahmen:** Fullscreen-Arbeitsflächen wie Word-Cloud-Dialoge und die Markdown-Bild-Lightbox nutzen eigene Toolbars/Close-Buttons. Sie müssen über enge `panelClass` / `backdropClass` gestylt, tastaturbedienbar und in der PR-Checkliste als Ausnahme benannt sein.
+- **Neue Dialoge:** Keine rein textlichen `mat-dialog-title`-Zeilen ohne Icon-Kachel, außer bei den genannten Fullscreen-Tool-Ausnahmen.
 
 ## Token-Nutzung
 
 - System-Tokens: `--mat-sys-*`.
 - App-Semantik-Tokens (z. B. Erfolg/Warnung/Info) mappen auf System-Tokens.
-- Direkte Farbwerte in Feature-SCSS sind nur mit begruendeter Ausnahme erlaubt.
+- Direkte Farbwerte in Feature-SCSS sind nur mit begründeter Ausnahme erlaubt. Zulässige dokumentierte Ausnahmen stehen in [TOKENS.md](TOKENS.md), z. B. Status-/Bewertungsfarben, `meta theme-color` und technisch begrenzte Chart-/Canvas-Fallbacks.
 
 ## Typografie
 
 - Typografie folgt der M3-Type-Scale (Display, Headline, Title, Body, Label).
-- Fuer Texte in Komponenten bevorzugt Typo-Tokens wie `--mat-sys-body-medium`.
-- Keine freien Font-Groessen/Line-Heights ohne Design-System-Bedarf.
+- Für Texte in Komponenten bevorzugt Typo-Tokens wie `--mat-sys-body-medium`.
+- Keine freien Font-Größen/Line-Heights ohne Design-System-Bedarf.
 
 ## Shape, Elevation, Borders
 
@@ -73,12 +81,13 @@ Regeln:
 - Keine Utility-Klassen-Flut; stattdessen wiederverwendbare Pattern-Klassen/Mixins.
 - Layout und Component-Skin trennen (Struktur vs. visuelle Semantik).
 
-### Layout-Vorgabe fuer Inhaltseiten (alle ausser Startseite)
+### Layout-Vorgabe für Inhaltseiten (alle außer Startseite)
 
 - **Root-Container:** Jede Seite (Quiz, Session, Legal, Help, Join, Admin usw.) nutzt als aeusseren Container eine der globalen Layout-Klassen aus `styles.scss`.
 - **`.l-page`:** Max-width 56 rem, zentriert, Padding 1,5 rem / 1 rem (responsive 1,5 rem / 2 rem). Fluchtlinie und Innenabstand wie auf der Startseite.
-- **`.l-section`:** Max-width 42 rem, zentriert; optional in Kombination mit `.l-page` fuer schmalere Lesebreite (z. B. Quiz-Shell, Session, Admin).
-- **Empfehlung:** Einheitlich `<div class="l-page l-section">` als Root der Feature-Komponente (oder `class="<feature>-page l-page"` wie Legal/Help, wenn zusaetzliche Feature-Styles noetig sind). So bleibt Abstand zur Toolbar (via `.app-main > * > .l-page:first-child`) und Innenabstand konsistent.
+- **`.l-section`:** Max-width 42 rem, zentriert; optional in Kombination mit `.l-page` für schmalere Lesebreite (z. B. Quiz-Shell, Session, Admin).
+- **`.content-page-layer`:** Für Help, Legal und News-Archiv die shared Content-Page-Struktur aus `content-page-backdrop.scss` nutzen, wenn seitliche Rails/Klickflächen und ein zentriertes Lesepanel gebraucht werden.
+- **Empfehlung:** Einheitlich `<div class="l-page l-section">` als Root der Feature-Komponente (oder `class="<feature>-page l-page"` wie Admin, wenn zusätzliche Feature-Styles nötig sind). So bleibt Abstand zur Toolbar (via `.app-main__content > * > .l-page:first-child`) und Innenabstand konsistent.
 - **Startseite:** Bleibt Sonderfall mit eigenem Grid/Hero; nutzt `.l-page` ohne `.l-section`.
 
 ### Above the fold auf Mobile (Design-Ziel)
@@ -113,9 +122,11 @@ Regeln:
 
 ## Accessibility und Interaktion
 
-- Kontrast und Lesbarkeit muessen in Light und Dark erfuellt sein.
+- Kontrast und Lesbarkeit müssen in Light und Dark erfüllt sein.
 - Fokuszustand muss klar sichtbar sein (bei Bedarf `mat.strong-focus-indicators()`).
-- Disabled, Error und Hover/Focus-Zustaende nur ueber passende Tokens ausdruecken.
+- Disabled, Error und Hover/Focus-Zustände nur über passende Tokens ausdrücken.
+- 320 px Breite ohne horizontales Scrollen ist Pflicht für produktive UI-Flows; für relevante Änderungen `npm run check:viewport -w @arsnova/frontend` nutzen, wenn ein lokaler Server bereitsteht.
+- Animationen und Transitions müssen bei `prefers-reduced-motion: reduce` ohne Informationsverlust nutzbar bleiben.
 
 ## Verbindliche Lesbarkeitsregeln (MUSS)
 
@@ -128,7 +139,7 @@ Regeln:
 
 ## Formularverhalten bei Fehlern (MUSS)
 
-- **Erster Fehler:** Bei Submit mit ungueltigem Formular wird immer zum ersten fehlerhaften Feld gescrollt und fokussiert.
+- **Erster Fehler:** Bei Submit mit ungültigem Formular wird immer zum ersten fehlerhaften Feld gescrollt und fokussiert.
 - **Fokus-Reihenfolge:** Reihenfolge folgt der visuellen Reihenfolge im Formular (oben links nach unten rechts).
 - **Korrektheitslogik:** Bei fachlichen Fehlern ohne invalides Feld (z. B. fehlende Korrektmarkierung) wird die erste relevante Interaktionsstelle fokussiert.
 
@@ -149,7 +160,15 @@ Regeln:
 - **`innerHTML`-Content:** Styles fuer gerendertes Markdown/KaTeX werden global und klar gescoped definiert (z. B. `.quiz-preview-*`, `.quiz-edit-*`), nicht ueber `::ng-deep`.
 - **Fehlerdarstellung:** `.markdown-katex-error` nutzt Error-Tokens und `body-small`.
 - **Typografie:** Absatz-, Listen-, Heading- und Blockquote-Abstaende fuer gerenderten Content sind explizit definiert.
+- **Bilder:** Markdown-Bilder mit Lightbox nutzen die shared Directive/Fullscreen-Dialoge. Fullscreen-Surfaces sind bewusst transparent und global über `markdown-image-lightbox-dialog-panel` begrenzt.
 - **Bekannte Einschraenkung (vorlaeufig):** Nach Inline-KaTeX (`$...$`) kann ein direkt folgendes Satzzeichen durch Browser-Zeilenumbruch an der HTML-Grenze optisch in die naechste Zeile rutschen (CSS/Unicode-Glue ist dafuer nicht zuverlaessig). **Workaround fuer Autor:innen:** Satzzeichen in die Formel nehmen (z. B. `$\dots.$` oder `\text{.}` am Ende) oder den Satz so formulieren, dass kein Satzzeichen unmittelbar nach `$...$` folgt.
+
+## Fullscreen-Tools: Word Cloud und Bild-Lightbox (MUSS)
+
+- Fullscreen-Dialoge nutzen enge `panelClass` / `backdropClass` statt generischer Material-Overrides.
+- Die Surface darf transparent und randlos sein, wenn das Tool selbst die visuelle Fläche trägt.
+- Schließen-Button, Tastaturfokus, Scroll-/Overscroll-Verhalten und mobile Toolbar müssen explizit geprüft werden.
+- Referenzen: `word-cloud-dialog-panel`, `word-cloud-dialog-backdrop`, `markdown-image-lightbox-dialog-panel`, `markdown-image-lightbox-dialog-backdrop` in `styles.scss`.
 
 ## Technische Details und Progressive Disclosure (MUSS)
 
@@ -209,7 +228,7 @@ Tokenbasierte Card-Flaeche:
 
 - **6 Segment-Boxen** statt mat-form-field: Jede Box zeigt ein Zeichen, Monospace, zentriert. Transparenter `<input>` liegt als Overlay darueber und faengt alle nativen Interaktionen (Paste, Mobile-Keyboard).
 - **Zustaende:** Leer (outline-variant Border), Active (primary Border + Pulse-Animation), Filled (primary Border + Tint-Background), Valid (success-fg Border + Glow).
-- **Micro-Interactions:** Segment-Pulse auf aktiver Box (breathing-Effekt, 1 s), CTA-Pulse wenn 6. Zeichen eingegeben (scale 1 > 1.04 > 1, 350 ms), Shake bei ungueltigem Submit (horizontale Vibration, 400 ms, mit rotem Border). Alle Animationen in `@media (prefers-reduced-motion: no-preference)`.
+- **Micro-Interactions:** Segment-Pulse auf aktiver Box (breathing-Effekt, 1 s), CTA-Pulse wenn 6. Zeichen eingegeben (scale 1 > 1.04 > 1, 350 ms), Shake bei ungültigem Submit (horizontale Vibration, 400 ms, mit rotem Border). Alle Animationen in `@media (prefers-reduced-motion: no-preference)`.
 - **Beschriftung** unter den Segments: zentriert **Session-Code** (`label-medium`, on-surface-variant). Laenge und Beispiel entfallen in der Zeile; Screenreader: `aria-label` am Eingabefeld („Session-Code, 6 Zeichen“).
 - Responsive: Groessere Boxen auf Desktop (3 rem x 3.5 rem vs. 2.5 rem x 3 rem Mobile).
 
@@ -222,7 +241,7 @@ Tokenbasierte Card-Flaeche:
 
 ## Startseite: Brand und Status
 
-- **Brand-Icon:** EU-Blau als Hintergrund (stilistische Anlehnung, kein offizielles EU-Emblem). Im Logo: EU-gelber Stern (arsnova-stern-eu, Pentagramm wie EU-Flagge, eine Spitze oben), Farbe `--app-eu-yellow`; Logo-Stern-Farbe wird nicht themenabhaengig geaendert. Im Titel nur „arsnova.eu“ mit normalem Punkt (kein Stern im Wortmarken-Text). Farben: `--app-eu-blue` (#002395), `--app-eu-yellow` (#ffcc00).
+- **Brand-Icon:** EU-Blau als Hintergrund (stilistische Anlehnung, kein offizielles EU-Emblem). Im Logo: EU-gelber Stern (arsnova-stern-eu, Pentagramm wie EU-Flagge, eine Spitze oben), Farbe `--app-eu-yellow`; Logo-Stern-Farbe wird nicht themenabhängig geändert. Im Titel nur „arsnova.eu“ mit normalem Punkt (kein Stern im Wortmarken-Text). Farben: `--app-eu-blue`, `--app-eu-blue-dark`, `--app-eu-yellow` (als Brand-Ausnahme in [TOKENS.md](TOKENS.md) dokumentiert).
 - **Status nur auf der Karte:** Kein Status-Punkt im Header; der Server-Status wird ausschliesslich in der **Status-Card** im Grid angezeigt (detaillierte Infos, z. B. „Quiz live“, „Verbunden“).
 
 ## Startseite: Mobile-Hierarchie
@@ -259,7 +278,7 @@ Leitplanken aus der Teilnehmer-Session (Preset **Ernst** / **Spielerisch**); zen
 - **Geraeteneutral:** Wo moeglich Aufgaben statt Eingabegeraet benennen (z. B. „abstimmen“ statt „klicken“), damit Touch und Maus gleichermassen passen.
 - **„Wir“ / „uns“ vorsichtig:** Formulierungen wie „Bei uns steht:“ koennen Team-Kontext suggerieren; bei Einzelspielerinnen unklar. Bevorzugt Du-Ansprache („Du sagst:“) oder neutrales Label („Deine Eingabe:“).
 - **Denglisch vermeiden:** Unnoetige Anglizismen in deutscher UI reduzieren (z. B. „Vote“ in Labels → „Wahl“ oder „Abstimmung“ je nach Kontext).
-- **Spielerisch ohne Ueberdrehung:** Duzen, kurze Saetze, leichte Energie – aber klar; keine unnoetigen Anglizismen und kein derbes oder jugendsprachliches Marketing in Produkt-Strings (z. B. englischsprachiges „Take 2“, „abfeuern“, „raushauen“). **Ernst** bleibt sachlich und klar; gleiche Information darf knapper formuliert sein.
+- **Spielerisch ohne Überdrehung:** Duzen, kurze Saetze, leichte Energie – aber klar; keine unnoetigen Anglizismen und kein derbes oder jugendsprachliches Marketing in Produkt-Strings (z. B. englischsprachiges „Take 2“, „abfeuern“, „raushauen“). **Ernst** bleibt sachlich und klar; gleiche Information darf knapper formuliert sein.
 
 ### Zielgruppenneutrale Copy (Schule, Hochschule, Training, Business)
 
@@ -269,15 +288,15 @@ Die App richtet sich auch an Trainer:innen, Workshop- und Event-Moderation sowie
 - **Beamer-/Grossbild-Ansicht (Present):** Fragen aus dem **Publikum** statt „aus dem Saal“, damit Meetingraum, Workshop und Hoersaal gleichermassen passen. Referenz: `session-present.component.html` (`@@sessionPresent.qaLabel`, `qaQueueLabel`).
 - **Host-Seite / Fehlerpfade:** Kurz und klar **Host** nutzen, wo es um die Steuerungs-Ansicht geht (z. B. Link bei beendeter Session).
 - **Hilfe und erklaerende Texte:** Zielgruppe beschreiben mit **Lehrende, Trainer:innen, Seminarleiter:innen** (wie im Intro) – dort bewusst breit. Bei Tipps und Anleitungen **Gruppe** und **Teilnehmende** bevorzugen, wenn es nicht explizit um Lernende geht; **Veranstaltung** statt nur „Unterricht“/„Seminar“, wo der Kontext allgemein ist. Referenz: `help.component.html`.
-- **Datenschutz / KI / Import:** Statt **Lehrmaterialien** und statt zu enger „Lehr“-Wortwahl lieber **deine Inhalte** (ggf. **Inhalte und Praesentationen**, wenn der Kontext Praesentationsfolien meint). Bei KI-Prompt/Import klarstellen: Generierung mit **eigener KI**, **keine Uebermittlung dieser Inhalte an arsnova.eu** (wie in der Hilfe unter Import/Export). Referenz: `help.component.html`.
+- **Datenschutz / KI / Import:** Statt **Lehrmaterialien** und statt zu enger „Lehr“-Wortwahl lieber **deine Inhalte** (ggf. **Inhalte und Präsentationen**, wenn der Kontext Präsentationsfolien meint). Bei KI-Prompt/Import klarstellen: Generierung mit **eigener KI**, **keine Übermittlung dieser Inhalte an arsnova.eu** (wie in der Hilfe unter Import/Export). Referenz: `help.component.html`.
 - **Peer Instruction (Doppelrunden):** In Erklaertexten den Vorher/Nachher-Vergleich so beschreiben, dass er auch **ohne** klassischen „Lerneffekt“ Sinn ergibt – z. B. **Stimmungsbild** / Meinungsverteilung nach Austausch (nicht nur didaktischer Lerngewinn). Referenz: Hilfe-Abschnitte Host und Blitzlicht.
-- **i18n:** Neue oder geaenderte deutsche UI-Strings dieser Kategorie wie ueblich in **allen** Locale-Dateien (`messages.xlf`, `en`, `fr`, `es`, `it`) nachziehen; feste IDs (`@@…`) beibehalten, wo vorhanden.
+- **i18n:** Neue oder geänderte deutsche UI-Strings dieser Kategorie wie üblich in **allen** Locale-Dateien (`messages.xlf`, `en`, `fr`, `es`, `it`) nachziehen; feste IDs (`@@…`) beibehalten, wo vorhanden.
 
 ### Verbindliche Begriffspaare (MUSS)
 
 - **UI-Sprache:** "Vorschau" statt "Preview", "Tastenkürzel" statt "Hotkeys".
 - **Englisch (`en`):** Konkrete Copy- und Terminologieregeln für `messages.en.xlf` (Host/Session, Interpunktion, Fehlertoast, SEO): **[ENGLISH-UI-COPY.md](ENGLISH-UI-COPY.md)**.
-- **Verstaendlichkeit:** "gueltig" statt "valide".
+- **Verständlichkeit:** "gültig" statt "valide".
 - **KI-Import-Texte:** Keine internen Technikbegriffe wie "Schema-Validierung" in Primaertexten; stattdessen nutzerorientierte Formulierungen ("Wir pruefen den Inhalt vor dem Import.").
 
 ## Preset-Toast (Modal): Design
@@ -312,7 +331,7 @@ Die App richtet sich auch an Trainer:innen, Workshop- und Event-Moderation sowie
 
 - **Zurueck zur Startseite:** Nur ueber Logo oder Home-Icon in der Top-Toolbar; keine expliziten "Startseite"-Links auf Inhaltseiten (NN/G: auf der Startseite selbst keinen aktiven Home-Link anbieten).
 - **Ladezustaende:** Kurz "Wird geladen…" (ohne "Session" oder Kontext, wenn der Kontext schon klar ist).
-- **Fehlermeldungen:** Nutzerorientiert, kein Technik-Jargon. "Ungueltiger Code." statt "Ungueltiger Session-Code."; "Nicht gefunden. Code pruefen oder neu eingeben."; "Seite konnte nicht geladen werden." statt "Inhalt konnte nicht geladen werden.".
+- **Fehlermeldungen:** Nutzerorientiert, kein Technik-Jargon. "Ungültiger Code." statt "Ungültiger Session-Code."; "Nicht gefunden. Code prüfen oder neu eingeben."; "Seite konnte nicht geladen werden." statt "Inhalt konnte nicht geladen werden.".
 - **Platzhalter-Hinweise:** Keine Story-/Epic-Referenzen in der UI. Stattdessen kurze nutzerorientierte Hinweise (z. B. "Hier Quizzes anlegen und verwalten.", "Lobby und Steuerung werden hier angezeigt.").
 - **Leere Tabs/Listen:** Wenn Tab-Titel oder umgebender Kontext die Funktion schon traegt, reicht ein **minimaler** Hinweis (z. B. "Noch keine Fragen.") – ohne erklaerenden Zusatzsatz, der nur wiederholt, was unten ohnehin passiert.
 - **Footer-Badges:** Reihenfolge wie auf der Startseite: "Kostenlos · 100 % DSGVO-konform · Open Source".
@@ -321,7 +340,7 @@ Die App richtet sich auch an Trainer:innen, Workshop- und Event-Moderation sowie
 ## Nicht erlaubt
 
 - Tailwind-Klassen im Repository.
-- Direkte Ueberschreibung interner Material-Klassen.
+- Direkte Überschreibung interner Material-Klassen.
 - Hardcoded Hex/RGB-Farben fuer Standard-UI-Semantik.
 - Wildwuchs an einmaligen Layout-Hacks pro Feature.
 

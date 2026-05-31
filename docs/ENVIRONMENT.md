@@ -56,6 +56,21 @@ In **`.env.example`** und **Docker-/Deploy-Vorlagen** enthalten; im aktuellen **
 
 Zusätzlich zu den Backend-Variablen (angepasste Hosts: `postgres`, `redis` im Netzwerk) siehe [`.env.production.example`](../.env.production.example) für **PostgreSQL-Credentials** und Secrets. Nie echte Secrets in Git committen. Falls der Yjs-WebSocket in Containern von außen erreichbar sein muss, `YJS_WS_HOST` explizit passend setzen; `HOST` ist dafür nur der Fallback.
 
+### Pflichtwerte vor Go-Live
+
+Für einen öffentlichen Betrieb müssen mindestens diese Werte bewusst gesetzt und geprüft sein:
+
+| Bereich                | Variablen / Prüfung                                                                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Datenbank              | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `DATABASE_URL`; Passwort und URL müssen zusammenpassen                              |
+| Redis                  | `REDIS_URL=redis://redis:6379` im Compose-Netzwerk; Redis nicht öffentlich exponieren                                                    |
+| Secrets                | `ADMIN_SECRET` stark und eindeutig pro Installation; `JWT_SECRET` weiterhin stark setzen, solange Deploy-/Operations-Vorlagen ihn führen |
+| Reverse Proxy          | `TRUST_PROXY_HOPS=1` hinter genau einem Nginx/Proxy, damit Rate-Limits echte Client-IPs sehen                                            |
+| WebSockets             | `WS_PORT=3001`, `YJS_WS_PORT=3002`, `YJS_WS_HOST=0.0.0.0`; Nginx routet `/trpc-ws` und `/yjs-ws`                                         |
+| Admin                  | `ADMIN_SESSION_TTL_SECONDS`, `ADMIN_LEGAL_HOLD_DEFAULT_DAYS`; Login, Legal-Hold, Löschung und Export testen                              |
+| Rate-Limits            | Produktionsprofil aus `.env.production.example` übernehmen und nach realem NAT-/Proxy-Umfeld anpassen                                    |
+| Nicht in Env steuerbar | Session-Retention, BonusToken-Retention und SessionFeedback-Retention sind aktuell Code-Konstanten                                       |
+
 ### Empfohlenes Profil: hochfrequentierter Betrieb
 
 Für Installationen mit vielen Einrichtungen hinter Shared-NAT/Proxy (z. B. Schulen/Hochschulen/Business) enthält `.env.production.example` bewusst ein großzügigeres Startprofil:
@@ -82,6 +97,8 @@ Wichtig: Das sind **Betriebswerte** für die Produktionsvorlage. Die Backend-Cod
 | tRPC-WebSocket hängt                                              | `WS_PORT` frei, Frontend-Proxy auf gleichen WS-Port                                                                                                                                                                                   |
 | Quiz-Sync zwischen Geräten tot / `wss://…/yjs-ws` schlägt fehl    | Container: `HOST=0.0.0.0` oder `YJS_WS_HOST=0.0.0.0`, Nginx `location /yjs-ws` → `127.0.0.1:3002`, Prozess läuft                                                                                                                      |
 | Admin-Login scheitert                                             | `ADMIN_SECRET` gesetzt und mit Eingabe übereinstimmend                                                                                                                                                                                |
+| Alle Clients landen im selben Rate-Limit-Bucket                   | `TRUST_PROXY_HOPS=1`, Nginx-Header `X-Forwarded-For` / `X-Real-IP`, Backend-Neustart nach Env-Änderung                                                                                                                                |
+| Server-Status zeigt nur Fallbackwerte                             | `DATABASE_URL`, `REDIS_URL`, `health.footerBundle`, `health.stats`, PostgreSQL-Tabellen `PlatformStatistic` / `DailyStatistic`, Redis-Erreichbarkeit                                                                                  |
 | MOTD/API 429 (Too Many Requests)                                  | **Beleg:** Backend-Log `motd:rate_limit_429` mit `clientIp`, `ipSource` (woher die IP kam), `redisKey`, `limitPerMinute`. Redis: `ZCARD <redisKey>` — Anzahl der Einträge im 60s-Fenster (siehe `apps/backend/src/lib/rateLimit.ts`). |
 
 ### MOTD 429 / „keine Last, aber 429“ – Vorgehen (belegbar)
@@ -110,6 +127,7 @@ redis-cli TTL "<redisKey>"
 - [onboarding.md](onboarding.md) — Setup-Reihenfolge
 - [architecture/handbook.md](architecture/handbook.md) — Architektur- und Stack-Überblick
 - [features/server-status-widget.md](features/server-status-widget.md) — Server-Status, Laststatus und Plattformstatistik
+- [deployment-debian-root-server.md](deployment-debian-root-server.md) — Produktions-Deployment mit Docker Compose und Nginx
 - [README.md](../README.md) — `npm run dev`, Docker-Hinweise
 
-**Stand:** 2026-05-31 — abgeglichen mit [`.env.example`](../.env.example), [`.env.production.example`](../.env.production.example) und den aktuellen Env-Readern im Backend. **`PlatformStatistic`**, **`DailyStatistic`** und MOTD-Interaktionszähler werden in der DB gepflegt, nicht über Env. Bei neuen `process.env`-Lesern diese Tabelle und [`.env.example`](../.env.example) mitziehen.
+**Stand:** 2026-05-31 — abgeglichen mit [`.env.example`](../.env.example), [`.env.production.example`](../.env.production.example), [`docker-compose.prod.yml`](../docker-compose.prod.yml), [deployment-debian-root-server.md](deployment-debian-root-server.md) und den aktuellen Env-Readern im Backend. **`PlatformStatistic`**, **`DailyStatistic`** und MOTD-Interaktionszähler werden in der DB gepflegt, nicht über Env. Bei neuen `process.env`-Lesern diese Tabelle und [`.env.example`](../.env.example) mitziehen.
