@@ -1,5 +1,7 @@
 # Tech Stack
 
+- Serena-indexed languages: TypeScript, Markdown, JSON.
+- TypeScript carries nearly all executable backend/frontend/shared/build logic. Markdown covers docs, ADRs, backlog, onboarding, and architecture notes. JSON covers package manifests and workspace config such as `package.json`, `tsconfig*.json`, `angular.json`, `ngsw-config.json`, and `vercel.json`.
 - Runtime/package manager:
   - npm workspaces with `package-lock.json`; root `.npmrc` sets `legacy-peer-deps=true` and `fund=false`.
   - `.nvmrc` pins Node `20.19.0` for local reference. Root `engines`: `>=20.19.0 <21 || >=22.12.0 <23 || >=24.0.0 <25`; CI currently validates Node 20 and 22.

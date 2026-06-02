@@ -15,9 +15,10 @@
 - Backend:
   - New/changed procedures normally need one success test and one rejection/error test.
   - Prisma model changes must be followed through to backend code, shared schemas, tests, and docs when behavior/setup changes.
-- Docs:
-  - Link canonical docs instead of duplicating long explanations.
+- Docs/config:
+  - Markdown docs, ADRs, backlog items, and architecture notes are maintained artifacts; update the nearest canonical file instead of duplicating long explanations elsewhere.
   - Keep each document's existing language; the repo intentionally mixes German and English.
+  - JSON/package/config edits should stay aligned with the owning workspace/package instead of introducing shadow scripts or duplicate config.
 - Formatting/linting:
   - Prettier: single quotes, semicolons, trailing commas, print width 100, LF, 2 spaces.
   - ESLint: no explicit `any`, no unused vars except `_` patterns, `no-console` except warn/error, `prefer-const`, `no-var`, strict `eqeqeq`.

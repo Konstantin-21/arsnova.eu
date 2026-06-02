@@ -1,5 +1,6 @@
 # Task Completion
 
+- Serena memory-only or onboarding maintenance: run `serena memories check`; run `serena project index` too if index coverage or language pickup changed.
 - Start coding tasks with `git status --short`; do not overwrite unrelated local changes.
 - Narrow changes: run the smallest focused test/typecheck that can fail for the touched slice, then widen based on risk.
 - Broad/general coding baseline before handoff: `npm run typecheck`, `npm test`, `npm run lint`.
@@ -17,4 +18,4 @@
 - Prisma/data model changes: validate schema/migration path, regenerate Prisma client, update shared schemas/backend/frontend/tests/docs as needed.
 - Production/deploy changes: `npm run build:prod`; when a real production env is available, also compose config validation and `npm run verify:production-serving` against a running serve.
 - Markdown-only changes: at minimum `npx prettier --check <touched-docs>` and `git diff --check -- <touched-docs>`; run code checks too if docs describe changed behavior.
-- Serena memory-only changes: verify the memory graph with `serena memories check` when the CLI is available; no npm build/test is needed unless repo files or behavior changed.
+- JSON/package/config changes: run the narrow affected command (typecheck, build, test, or dev script) for the workspace whose behavior changed instead of relying on diff-only inspection.

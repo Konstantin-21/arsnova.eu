@@ -2,7 +2,8 @@
 
 - Root memory for arsnova.eu agent context. Use this graph for long-lived AI context.
 - Project: account-light, DSGVO-oriented audience-response system for quiz, Q&A, quick feedback, team/bonus modes, present view, admin, MOTD/news, PWA/i18n.
-- Repo root: `/Users/kqc/arsnova.eu`; npm workspaces monorepo with `apps/*` and `libs/*`.
+- Repo root: `/Users/kqc/arsnova.eu`; npm workspaces monorepo with `apps/*`, `libs/*`, Prisma, docs, Docker assets, and repo-level scripts.
+- Serena-indexed repository languages currently matter beyond code: TypeScript for executable app/tooling logic, Markdown for docs/ADRs/backlog/handbooks, JSON for package and workspace config. Treat Markdown and JSON as first-class sources when the task touches docs, build, or workspace configuration.
 - Start with module memories:
   - Product identity/background: `mem:modules/product`.
   - Backend stack and source layout: `mem:modules/backend`.
@@ -22,10 +23,10 @@
   - Testing conventions and checks: `mem:testing/core`.
   - Naming conventions: `mem:conventions/naming`.
   - Definition of Done and workflow: `mem:quality/dod`, `mem:quality/workflow`.
-- Canonical files still matter: `AGENT.md` for critical rules, `.cursorrules` for minimal Cursor stack/path facts, `docs/README.md` as docs map, `Backlog.md` as story/DoD source, focused docs for security/deploy/testing/i18n/UI.
+- Canonical files still matter: `AGENT.md` for critical rules, `.cursorrules` for minimal Cursor stack/path facts, `docs/README.md` as docs map, `Backlog.md` as story/DoD source, focused docs for security/deploy/testing/i18n/UI, and root/app JSON manifests when changing workspace behavior.
 - Do not store task-local notes, secrets, volatile line-level facts, or full Backlog copies in memories.
 
-## Verwandte Memories:
+## Related Memories
 
 - `mem:memory_maintenance`
 - `mem:modules/product`

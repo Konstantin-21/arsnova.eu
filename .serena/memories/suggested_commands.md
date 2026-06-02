@@ -28,5 +28,6 @@
   - `npm run build:prod`
   - `npm run start:prod`
   - `npm run verify:production-serving` (optional URL argument for non-default target).
-- Serena memory maintenance:
+- Serena maintenance:
+  - `serena project index` after broad repo changes or when Serena should pick up additional files/languages.
   - `serena memories check` from the repo root after memory graph changes.
