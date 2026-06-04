@@ -20,6 +20,12 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
 
 - Verwende in der UI `Blitzlicht`, nicht `Blitz-Feedback`.
 - Verwende `Q&A`, nicht `Fragen`, wenn der Kanalname gemeint ist.
+- Fuer Tempo verwende als Start-CTA `Tempo-Feedback`, nicht `Tempo starten`.
+- Fuer die Tempo-Spotlight-Ueberschrift verwende `Vortragstempo im Blick behalten`.
+- Fuer die Tempo-Spotlight-Beschreibung ist die kanonische Aussage: `Mit vier Icons zeigt deine Gruppe, ob sie folgen kann.`
+- Verwende beim Tempo-Host `Rueckmeldungen` statt `Signale` oder `Stimmen`.
+- Verwende fuer die Host-Kennzahl aktiver Teilnehmender `Online`, nicht `Aktive Personen`.
+- Verwende als gemischte Tempo-Tendenz `Die Rueckmeldungen sind gemischt.`, nicht `heterogen`.
 - Fuer die zweite Runde im Blitzlicht-Kontext verwende `Vergleichsrunde`, nicht `Diskussionsrunde`.
 - Gute Host-Formulierung fuer die zweite Runde:
   - `Jetzt zum Vergleich ein zweites Blitzlicht...`
@@ -64,6 +70,14 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
 - Der Einstieg benoetigt kein zusaetzliches Konfigurationsmodal fuer Standardfaelle.
 - Waehlt der Nutzer ein Format, landet er direkt in einer nutzbaren Host-Ansicht.
 
+### Tempo-Spotlight auf der Startseite
+
+- Tempo ist ein Spotlight-Einstieg fuer Standalone-Blitzlicht, nicht der vierte gleichrangige Hero-Chip.
+- Die vier Tempo-Icons muessen optisch gross genug sein und auf Mobile horizontal zentriert bleiben.
+- Wenn Text links und Icons rechts stehen, muessen die Icons vertikal mit dem Textblock ausgerichtet sein.
+- Der CTA lautet `Tempo-Feedback` und muss horizontal mittig wirken, wenn er allein in der Spotlight-Flaeche steht.
+- `Vortragstempo` darf nicht als `Vortrag-stempo` umbrechen; bei Bedarf weiches Trennzeichen oder responsive Textbreite nutzen.
+
 ## Live-Ansicht: Host
 
 ### Aktionsreihe
@@ -94,12 +108,24 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
   - nicht nur ueber globale Viewport-Verschiebung
 - QR-Code und Join-Bereich duerfen nicht an Toolbar oder Top-Chrome kleben.
 
+### Tempo-Host-Panel
+
+- Tempo wird in der Host-Auswahl als Spotlight-Kachel gezeigt, nicht als kleiner Zusatz-Chip.
+- Das Host-Panel priorisiert die Lageeinschaetzung; Detailbalken duerfen vorhanden sein, aber nicht die Tendenz ueberfrachten.
+- In Tablet- und Desktop-Ansichten braucht das Tempo-Panel sichtbar Luft zur App-Toolbar.
+- Hintergrundflaechen im Tempo-Panel muessen unterscheidbar bleiben; zu viele gleichartige Umrandungen vermeiden.
+- Die Kennzahlen heissen `Online` und `Rueckmeldungen`; vermeide redundante Kombinationen wie `Rueckmeldungen` direkt ueber `0 Rueckmeldungen`.
+- Im Tendenzmodus bleiben `Details`/`Tendenz` und `Session beenden` erreichbar.
+
 ## Live-Ansicht: Teilnehmer und Presenter
 
 - Farben und Icons fuer `Wahr/Falsch/?` muessen auch in der Teilnehmeransicht korrekt erscheinen.
 - Dieselben Antwortsemantiken muessen im Host, Vote und Presenter konsistent aussehen.
 - Wenn Host-seitig ein Blitzlichtformat wechselt, muss der Wechsel live auf Teilnehmerseite ankommen.
 - Ergebnisbalken im Blitzlicht nutzen dieselben Icons wie die zugehoerigen Optionen, wenn das fuer das Format sinnvoll ist.
+- Im Tempo-Vote-Client kann eine aktive Auswahl per Re-Tap und per Backdrop auf den Viewport-Hintergrund zurueckgesetzt werden.
+- Rollenhinweise im Vote-Client muessen freundlich und knapp sein; vermeide redundante Zeilen wie `Ansicht / Teilnehmende Person`.
+- Session-Codes werden ohne sichtbares `#` vorangestellt.
 
 ## Funktionale Regeln
 
@@ -124,6 +150,13 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
   - standalone: Blitzlicht-Runde beenden
 - Beenden erfolgt nie stillschweigend, sondern mit klarer Bestaetigung.
 
+### Tempo
+
+- `TEMPO` ist ein eigener QuickFeedback-Typ mit vier Werten: `SPEED_UP`, `FOLLOWING`, `SLOW_DOWN`, `LOST`.
+- Tempo ist mutable: Auswahl setzen, wechseln und entfernen; klassische Blitzlicht-Typen bleiben Einmal-Votes.
+- Hosts sehen nur Aggregation und Tendenz, keine individuellen Rueckmeldungen.
+- Die Tendenz wird erst bei ausreichender Rueckmeldequote aktiv und muss ruhig bleiben.
+
 ## Technische Leitplanken
 
 - **Router & Procedures:** fachlich Blitzlicht, technisch `quickFeedback.*` — Übersicht und Mermaid-Ablauf in [`docs/features/blitzlicht-quickfeedback-api.md`](../features/blitzlicht-quickfeedback-api.md).
@@ -131,6 +164,7 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
 - Frontend und Backend muessen fuer neue Blitzlicht-Formate oder Mutationen gemeinsam angepasst werden.
 - Lokale WebSocket-Pfade fuer `tRPC` und `Yjs` muessen im Dev-Betrieb robust und konsistent sein.
 - Live-Synchronisation ist fuer Blitzlicht genauso kritisch wie fuer Quiz und Q&A.
+- Neue Tempo-Aenderungen muessen gegen `docs/architecture/decisions/0029-tempo-as-predefined-blitzlicht-template.md` geprueft werden.
 
 ## Review-Checkliste
 
@@ -142,3 +176,8 @@ Sie konkretisiert ADR `docs/architecture/decisions/0010-blitzlicht-as-core-live-
 - Ist `Session beenden` sichtbar, kontextklar und nicht wie ein Link gestaltet?
 - Entsteht neuer Abstand wirklich an der wahrgenommenen Stelle?
 - Bleibt die Startseite auf Desktop kompakt statt ueberbreit?
+- Bleibt Tempo als Spotlight erkennbar, ohne die Hero-Chip-IA aufzubrechen?
+- Sind Tempo-Icons auf Home, Host und Vote gross genug und zentriert?
+- Verwendet die UI `Tempo-Feedback`, `Online` und `Rueckmeldungen` konsistent?
+- Bleibt der Tempo-Host ruhig, lesbar und frei von unnoetigen Umrandungen?
+- Kann der Vote-Client eine Tempo-Auswahl per Re-Tap und Backdrop zuruecksetzen?

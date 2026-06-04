@@ -6,7 +6,7 @@
 **Datum:** 2026-05-27
 **Entscheider:** Projektteam
 
-**Letzter Repo-Abgleich:** 2026-05-31
+**Letzter Repo-Abgleich:** 2026-06-04
 
 ## Kontext
 
@@ -101,10 +101,10 @@ Es werden keine individuellen Rueckmeldungen, keine Teilnehmerlisten und keine p
 Mindestens folgende Tendenzen muessen fachlich unterscheidbar sein:
 
 - `Die Mehrheit kann folgen.`
-- `Das Tempo wirkt zu hoch.`
+- `Es wirkt zu schnell.`
 - `Mehrere Teilnehmende sind abgehaengt.`
-- `Die Gruppe signalisiert Unterforderung.`
-- `Die Gruppe ist heterogen.`
+- `Die Gruppe kann schneller mitgehen.`
+- `Die Rueckmeldungen sind gemischt.`
 
 Zusaetzlich erhaelt die Host-Ansicht einen Umschalter zwischen:
 
@@ -119,8 +119,8 @@ Fuer das **Standalone-Blitzlicht** gilt zusaetzlich:
 - die Lage muss fuer den Host **mit einem Blick** erfassbar sein, auch auf dem Smartphone waehrend des Vortrags
 - sichtbar bleiben mindestens:
   - aktuelle Tendenz
-  - Zahl der aktiven Teilnehmenden
-  - Zahl der abgegebenen Tempo-Stimmen
+  - Kennzahl `Online`
+  - Kennzahl `Rueckmeldungen`
   - Umschalter zwischen `Details` und `Tendenz`
   - Aktion `Session beenden`
 
@@ -131,11 +131,11 @@ Dasselbe Prinzip gilt fuer die Blitzlicht-Host-Auswahl: **Spotlight statt Preset
 
 Der Tendenz-Indikator muss dabei bewusst **ruhig** bleiben:
 
-- keine Umschaltung wegen einzelner neuer Stimmen
+- keine Umschaltung wegen einzelner neuer Rueckmeldungen
 - keine Aktivierung bei duennen Rueckmeldungen
-- keine Bewertung nur relativ zu den abgegebenen Tempo-Stimmen
+- keine Bewertung nur relativ zu den abgegebenen Tempo-Rueckmeldungen
 
-Bezugsbasis fuer Aktivierung und Schwellwerte ist die **gesamte aktive Teilnehmendenbasis des jeweiligen Blitzlicht-Kontexts**, nicht nur die aktuelle Zahl der Tempo-Votes.
+Bezugsbasis fuer Aktivierung und Schwellwerte ist die **gesamte aktive Teilnehmendenbasis des jeweiligen Blitzlicht-Kontexts**, nicht nur die aktuelle Zahl der Tempo-Rueckmeldungen.
 
 Empfohlene Leitplanken:
 
@@ -197,17 +197,20 @@ Die bevorzugte technische Richtung ist:
 - **Tempo als normales ABCD-/Mood-Blitzlicht ohne eigene Semantik:** verworfen; Labels, Toggle-off und Tendenz waeren fachlich unscharf.
 - **Permanentes Parallel-Widget fuer Teilnehmende:** verworfen; wuerde wieder auf einen separaten Kanal hinauslaufen und die bestehende IA aufbrechen.
 
-## Implementierungsstand (2026-05-31)
+## Implementierungsstand (2026-06-04)
 
-Diese ADR ist die aktuelle Zielentscheidung fuer Story 8.8, aber noch nicht im Code umgesetzt.
+Diese ADR ist umgesetzt. Der aktuelle Code folgt dem Zielmodell `Tempo als Blitzlicht-Template`, nicht dem frueheren Zielbild eines vierten Session-Kanals.
 
-Aktueller Ist-Stand:
+Aktueller Stand:
 
-- `QuickFeedbackTypeEnum` enthaelt `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`; `TEMPO` fehlt noch.
+- `QuickFeedbackTypeEnum` enthaelt `TEMPO`; `TempoValueEnum` definiert `SPEED_UP`, `FOLLOWING`, `SLOW_DOWN`, `LOST`.
+- `QuickFeedbackResultSchema` enthaelt optional `tempoTrend` mit `status`, `active`, `activeParticipants`, `tempoVotes`, `requiredVotes`, `windowSeconds` und `bucketSeconds`.
 - `SessionLiveChannelSchema` bleibt bei `quiz`, `qa`, `quickFeedback`; es gibt keinen vierten `tempo`-Kanal.
-- `quickFeedback.vote` arbeitet fuer die bestehenden Typen weiterhin mit klassischer Einmal-Vote-Semantik.
-- Die Startseite und Blitzlicht-Host-Auswahl enthalten noch keine Tempo-Spotlight-Kachel.
-- Der Implementierungsplan fuer das Zielbild liegt in `docs/implementation/STORY-8.8-IMPLEMENTATION-PLAN.md`.
+- `quickFeedback.vote` verzweigt fuer `TEMPO` auf einen atomaren Redis-Lua-Hotpath: Wechsel, Re-Tap-Entfernen, Verteilung, `qf:choices:*` und `qf:tempo:buckets:*` werden ohne PostgreSQL-Schreibpfad pro Tap fortgeschrieben.
+- Die Tendenzlogik liegt in `apps/backend/src/lib/quickFeedbackTempo.ts` mit 15-Sekunden-Buckets, 60-Sekunden-Fenster, Mindestquote und Hysterese.
+- Die Startseite und die Blitzlicht-Host-Auswahl enthalten eine Tempo-Spotlight-Kachel; der Startseiten-CTA lautet `Tempo-Feedback`.
+- Die Host-UI bietet Detail- und Tendenzmodus mit den Kennzahlen `Online` und `Rueckmeldungen`; Teilnehmende koennen ihre Tempo-Auswahl wechseln, per Re-Tap entfernen und im Vote-Client per Backdrop zuruecksetzen.
+- Die 500-Teilnehmenden-Abnahme wurde mit parallel abgegebenen Tempo-Rueckmeldungen validiert.
 
 ## Referenzen
 

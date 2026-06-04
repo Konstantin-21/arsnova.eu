@@ -1,4 +1,13 @@
-import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButton, MatFabButton } from '@angular/material/button';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -8,7 +17,7 @@ import { trpc } from '../../core/trpc.client';
 import { localizePath } from '../../core/locale-router';
 import { sessionCodeAriaLabel as i18nSessionCodeAria } from '../../core/session-code-aria';
 import { ThemePresetService } from '../../core/theme-preset.service';
-import { feedbackOptions, feedbackTitle } from './feedback.config';
+import { feedbackOptions, feedbackTitle, isTempoFeedbackType } from './feedback.config';
 import type { QuickFeedbackResult, QuickFeedbackType } from '@arsnova/shared-types';
 
 const VOTER_ID_KEY = 'qf-voter-id';
@@ -35,6 +44,30 @@ function hasAlreadyVoted(code: string): boolean {
     return !!localStorage.getItem(votedStorageKey(code));
   } catch {
     return false;
+  }
+}
+
+function tempoSelectionStorageKey(code: string): string {
+  return `qf-tempo-selection:${code}`;
+}
+
+function readStoredTempoSelection(code: string): string | null {
+  try {
+    return localStorage.getItem(tempoSelectionStorageKey(code));
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredTempoSelection(code: string, value: string | null): void {
+  try {
+    if (value) {
+      localStorage.setItem(tempoSelectionStorageKey(code), value);
+    } else {
+      localStorage.removeItem(tempoSelectionStorageKey(code));
+    }
+  } catch {
+    /* private browsing */
   }
 }
 
@@ -80,6 +113,7 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
   readonly currentRound = signal(1);
   readonly hoveredStar = signal(0);
   readonly submitting = signal(false);
+  readonly selectedTempoValue = signal<string | null>(null);
 
   readonly headingText = computed(() => {
     const type = this.feedbackType();
@@ -95,16 +129,13 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
     return type === 'ABCD';
   });
   readonly usesStarRating = computed(() => this.feedbackType() === 'STARS');
+  readonly isTempoFeedback = computed(() => isTempoFeedbackType(this.feedbackType()));
   readonly sessionTitleLabel = computed(() => this.sessionTitle()?.trim() || null);
-  readonly participantIdentityLabel = computed(
-    () =>
-      this.participantName()?.trim() ||
-      $localize`:@@feedback.voteParticipantFallback:Teilnehmende Person`,
-  );
+  readonly participantIdentityLabel = computed(() => this.participantName()?.trim() || null);
   readonly participantIdentityCaption = computed(() =>
-    this.participantName()?.trim()
+    this.participantIdentityLabel()
       ? $localize`:@@feedback.voteContextParticipant:Du bist als`
-      : $localize`:@@feedback.voteContextView:Ansicht`,
+      : null,
   );
   readonly participantAvatarLabel = computed(() => this.participantAvatar()?.trim() || null);
   readonly participantTeamLabel = computed(() => this.participantTeamName()?.trim() || null);
@@ -136,6 +167,33 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
 
   starRatingAriaLabel(value: number): string {
     return $localize`:@@feedback.starRatingAria:${value}:value: von 5 Sternen`;
+  }
+
+  tempoOptionAriaLabel(label: string, value: string): string {
+    if (this.selectedTempoValue() === value) {
+      return $localize`:@@feedback.tempoOptionSelectedAria:${label}:label: ausgewählt, erneut tippen zum Entfernen`;
+    }
+    return label;
+  }
+
+  @HostListener('document:click', ['$event'])
+  clearTempoSelectionFromBackdrop(event: MouseEvent): void {
+    const selectedValue = this.selectedTempoValue();
+    if (!this.isTempoFeedback() || !selectedValue || this.submitting()) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const interactiveTarget = target.closest('a, button, input, select, textarea, [role="button"]');
+    if (interactiveTarget) {
+      return;
+    }
+
+    void this.vote(selectedValue);
   }
 
   ngOnInit(): void {
@@ -185,6 +243,7 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
     this.discussion.set(false);
     this.currentRound.set(1);
     this.hoveredStar.set(0);
+    this.selectedTempoValue.set(null);
   }
 
   private async pollStyle(): Promise<void> {
@@ -242,12 +301,24 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
 
   private applyResult(result: QuickFeedbackResult): void {
     const code = this.code();
+    const previousType = this.feedbackType();
     this.feedbackType.set(result.type);
     this.locked.set(result.locked);
     this.discussion.set(!!result.discussion);
     this.hoveredStar.set(0);
     this.error.set(null);
     this.applyStyle(result.theme, result.preset);
+
+    if (result.type === 'TEMPO') {
+      this.voted.set(false);
+      this.selectedTempoValue.set(result.totalVotes > 0 ? readStoredTempoSelection(code) : null);
+      if (result.totalVotes === 0) {
+        writeStoredTempoSelection(code, null);
+      }
+    } else if (previousType === 'TEMPO') {
+      this.selectedTempoValue.set(null);
+      writeStoredTempoSelection(code, null);
+    }
 
     const newRound = result.currentRound ?? 1;
     if (newRound === 2 && this.currentRound() === 1) {
@@ -260,7 +331,7 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
     }
     this.currentRound.set(newRound);
 
-    if (result.totalVotes === 0 && this.voted()) {
+    if (result.type !== 'TEMPO' && result.totalVotes === 0 && this.voted()) {
       this.voted.set(false);
       try {
         localStorage.removeItem(votedStorageKey(code));
@@ -292,6 +363,12 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
         voterId: this.effectiveVoterId(),
         value,
       });
+      if (this.isTempoFeedback()) {
+        const nextValue = this.selectedTempoValue() === value ? null : value;
+        this.selectedTempoValue.set(nextValue);
+        writeStoredTempoSelection(code, nextValue);
+        return;
+      }
       this.voted.set(true);
       try {
         localStorage.setItem(votedStorageKey(code), '1');

@@ -40,7 +40,7 @@ Für **eine einzelne Person** im Rahmen von ca. **40 Stunden** ist die vollstän
 
 Pragmatische Default-Regel:
 
-- **Einstieg / sichtbarer Produktausbau:** `1.14a`, `8.5`, `8.8`
+- **Einstieg / sichtbarer Produktausbau:** `1.14a`, `8.5`
 - **Vertiefung nach Betreuungsauswahl:** `1.2ec`, `1.2ed`, `1.2d`, `1.2f–1.2i`, `2.9`, `6.6`
 - **Nur mit enger Betreuung / Pair-Review:** `0.7`, `0.8`, `1.6c`, `1.6d`, `6.5`
 

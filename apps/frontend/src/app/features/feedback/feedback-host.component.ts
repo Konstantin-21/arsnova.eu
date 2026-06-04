@@ -35,12 +35,18 @@ import {
   feedbackDisplayLabel,
   feedbackResultOrder,
   feedbackTitle,
+  isTempoFeedbackType,
   QUICK_FEEDBACK_PRESET_CHIPS,
+  QUICK_FEEDBACK_TEMPO_SPOTLIGHT,
+  tempoTrendIcon,
+  tempoTrendLabel,
+  tempoTrendTone,
 } from './feedback.config';
 import type { QuickFeedbackResult, QuickFeedbackType } from '@arsnova/shared-types';
 import type { Unsubscribable } from '@trpc/server/observable';
 
 type StarAverageIcon = 'star' | 'star_half' | 'star_border';
+type TempoViewMode = 'details' | 'trend';
 
 interface StarAverageSummary {
   scoreLabel: string;
@@ -89,6 +95,7 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
   readonly copied = signal(false);
   readonly resetting = signal(false);
   readonly locked = signal(false);
+  readonly tempoViewMode = signal<TempoViewMode>('details');
   private priorFeedbackHadResultForMenu = false;
   private priorFeedbackQrReadyForMenu = false;
   private suppressFeedbackJoinMenuAutopen = false;
@@ -100,6 +107,10 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
     () => !this.embeddedInSession() && this.result() !== null && this.isStandaloneFeedbackRoute(),
   );
   readonly presetChips = QUICK_FEEDBACK_PRESET_CHIPS;
+  readonly tempoSpotlight = QUICK_FEEDBACK_TEMPO_SPOTLIGHT;
+  readonly tempoHostSpotlightEyebrow = $localize`:@@feedback.tempoHostSpotlightEyebrow:Live-Rückmeldung`;
+  readonly tempoHostSpotlightActionLabel = $localize`:@@feedback.tempoHostSpotlightAction:Starten`;
+  readonly tempoHostActiveLabel = $localize`:@@feedback.tempoHostActiveLabel:Läuft`;
 
   sessionCodeDisplayAria(code: string): string {
     return i18nSessionCodeAria(code);
@@ -266,8 +277,7 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
 
     try {
       const data = await trpc.quickFeedback.hostResults.query({ sessionCode: code });
-      this.result.set(data);
-      this.locked.set(data.locked);
+      this.applyHostResult(data);
       this.error.set(null);
       if (!this.subscription) {
         this.subscribeToResults();
@@ -294,8 +304,7 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
       { sessionCode: code },
       {
         onData: (data) => {
-          this.result.set(data);
-          this.locked.set(data.locked);
+          this.applyHostResult(data);
           this.error.set(null);
         },
         onError: () => {
@@ -365,6 +374,9 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
   standalonePrimaryActionKind(): 'second-round' | 'discussion' | 'lock-toggle' {
     const data = this.result();
     if (!data) {
+      return 'lock-toggle';
+    }
+    if (isTempoFeedbackType(data.type)) {
       return 'lock-toggle';
     }
     if (this.isDiscussion()) {
@@ -651,6 +663,9 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
     if (!data || data.type === type) {
       return false;
     }
+    if (data.type === 'TEMPO') {
+      return false;
+    }
 
     return (
       data.totalVotes > 0 ||
@@ -710,6 +725,26 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
     return $localize`Ergebnisse: ${feedbackTitle(type)}`;
   }
 
+  setTempoViewMode(mode: TempoViewMode): void {
+    this.tempoViewMode.set(mode);
+  }
+
+  isTempoResult(type: string | null | undefined): boolean {
+    return isTempoFeedbackType(type);
+  }
+
+  tempoTrendLabel(status: string | null | undefined): string {
+    return tempoTrendLabel(status);
+  }
+
+  tempoTrendIcon(status: string | null | undefined): string {
+    return tempoTrendIcon(status);
+  }
+
+  tempoTrendTone(status: string | null | undefined): string {
+    return tempoTrendTone(status);
+  }
+
   barWidth(count: number): number {
     const max = this.maxVotes();
     return Math.round((count / max) * 100);
@@ -724,6 +759,9 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
   }
 
   feedbackTitle(type: string): string {
+    if (isTempoFeedbackType(type)) {
+      return $localize`:@@feedback.hostTitleTempo:Live-Rückmeldungen`;
+    }
     return feedbackTitle(type);
   }
 
@@ -767,5 +805,16 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
       }
       return 'star_border';
     });
+  }
+
+  private applyHostResult(data: QuickFeedbackResult): void {
+    const previousType = this.result()?.type ?? null;
+    this.result.set(data);
+    this.locked.set(data.locked);
+    if (data.type === 'TEMPO' && previousType !== 'TEMPO') {
+      this.tempoViewMode.set(this.embeddedInSession() ? 'details' : 'trend');
+    } else if (data.type !== 'TEMPO') {
+      this.tempoViewMode.set('details');
+    }
   }
 }

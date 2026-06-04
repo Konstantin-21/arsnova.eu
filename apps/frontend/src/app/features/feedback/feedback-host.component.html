@@ -21,6 +21,29 @@
       <p class="session-channel-card__text" i18n="@@sessionTabs.quickFeedbackHostPlaceholder">
         Wähle ein Format – in Sekunden siehst du die Stimmung.
       </p>
+      <button
+        type="button"
+        class="feedback-host__tempo-spotlight"
+        (click)="startRound(tempoSpotlight.type)"
+        [attr.aria-label]="tempoSpotlight.actionLabel"
+      >
+        <span class="feedback-host__tempo-spotlight-copy">
+          <span class="feedback-host__tempo-spotlight-eyebrow">{{
+            tempoHostSpotlightEyebrow
+          }}</span>
+          <span class="feedback-host__tempo-spotlight-title">{{ tempoSpotlight.title }}</span>
+          <span class="feedback-host__tempo-spotlight-text">{{ tempoSpotlight.description }}</span>
+        </span>
+        <span class="feedback-host__tempo-spotlight-icons" aria-hidden="true">
+          @for (icon of tempoSpotlight.icons; track icon.value) {
+            <span>{{ icon.value }}</span>
+          }
+        </span>
+        <span class="feedback-host__tempo-spotlight-action">
+          <mat-icon aria-hidden="true">speed</mat-icon>
+          <span>{{ tempoHostSpotlightActionLabel }}</span>
+        </span>
+      </button>
       <div class="feedback-host__template-switch">
         @for (chip of presetChips; track chip.type) {
           <button
@@ -85,7 +108,7 @@
           <span i18n>Zweite Abstimmung</span>
         </button>
       } @else if (!isRound2()) {
-        @if (data.totalVotes > 0 && embeddedInSession()) {
+        @if (data.totalVotes > 0 && embeddedInSession() && data.type !== 'TEMPO') {
           <button
             mat-button
             type="button"
@@ -124,7 +147,60 @@
         <span i18n>Zurücksetzen</span>
       </button>
     </div>
+    @if (data.type === 'TEMPO') {
+      <div
+        class="feedback-host__tempo-view-toggle"
+        role="group"
+        i18n-aria-label="@@feedback.tempoViewToggleAria"
+        aria-label="Tempo-Ansicht wählen"
+      >
+        <button
+          type="button"
+          class="feedback-host__tempo-view-button"
+          [class.feedback-host__tempo-view-button--active]="tempoViewMode() === 'details'"
+          [attr.aria-pressed]="tempoViewMode() === 'details'"
+          (click)="setTempoViewMode('details')"
+        >
+          <mat-icon aria-hidden="true">bar_chart</mat-icon>
+          <span i18n="@@feedback.tempoViewDetails">Details</span>
+        </button>
+        <button
+          type="button"
+          class="feedback-host__tempo-view-button"
+          [class.feedback-host__tempo-view-button--active]="tempoViewMode() === 'trend'"
+          [attr.aria-pressed]="tempoViewMode() === 'trend'"
+          (click)="setTempoViewMode('trend')"
+        >
+          <mat-icon aria-hidden="true">speed</mat-icon>
+          <span i18n="@@feedback.tempoViewTrend">Tendenz</span>
+        </button>
+      </div>
+    }
     <div class="feedback-host__template-switch">
+      <button
+        type="button"
+        class="feedback-host__tempo-spotlight feedback-host__tempo-spotlight--compact"
+        [class.feedback-host__tempo-spotlight--active]="data.type === 'TEMPO'"
+        [disabled]="data.type === 'TEMPO'"
+        (click)="startRound(tempoSpotlight.type)"
+        [attr.aria-label]="tempoSpotlight.actionLabel"
+      >
+        <span class="feedback-host__tempo-spotlight-copy">
+          @if (data.type !== 'TEMPO') {
+            <span class="feedback-host__tempo-spotlight-eyebrow">{{
+              tempoHostSpotlightEyebrow
+            }}</span>
+          }
+          <span class="feedback-host__tempo-spotlight-title">{{
+            data.type === 'TEMPO' ? tempoHostActiveLabel : tempoSpotlight.label
+          }}</span>
+        </span>
+        <span class="feedback-host__tempo-spotlight-icons" aria-hidden="true">
+          @for (icon of tempoSpotlight.icons; track icon.value) {
+            <span>{{ icon.value }}</span>
+          }
+        </span>
+      </button>
       @for (chip of presetChips; track chip.type) {
         <button
           mat-button
@@ -285,7 +361,47 @@
       <section class="feedback-host__results">
         <h2 class="feedback-host__title">{{ feedbackTitle(data.type) }}</h2>
 
-        @if (isDiscussion()) {
+        @if (data.type === 'TEMPO' && tempoViewMode() === 'trend') {
+          <div
+            class="feedback-host__tempo-trend"
+            [class.feedback-host__tempo-trend--standalone]="!embeddedInSession()"
+            [class.feedback-host__tempo-trend--good]="
+              tempoTrendTone(data.tempoTrend?.status) === 'good'
+            "
+            [class.feedback-host__tempo-trend--caution]="
+              tempoTrendTone(data.tempoTrend?.status) === 'caution'
+            "
+            [class.feedback-host__tempo-trend--alert]="
+              tempoTrendTone(data.tempoTrend?.status) === 'alert'
+            "
+            [class.feedback-host__tempo-trend--mixed]="
+              tempoTrendTone(data.tempoTrend?.status) === 'mixed'
+            "
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <mat-icon class="feedback-host__tempo-trend-icon" aria-hidden="true">{{
+              tempoTrendIcon(data.tempoTrend?.status)
+            }}</mat-icon>
+            <p class="feedback-host__tempo-trend-eyebrow" i18n="@@feedback.tempoTrendEyebrow">
+              Tendenz
+            </p>
+            <p class="feedback-host__tempo-trend-label">
+              {{ tempoTrendLabel(data.tempoTrend?.status) }}
+            </p>
+            <dl class="feedback-host__tempo-trend-metrics">
+              <div>
+                <dt i18n="@@feedback.tempoMetricActive">Online</dt>
+                <dd>{{ data.tempoTrend?.activeParticipants ?? 0 }}</dd>
+              </div>
+              <div>
+                <dt i18n="@@feedback.tempoMetricResponses">Rückmeldungen</dt>
+                <dd>{{ data.tempoTrend?.tempoVotes ?? data.totalVotes }}</dd>
+              </div>
+            </dl>
+          </div>
+        } @else if (isDiscussion()) {
           <div class="feedback-host__discussion" role="status" aria-live="polite">
             <mat-icon class="feedback-host__discussion-icon">groups</mat-icon>
             <p class="feedback-host__discussion-text" i18n="@@feedback.compareRoundHeadline">
@@ -568,6 +684,19 @@
               other {{{ data.totalVotes }} Stimmen}
             }</span>
           </p>
+          @if (data.type === 'TEMPO') {
+            <div
+              class="feedback-host__tempo-strip"
+              [class.feedback-host__tempo-strip--neutral]="
+                tempoTrendTone(data.tempoTrend?.status) === 'neutral'
+              "
+              role="status"
+              aria-live="polite"
+            >
+              <mat-icon aria-hidden="true">{{ tempoTrendIcon(data.tempoTrend?.status) }}</mat-icon>
+              <span>{{ tempoTrendLabel(data.tempoTrend?.status) }}</span>
+            </div>
+          }
 
           <div
             class="feedback-host__bars"
@@ -658,7 +787,6 @@
           class="feedback-host__bottom-action-secondary"
           (click)="endSession()"
         >
-          <mat-icon>stop_circle</mat-icon>
           <span i18n>Session beenden</span>
         </button>
         <button

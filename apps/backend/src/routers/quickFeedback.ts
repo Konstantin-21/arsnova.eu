@@ -17,23 +17,100 @@ import {
   YesNoBinaryValueEnum,
   TrueFalseUnknownValueEnum,
   StarsValueEnum,
+  TempoValueEnum,
   type QuickFeedbackType,
   type QuickFeedbackResult,
+  type QuickFeedbackVoteInput,
 } from '@arsnova/shared-types';
 import { publicProcedure, router } from '../trpc';
 import { getRedis } from '../redis';
 import { prisma } from '../db';
 import { recordVoteActivity } from '../lib/loadSignal';
+import { getActiveParticipantCountForSession } from '../lib/presence';
 import { assertHostSessionAccessFromContext, type HostTokenContext } from '../lib/hostAuth';
 import {
   assertFeedbackHostAccess,
   createFeedbackHostToken,
   invalidateFeedbackHostToken,
 } from '../lib/feedbackHostAuth';
+import {
+  calculateTempoTrend,
+  parseTempoBucketPayloads,
+  tempoBucketStartMs,
+} from '../lib/quickFeedbackTempo';
 
 const FEEDBACK_TTL_SECONDS = 30 * 60;
 const QUICK_FEEDBACK_POLL_ACTIVE_MS = 500;
 const QUICK_FEEDBACK_POLL_IDLE_MS = 1200;
+const TEMPO_VOTE_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then
+  return cjson.encode({ error = 'MISSING' })
+end
+
+local result = cjson.decode(raw)
+if result['type'] ~= 'TEMPO' then
+  return cjson.encode({ error = 'TYPE_CHANGED' })
+end
+
+if result['locked'] == true then
+  return cjson.encode({ error = 'LOCKED' })
+end
+
+local valid = {}
+local existingDistribution = result['distribution'] or {}
+local distribution = {}
+for i = 5, #ARGV do
+  local value = ARGV[i]
+  valid[value] = true
+  distribution[value] = tonumber(existingDistribution[value]) or 0
+end
+
+local previous = redis.call('HGET', KEYS[2], ARGV[1])
+if previous ~= false and valid[previous] then
+  local previousCount = tonumber(distribution[previous]) or 0
+  if previousCount > 0 then
+    distribution[previous] = previousCount - 1
+  else
+    distribution[previous] = 0
+  end
+end
+
+local removesCurrentChoice = previous == ARGV[2]
+if removesCurrentChoice then
+  redis.call('HDEL', KEYS[2], ARGV[1])
+else
+  distribution[ARGV[2]] = (tonumber(distribution[ARGV[2]]) or 0) + 1
+  redis.call('HSET', KEYS[2], ARGV[1], ARGV[2])
+end
+
+local totalVotes = 0
+for i = 5, #ARGV do
+  totalVotes = totalVotes + (tonumber(distribution[ARGV[i]]) or 0)
+end
+
+result['distribution'] = distribution
+result['totalVotes'] = totalVotes
+result['currentRound'] = nil
+result['discussion'] = nil
+result['round1Distribution'] = nil
+result['round1Total'] = nil
+result['opinionShift'] = nil
+result['tempoTrend'] = nil
+
+local ttl = tonumber(ARGV[3])
+redis.call('SET', KEYS[1], cjson.encode(result), 'EX', ttl)
+redis.call('EXPIRE', KEYS[2], ttl)
+redis.call(
+  'HSET',
+  KEYS[3],
+  ARGV[4],
+  cjson.encode({ distribution = distribution, totalVotes = totalVotes })
+)
+redis.call('EXPIRE', KEYS[3], ttl)
+
+return cjson.encode({ totalVotes = totalVotes, removesCurrentChoice = removesCurrentChoice })
+`;
 type StoredQuickFeedbackResult = QuickFeedbackResult & { sessionBound?: boolean };
 
 function feedbackKey(code: string): string {
@@ -50,6 +127,10 @@ function choicesKey(code: string): string {
 
 function choicesR1Key(code: string): string {
   return `qf:choices:r1:${code}`;
+}
+
+function tempoBucketsKey(code: string): string {
+  return `qf:tempo:buckets:${code}`;
 }
 
 function generateCode(): string {
@@ -77,6 +158,8 @@ function validValues(type: QuickFeedbackType): readonly string[] {
       return StarsValueEnum.options;
     case 'ABCD':
       return AbcdValueEnum.options;
+    case 'TEMPO':
+      return TempoValueEnum.options;
   }
 }
 
@@ -227,6 +310,7 @@ export const quickFeedbackRouter = router({
       multi.del(votersKey(code));
       multi.del(choicesKey(code));
       multi.del(choicesR1Key(code));
+      multi.del(tempoBucketsKey(code));
       await multi.exec();
 
       const hostToken = sessionBound ? null : await createFeedbackHostToken(code);
@@ -265,12 +349,14 @@ export const quickFeedbackRouter = router({
       result.round1Distribution = undefined;
       result.round1Total = undefined;
       result.opinionShift = undefined;
+      result.tempoTrend = undefined;
 
       const multi = redis.multi();
       multi.set(key, JSON.stringify(result), 'EX', FEEDBACK_TTL_SECONDS);
       multi.del(votersKey(code));
       multi.del(choicesKey(code));
       multi.del(choicesR1Key(code));
+      multi.del(tempoBucketsKey(code));
       await multi.exec();
 
       return { ok: true };
@@ -291,12 +377,14 @@ export const quickFeedbackRouter = router({
       result.round1Distribution = undefined;
       result.round1Total = undefined;
       result.opinionShift = undefined;
+      result.tempoTrend = undefined;
 
       const multi = redis.multi();
       multi.set(key, JSON.stringify(result), 'EX', FEEDBACK_TTL_SECONDS);
       multi.del(votersKey(code));
       multi.del(choicesKey(code));
       multi.del(choicesR1Key(code));
+      multi.del(tempoBucketsKey(code));
       await multi.exec();
 
       return { ok: true };
@@ -315,6 +403,7 @@ export const quickFeedbackRouter = router({
       multi.del(votersKey(code));
       multi.del(choicesKey(code));
       multi.del(choicesR1Key(code));
+      multi.del(tempoBucketsKey(code));
       await multi.exec();
       await invalidateFeedbackHostToken(code);
 
@@ -422,16 +511,21 @@ export const quickFeedbackRouter = router({
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Abstimmung ist geschlossen.' });
     }
 
-    const vKey = votersKey(code);
-    const alreadyVoted = await redis.sismember(vKey, input.voterId);
-    if (alreadyVoted) {
-      throw new TRPCError({ code: 'FORBIDDEN', message: 'Du hast bereits abgestimmt.' });
-    }
-
     const allowed = validValues(result.type);
 
     if (!allowed.includes(input.value)) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ungültige Auswahl.' });
+    }
+
+    if (result.type === 'TEMPO') {
+      await submitTempoVote(input, key);
+      return { ok: true };
+    }
+
+    const vKey = votersKey(code);
+    const alreadyVoted = await redis.sismember(vKey, input.voterId);
+    if (alreadyVoted) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Du hast bereits abgestimmt.' });
     }
 
     result.distribution[input.value] = (result.distribution[input.value] ?? 0) + 1;
@@ -484,8 +578,9 @@ export const quickFeedbackRouter = router({
         });
       }
 
-      const result = JSON.parse(raw) as QuickFeedbackResult;
+      const result = JSON.parse(raw) as StoredQuickFeedbackResult;
       await enrichOpinionShift(result, code);
+      await enrichTempoTrend(result, code, gate?.id);
       return QuickFeedbackResultSchema.parse(result);
     }),
 
@@ -496,6 +591,7 @@ export const quickFeedbackRouter = router({
       const code = input.sessionCode.toUpperCase();
       const result = await loadQuickFeedbackForHost(ctx, code);
       await enrichOpinionShift(result, code);
+      await enrichTempoTrend(result, code);
       return QuickFeedbackResultSchema.parse(result);
     }),
 
@@ -517,8 +613,9 @@ export const quickFeedbackRouter = router({
         const raw = await redis.get(key);
         if (!raw) return;
 
-        const result = JSON.parse(raw) as QuickFeedbackResult;
+        const result = JSON.parse(raw) as StoredQuickFeedbackResult;
         await enrichOpinionShift(result, code);
+        await enrichTempoTrend(result, code, gate?.id);
         const payload = QuickFeedbackResultSchema.parse(result);
         const json = JSON.stringify(payload);
         if (json !== lastJson) {
@@ -546,6 +643,7 @@ export const quickFeedbackRouter = router({
         }
 
         await enrichOpinionShift(result, code);
+        await enrichTempoTrend(result, code);
         const payload = QuickFeedbackResultSchema.parse(result);
         const json = JSON.stringify(payload);
         if (json !== lastJson) {
@@ -560,6 +658,92 @@ export const quickFeedbackRouter = router({
       }
     }),
 });
+
+async function submitTempoVote(input: QuickFeedbackVoteInput, key: string): Promise<void> {
+  const redis = getRedis();
+  const code = input.sessionCode.toUpperCase();
+  const cKey = choicesKey(code);
+  const bucketKey = tempoBucketsKey(code);
+  const raw = await redis.eval(
+    TEMPO_VOTE_SCRIPT,
+    3,
+    key,
+    cKey,
+    bucketKey,
+    input.voterId,
+    input.value,
+    String(FEEDBACK_TTL_SECONDS),
+    String(tempoBucketStartMs()),
+    ...TempoValueEnum.options,
+  );
+  const payload =
+    typeof raw === 'string'
+      ? (JSON.parse(raw) as { error?: 'MISSING' | 'TYPE_CHANGED' | 'LOCKED' })
+      : null;
+
+  if (payload?.error === 'MISSING') {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Feedback-Runde nicht gefunden oder abgelaufen.',
+    });
+  }
+
+  if (payload?.error === 'LOCKED') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Abstimmung ist geschlossen.' });
+  }
+
+  if (payload?.error === 'TYPE_CHANGED') {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ungültige Auswahl.' });
+  }
+
+  void recordVoteActivity();
+}
+
+async function resolveTempoActiveParticipants(
+  result: StoredQuickFeedbackResult,
+  code: string,
+  knownSessionId?: string,
+): Promise<number> {
+  if (result.sessionBound !== true) {
+    return Math.max(0, result.totalVotes);
+  }
+
+  const sessionId =
+    knownSessionId ??
+    (await loadSessionQuickFeedbackGate(code)
+      .then((session) => session.id)
+      .catch(() => null));
+  if (!sessionId) {
+    return Math.max(0, result.totalVotes);
+  }
+
+  const activeParticipants = await getActiveParticipantCountForSession(sessionId).catch(() => 0);
+  return Math.max(activeParticipants, result.totalVotes);
+}
+
+async function enrichTempoTrend(
+  result: StoredQuickFeedbackResult,
+  code: string,
+  knownSessionId?: string,
+): Promise<void> {
+  if (result.type !== 'TEMPO') {
+    result.tempoTrend = undefined;
+    return;
+  }
+
+  const redis = getRedis();
+  const [activeParticipants, rawBuckets] = await Promise.all([
+    resolveTempoActiveParticipants(result, code, knownSessionId),
+    redis.hgetall(tempoBucketsKey(code)).catch(() => ({}) as Record<string, string>),
+  ]);
+
+  result.tempoTrend = calculateTempoTrend({
+    distribution: result.distribution,
+    totalVotes: result.totalVotes,
+    activeParticipants,
+    snapshots: parseTempoBucketPayloads(rawBuckets),
+  });
+}
 
 async function enrichOpinionShift(result: QuickFeedbackResult, code: string): Promise<void> {
   if (result.currentRound !== 2 || result.totalVotes === 0 || result.discussion) return;

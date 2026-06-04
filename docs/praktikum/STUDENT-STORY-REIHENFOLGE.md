@@ -67,17 +67,16 @@ Die folgende Struktur listet die **offenen oder laufenden, für dich relevanten 
 | --- | ------------- | -------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **1.14a**     | Word Cloud 2.0                               | Layout, UX, Performance                   | **Einstieg über bestehende Fläche:** sichtbar, produktnah und gut gegen ADR-0012, Styleguide und bestehende Word-Cloud-Tests prüfbar.                 |
 | 2   | **8.5**       | Delegierbare Q&A-Moderation                  | Rollen, Tokens, Rechte, UI                | **Domänenvertiefung:** baut auf dem fertigen Q&A-Kern und den fertigen Sortierungen 8.6/8.7 auf, verschiebt den Fokus aber auf Rechte und Moderation. |
-| 3   | **8.8**       | Tempo-Blitzlicht als Host-Option             | Live-Produktlogik, Redis, UI              | **Gebundener Live-Ausbau:** fachlich klar über ADR-0029 begrenzt und kleiner als ein vollständiger neuer Session-Modus.                               |
-| 4   | **1.2ec**     | Kurzantwort: Schlüsselwort-Basis             | Bewertungsmodell, Teilpunkte, Erklärtexte | **Aufbau auf fertiger Kurzantwort:** erweitert vorhandene Bewertung, ohne sofort einen komplett neuen Fragentyp zu erzwingen.                         |
-| 5   | **1.2ed**     | Kurzantwort: Token-/Mehrwortlogik            | Deterministische Textbewertung, UX        | **Vertiefung nach 1.2ec:** stabilisiert dieselbe Fachfläche und trainiert Tests für Grenzfälle.                                                       |
-| 6   | **1.2d**      | Numerische Schätzfrage                       | Voller Fragentyp End-to-End               | **Erster neuer Fragentyp:** Shared Types, Backend, Session-Flow, Ergebnislogik und UI; darum erst nach Erweiterungen an bestehender Bewertungslogik.  |
-| 7   | **1.2f–1.2i** | Hotspot, Zuordnung, Reihenfolge, Confidence  | Weitere Fragetypen                        | **Varianten nach dem ersten Fragentyp:** dieselben Muster wiederholen und bewusst abstrahieren, ohne Schema- und UI-Regeln zu verwässern.             |
-| 8   | **2.9**       | Asynchrone Quiz-Modi und Feedback-Strategien | Produktmodell, Dashboard, Datenschutz     | **Große Produktfläche:** greift tief in Session-Status, Fortschritt und Feedback ein; braucht vorher Routine in Fragentypen und Live-Flows.           |
-| 9   | **0.7**       | Last- & Performance-Tests mit E2E-Szenarien  | Tooling, Messung, CI, Metriken            | **Qualitätsschicht:** erst sinnvoll, wenn mehrere reale Kernflows verstanden und technisch nachvollzogen wurden.                                      |
-| 10  | **1.6d**      | Sync-Performance & Skalierung                | Messen, Profiling, Hypothesen             | **Gezielte Optimierung:** baut auf Mess- und Testlogik aus 0.7 auf, statt blind an Performanceproblemen zu schrauben.                                 |
-| 11  | **6.6**       | UX Thinking Aloud & Umsetzung                | Methode, Findings, iterative Verbesserung | **Methodischer Perspektivwechsel:** nach mehreren Produktflächen ist genug Material da, um Beobachtungen systematisch in Änderungen zu übersetzen.    |
-| 12  | **6.5**       | Barrierefreiheit (Prüfung Projektende)       | Querschnitt, Audit, A11y                  | **Später Querschnitt:** sinnvoll, wenn die relevanten UI-Flächen bereits stehen und nicht mehr im Stundenrhythmus umgebaut werden.                    |
-| 13  | **0.8**       | Komplexitätsabbau / McCabe-Refactor          | Wartbarkeit, Refactoring, Risiko          | **Refactor erst mit Systemkenntnis:** Metriken, Tests und fachliches Verhalten müssen vorher ausreichend verstanden sein.                             |
+| 3   | **1.2ec**     | Kurzantwort: Schlüsselwort-Basis             | Bewertungsmodell, Teilpunkte, Erklärtexte | **Aufbau auf fertiger Kurzantwort:** erweitert vorhandene Bewertung, ohne sofort einen komplett neuen Fragentyp zu erzwingen.                         |
+| 4   | **1.2ed**     | Kurzantwort: Token-/Mehrwortlogik            | Deterministische Textbewertung, UX        | **Vertiefung nach 1.2ec:** stabilisiert dieselbe Fachfläche und trainiert Tests für Grenzfälle.                                                       |
+| 5   | **1.2d**      | Numerische Schätzfrage                       | Voller Fragentyp End-to-End               | **Erster neuer Fragentyp:** Shared Types, Backend, Session-Flow, Ergebnislogik und UI; darum erst nach Erweiterungen an bestehender Bewertungslogik.  |
+| 6   | **1.2f–1.2i** | Hotspot, Zuordnung, Reihenfolge, Confidence  | Weitere Fragetypen                        | **Varianten nach dem ersten Fragentyp:** dieselben Muster wiederholen und bewusst abstrahieren, ohne Schema- und UI-Regeln zu verwässern.             |
+| 7   | **2.9**       | Asynchrone Quiz-Modi und Feedback-Strategien | Produktmodell, Dashboard, Datenschutz     | **Große Produktfläche:** greift tief in Session-Status, Fortschritt und Feedback ein; braucht vorher Routine in Fragentypen und Live-Flows.           |
+| 8   | **0.7**       | Last- & Performance-Tests mit E2E-Szenarien  | Tooling, Messung, CI, Metriken            | **Qualitätsschicht:** erst sinnvoll, wenn mehrere reale Kernflows verstanden und technisch nachvollzogen wurden.                                      |
+| 9   | **1.6d**      | Sync-Performance & Skalierung                | Messen, Profiling, Hypothesen             | **Gezielte Optimierung:** baut auf Mess- und Testlogik aus 0.7 auf, statt blind an Performanceproblemen zu schrauben.                                 |
+| 10  | **6.6**       | UX Thinking Aloud & Umsetzung                | Methode, Findings, iterative Verbesserung | **Methodischer Perspektivwechsel:** nach mehreren Produktflächen ist genug Material da, um Beobachtungen systematisch in Änderungen zu übersetzen.    |
+| 11  | **6.5**       | Barrierefreiheit (Prüfung Projektende)       | Querschnitt, Audit, A11y                  | **Später Querschnitt:** sinnvoll, wenn die relevanten UI-Flächen bereits stehen und nicht mehr im Stundenrhythmus umgebaut werden.                    |
+| 12  | **0.8**       | Komplexitätsabbau / McCabe-Refactor          | Wartbarkeit, Refactoring, Risiko          | **Refactor erst mit Systemkenntnis:** Metriken, Tests und fachliches Verhalten müssen vorher ausreichend verstanden sein.                             |
 | 14  | **1.6c**      | Sync-Sicherheit härten                       | Security, verteilte Logik, Review-Tiefe   | **Höchstes Fehlerrisiko:** kommt bewusst zuletzt, wenn Architekturverständnis, Prüfdisziplin und Review-Sorgfalt aufgebaut sind.                      |
 
 ### 3.2 Greenfield-Referenz: 1.7a
@@ -121,16 +120,15 @@ Abweichungen sind möglich, aber nur **begründet und dokumentiert**, z. B.:
 
 ## 7. Verknüpfungen
 
-| Dokument                                                                                                                                                   | Inhalt                                                          |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`Backlog.md`](../../Backlog.md)                                                                                                                           | Story-Liste, Status, Akzeptanzkriterien                         |
-| [`docs/didaktik/greenfield-demo-1-7a-vorlesung.md`](../didaktik/greenfield-demo-1-7a-vorlesung.md)                                                         | **Ablauf 3×45 Min.** Greenfield 1.7a                            |
-| [`docs/features/controversy-score.md`](../features/controversy-score.md)                                                                                   | Referenz für fertige Q&A-Sortierungen (8.6/8.7)                 |
-| [`docs/architecture/decisions/0029-tempo-as-predefined-blitzlicht-template.md`](../architecture/decisions/0029-tempo-as-predefined-blitzlicht-template.md) | Zielbild Tempo-Blitzlicht (8.8)                                 |
-| [`docs/praktikum/PRAKTIKUM.md`](./PRAKTIKUM.md)                                                                                                            | Rahmen Praktikum, Bewertung, Ablauf                             |
-| [`EINSTIEG-TOOLS-UND-STACK.md`](./EINSTIEG-TOOLS-UND-STACK.md)                                                                                             | **Pflicht-Orientierung** bei fehlender Tool-/Stack-Vorerfahrung |
-| [`docs/features/motd.md`](../features/motd.md)                                                                                                             | MOTD, Epic 10 (optional Referenzcode)                           |
-| [`AGENT.md`](../../AGENT.md)                                                                                                                               | Arbeitsweise mit KI im Editor                                   |
+| Dokument                                                                                           | Inhalt                                                          |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`Backlog.md`](../../Backlog.md)                                                                   | Story-Liste, Status, Akzeptanzkriterien                         |
+| [`docs/didaktik/greenfield-demo-1-7a-vorlesung.md`](../didaktik/greenfield-demo-1-7a-vorlesung.md) | **Ablauf 3×45 Min.** Greenfield 1.7a                            |
+| [`docs/features/controversy-score.md`](../features/controversy-score.md)                           | Referenz für fertige Q&A-Sortierungen (8.6/8.7)                 |
+| [`docs/praktikum/PRAKTIKUM.md`](./PRAKTIKUM.md)                                                    | Rahmen Praktikum, Bewertung, Ablauf                             |
+| [`EINSTIEG-TOOLS-UND-STACK.md`](./EINSTIEG-TOOLS-UND-STACK.md)                                     | **Pflicht-Orientierung** bei fehlender Tool-/Stack-Vorerfahrung |
+| [`docs/features/motd.md`](../features/motd.md)                                                     | MOTD, Epic 10 (optional Referenzcode)                           |
+| [`AGENT.md`](../../AGENT.md)                                                                       | Arbeitsweise mit KI im Editor                                   |
 
 ---
 

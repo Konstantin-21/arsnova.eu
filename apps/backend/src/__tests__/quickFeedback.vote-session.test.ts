@@ -11,8 +11,11 @@ const {
 } = vi.hoisted(() => ({
   redisMock: {
     get: vi.fn(),
+    hget: vi.fn(),
+    hgetall: vi.fn(),
     set: vi.fn(),
     sismember: vi.fn(),
+    eval: vi.fn(),
     multi: vi.fn(),
   },
   prismaMock: {
@@ -70,6 +73,13 @@ import { quickFeedbackRouter } from '../routers/quickFeedback';
 const caller = quickFeedbackRouter.createCaller({ req: undefined });
 const hostCaller = quickFeedbackRouter.createCaller({ req: {} as never });
 const VOTER_ID = '33333333-3333-4333-8333-333333333333';
+let lastTempoEvalResult: { totalVotes: number; distribution: Record<string, number> } | null = null;
+let lastTempoChoiceAction: {
+  method: 'hset' | 'hdel';
+  key: string;
+  voterId: string;
+  value: string;
+} | null = null;
 
 describe('quickFeedback.vote und Session-Status', () => {
   beforeEach(() => {
@@ -80,12 +90,78 @@ describe('quickFeedback.vote und Session-Status', () => {
     assertFeedbackHostAccessMock.mockResolvedValue('feedback-owner-token');
     invalidateFeedbackHostTokenMock.mockResolvedValue(undefined);
     redisMock.set.mockResolvedValue('OK');
+    redisMock.hget.mockResolvedValue(null);
+    redisMock.hgetall.mockResolvedValue({});
     redisMock.sismember.mockResolvedValue(0);
+    lastTempoEvalResult = null;
+    lastTempoChoiceAction = null;
+    redisMock.eval.mockImplementation(
+      async (
+        _script: string,
+        _keyCount: number,
+        key: string,
+        cKey: string,
+        _bucketKey: string,
+        voterId: string,
+        value: string,
+        _ttl: string,
+        _bucket: string,
+        ...tempoValues: string[]
+      ) => {
+        const raw = (await redisMock.get(key)) as string | null;
+        if (!raw) {
+          return JSON.stringify({ error: 'MISSING' });
+        }
+
+        const result = JSON.parse(raw) as {
+          locked?: boolean;
+          type?: string;
+          totalVotes: number;
+          distribution?: Record<string, number>;
+        };
+        if (result.type !== 'TEMPO') {
+          return JSON.stringify({ error: 'TYPE_CHANGED' });
+        }
+        if (result.locked === true) {
+          return JSON.stringify({ error: 'LOCKED' });
+        }
+
+        const previousValue = (await redisMock.hget(cKey, voterId)) as string | null;
+        const distribution = Object.fromEntries(
+          tempoValues.map((tempoValue) => [
+            tempoValue,
+            Math.max(0, Math.round(result.distribution?.[tempoValue] ?? 0)),
+          ]),
+        ) as Record<string, number>;
+
+        if (previousValue && Object.hasOwn(distribution, previousValue)) {
+          distribution[previousValue] = Math.max(0, distribution[previousValue] - 1);
+        }
+
+        const removesCurrentChoice = previousValue === value;
+        if (removesCurrentChoice) {
+          lastTempoChoiceAction = { method: 'hdel', key: cKey, voterId, value };
+        } else {
+          distribution[value] = (distribution[value] ?? 0) + 1;
+          lastTempoChoiceAction = { method: 'hset', key: cKey, voterId, value };
+        }
+
+        result.distribution = distribution;
+        result.totalVotes = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+        lastTempoEvalResult = {
+          totalVotes: result.totalVotes,
+          distribution,
+        };
+
+        return JSON.stringify({ totalVotes: result.totalVotes, removesCurrentChoice });
+      },
+    );
     redisMock.multi.mockReturnValue({
       set: vi.fn().mockReturnThis(),
       del: vi.fn().mockReturnThis(),
       sadd: vi.fn().mockReturnThis(),
       hset: vi.fn().mockReturnThis(),
+      hdel: vi.fn().mockReturnThis(),
       expire: vi.fn().mockReturnThis(),
       exec: vi.fn().mockResolvedValue([]),
     });
@@ -175,6 +251,234 @@ describe('quickFeedback.vote und Session-Status', () => {
 
     expect(prismaMock.session.findUnique).not.toHaveBeenCalled();
     expect(redisMock.sismember).toHaveBeenCalledWith('qf:voters:ABCDEF', VOTER_ID);
+  });
+
+  it('setzt bei Tempo eine aktuelle Auswahl ohne One-Shot-Sperre', async () => {
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 0,
+        distribution: { SPEED_UP: 0, FOLLOWING: 0, SLOW_DOWN: 0, LOST: 0 },
+        sessionBound: false,
+      }),
+    );
+
+    await expect(
+      caller.vote({
+        sessionCode: 'ABCDEF',
+        voterId: VOTER_ID,
+        value: 'FOLLOWING',
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(redisMock.sismember).not.toHaveBeenCalled();
+    expect(redisMock.hget).toHaveBeenCalledWith('qf:choices:ABCDEF', VOTER_ID);
+    expect(redisMock.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      3,
+      'qf:ABCDEF',
+      'qf:choices:ABCDEF',
+      'qf:tempo:buckets:ABCDEF',
+      VOTER_ID,
+      'FOLLOWING',
+      expect.any(String),
+      expect.any(String),
+      'SPEED_UP',
+      'FOLLOWING',
+      'SLOW_DOWN',
+      'LOST',
+    );
+    expect(lastTempoEvalResult?.totalVotes).toBe(1);
+    expect(lastTempoEvalResult?.distribution).toMatchObject({
+      SPEED_UP: 0,
+      FOLLOWING: 1,
+      SLOW_DOWN: 0,
+      LOST: 0,
+    });
+    expect(lastTempoChoiceAction).toEqual({
+      method: 'hset',
+      key: 'qf:choices:ABCDEF',
+      voterId: VOTER_ID,
+      value: 'FOLLOWING',
+    });
+  });
+
+  it('wechselt bei Tempo per Delta auf die neue Auswahl', async () => {
+    redisMock.hget.mockResolvedValue('SPEED_UP');
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 1,
+        distribution: { SPEED_UP: 1, FOLLOWING: 0, SLOW_DOWN: 0, LOST: 0 },
+        sessionBound: false,
+      }),
+    );
+
+    await caller.vote({
+      sessionCode: 'ABCDEF',
+      voterId: VOTER_ID,
+      value: 'SLOW_DOWN',
+    });
+
+    expect(lastTempoEvalResult?.totalVotes).toBe(1);
+    expect(lastTempoEvalResult?.distribution).toMatchObject({
+      SPEED_UP: 0,
+      FOLLOWING: 0,
+      SLOW_DOWN: 1,
+      LOST: 0,
+    });
+    expect(lastTempoChoiceAction).toEqual({
+      method: 'hset',
+      key: 'qf:choices:ABCDEF',
+      voterId: VOTER_ID,
+      value: 'SLOW_DOWN',
+    });
+  });
+
+  it('entfernt bei Tempo die aktive Auswahl per Re-Tap', async () => {
+    redisMock.hget.mockResolvedValue('SLOW_DOWN');
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 1,
+        distribution: { SPEED_UP: 0, FOLLOWING: 0, SLOW_DOWN: 1, LOST: 0 },
+        sessionBound: false,
+      }),
+    );
+
+    await caller.vote({
+      sessionCode: 'ABCDEF',
+      voterId: VOTER_ID,
+      value: 'SLOW_DOWN',
+    });
+
+    expect(lastTempoEvalResult?.totalVotes).toBe(0);
+    expect(lastTempoEvalResult?.distribution).toMatchObject({
+      SPEED_UP: 0,
+      FOLLOWING: 0,
+      SLOW_DOWN: 0,
+      LOST: 0,
+    });
+    expect(lastTempoChoiceAction).toEqual({
+      method: 'hdel',
+      key: 'qf:choices:ABCDEF',
+      voterId: VOTER_ID,
+      value: 'SLOW_DOWN',
+    });
+  });
+
+  it('laesst klassische Blitzlicht-Typen weiter bei One-Shot-Semantik', async () => {
+    redisMock.sismember.mockResolvedValue(1);
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'MOOD',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 1,
+        distribution: { POSITIVE: 1, NEUTRAL: 0, NEGATIVE: 0 },
+        sessionBound: false,
+      }),
+    );
+
+    await expect(
+      caller.vote({
+        sessionCode: 'ABCDEF',
+        voterId: VOTER_ID,
+        value: 'NEUTRAL',
+      }),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      message: 'Du hast bereits abgestimmt.',
+    });
+  });
+
+  it('liefert fuer Tempo nur Aggregation und Tendenz aus', async () => {
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 8,
+        distribution: { SPEED_UP: 0, FOLLOWING: 8, SLOW_DOWN: 0, LOST: 0 },
+        sessionBound: false,
+      }),
+    );
+    redisMock.hgetall.mockResolvedValue({
+      [String(Date.now())]: JSON.stringify({
+        totalVotes: 8,
+        distribution: { SPEED_UP: 0, FOLLOWING: 8, SLOW_DOWN: 0, LOST: 0 },
+      }),
+    });
+
+    const result = await caller.hostResults({ sessionCode: 'ABCDEF' });
+
+    expect(result.tempoTrend).toMatchObject({
+      status: 'FOLLOWING',
+      active: true,
+      activeParticipants: 8,
+      tempoVotes: 8,
+      requiredVotes: 8,
+    });
+    expect(JSON.stringify(result)).not.toContain(VOTER_ID);
+  });
+
+  it('haelt die Tempo-Tendenz unterhalb der Mindestquote neutral', async () => {
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 1,
+        distribution: { SPEED_UP: 1, FOLLOWING: 0, SLOW_DOWN: 0, LOST: 0 },
+        sessionBound: false,
+      }),
+    );
+
+    const result = await caller.hostResults({ sessionCode: 'ABCDEF' });
+
+    expect(result.tempoTrend).toMatchObject({
+      status: 'NEUTRAL',
+      active: false,
+      activeParticipants: 1,
+      tempoVotes: 1,
+      requiredVotes: 8,
+    });
+  });
+
+  it('wertet gemischte Tempo-Rueckmeldungen oberhalb der Mindestquote als heterogen', async () => {
+    redisMock.get.mockResolvedValue(
+      JSON.stringify({
+        type: 'TEMPO',
+        theme: 'light',
+        preset: 'serious',
+        locked: false,
+        totalVotes: 200,
+        distribution: { SPEED_UP: 40, FOLLOWING: 80, SLOW_DOWN: 55, LOST: 25 },
+        sessionBound: false,
+      }),
+    );
+
+    const result = await caller.hostResults({ sessionCode: 'ABCDEF' });
+
+    expect(result.tempoTrend).toMatchObject({
+      status: 'HETEROGENEOUS',
+      active: true,
+      activeParticipants: 200,
+      tempoVotes: 200,
+      requiredVotes: 20,
+    });
   });
 
   it('erlaubt Standalone-Blitzlicht ohne Host-Token', async () => {

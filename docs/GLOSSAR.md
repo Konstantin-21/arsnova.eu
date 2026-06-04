@@ -2,7 +2,7 @@
 
 # Glossar: arsnova.eu
 
-**Stand:** 2026-05-31
+**Stand:** 2026-06-04
 
 **Zweck:** Einheitliche **produktnahe Begriffe** (Workflows, UI, Rollen) plus eine **kurze Brücke** zu Prisma-Modellnamen. Vollständiges Schema nur in `schema.prisma` / Handbuch — hier keine Spalten- oder Enum-Listen.
 
@@ -15,15 +15,15 @@
 - **Host-Token:** Besitznachweis für Host-/Present-Zugriffe und host-only Session-Aktionen; pro Session-Code in `sessionStorage`. Vorkommen: Session-Host, Present. Vertiefung: ADR-0019.
 - **Feedback-Host-Token:** Separater Besitznachweis für Standalone-Blitzlicht (`/feedback/:code`). Vorkommen: Blitzlicht-Host. Vertiefung: ADR-0019.
 - **Host:** Rolle/Ansicht: Dozent steuert Ablauf, Kanäle, Fragen. Vorkommen: Route `session/.../host`. Vertiefung: ADR-0006.
-- **Moderator / delegierte Q&A-Moderation:** Zielrolle für ausgelagerte, kanalgebundene Q&A-Moderation. Stand 2026-05-31: noch keine eigene Route, kein Moderator-Token und keine dedizierte Moderator-UI; produktive Q&A-Moderation läuft hostgebunden über `hostProcedure` und `moderatorView: true`. Vertiefung: ADR-0011, Story 8.5.
+- **Moderator / delegierte Q&A-Moderation:** Zielrolle für ausgelagerte, kanalgebundene Q&A-Moderation. Stand 2026-06-04: noch keine eigene Route, kein Moderator-Token und keine dedizierte Moderator-UI; produktive Q&A-Moderation läuft hostgebunden über `hostProcedure` und `moderatorView: true`. Vertiefung: ADR-0011, Story 8.5.
 - **Presenter / Beamer:** Projektionsansicht für Hörsaal (ohne Steuerlogik wie der Host). Vorkommen: Route `session/.../present`. Vertiefung: Story 2.5.
 - **Vote / Teilnehmer-Ansicht:** Rolle/Ansicht: Mitmachen, abstimmen, Q&A, Blitzlicht. Vorkommen: Route `session/.../vote`. Vertiefung: ADR-0006.
 - **Join:** Beitritt mit Code und Nickname (ggf. Teamwahl). Vorkommen: Route `join/...`. Vertiefung: Story 3.1, Team-Doku.
 - **Lobby:** Phase vor/neben Fragen: Teilnehmende sammeln, Zugang zeigen. Vorkommen: Host & Teilnehmer. Vertiefung: Story 2.2.
 - **Kanal:** Tab innerhalb einer Session: **Quiz**, **Q&A**, **Blitzlicht** (optional aktivierbar). Technisch `SessionLiveChannelSchema = quiz | qa | quickFeedback`; **Tempo** ist kein vierter Kanal. Vorkommen: Session-Shell. Vertiefung: ADR-0009, ADR-0029.
 - **Blitzlicht:** Kurze Live-Abfrage (Stimmung, Ja/Nein, Sterne, ABCD, …); Produktname in der UI. Vorkommen: Startseite-Chips, Session-Kanal, Standalone-Blitzlicht. Vertiefung: ADR-0010, [BLITZLICHT-GUIDELINES](ui/BLITZLICHT-GUIDELINES.md).
-- **Quick-Feedback:** Technischer Name des tRPC-Routers **`quickFeedback`**, der Redis-Keys `qf:*` und des Live-Kanals `quickFeedback` — fachlich = Blitzlicht. Aktuelle Typen: `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`. Vertiefung: [blitzlicht-quickfeedback-api](features/blitzlicht-quickfeedback-api.md).
-- **Tempo-Blitzlicht / Tempo:** Beschlossenes Zielbild für ein vordefiniertes Blitzlicht-Template, nicht für einen eigenen Session-Kanal. Stand 2026-05-31: im Code noch kein `TEMPO`-Typ und keine mutable Tempo-Semantik. Vertiefung: ADR-0029, Story 8.8.
+- **Quick-Feedback:** Technischer Name des tRPC-Routers **`quickFeedback`**, der Redis-Keys `qf:*` und des Live-Kanals `quickFeedback` — fachlich = Blitzlicht. Aktuelle Typen: `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`, `TEMPO`. Klassische Typen bleiben Einmal-Votes; `TEMPO` hat bewusst mutable Semantik. Vertiefung: [blitzlicht-quickfeedback-api](features/blitzlicht-quickfeedback-api.md).
+- **Tempo-Blitzlicht / Tempo-Feedback:** Vordefiniertes Blitzlicht-Template mit vier Reaktionen (`SPEED_UP`, `FOLLOWING`, `SLOW_DOWN`, `LOST`), mutablem aktuellem Zustand pro teilnehmender Person und aggregierter Host-Tendenz. Es ist kein eigener Session-Kanal und kein personenbezogener Verlauf. Vertiefung: ADR-0029, Story 8.8.
 - **Access-Proof:** SHA-256-Nachweis über den kanonischen Upload-Snapshot einer Server-Quizkopie; schützt Sammlungs-Historie. Vorkommen: Quiz-Liste, Bonus-Historie. Vertiefung: ADR-0019.
 - **Vergleichsrunde:** Zweite Blitzlicht-Abstimmung nach eingefrorener erster Runde; **UI-Wort** (nicht „Diskussionsrunde“). Vorkommen: Blitzlicht-Host. Vertiefung: ADR-0010.
 - **Lesephase:** Frage sichtbar, Antwortoptionen noch nicht (Status `QUESTION_OPEN`). Vorkommen: Quiz-Ablauf. Vertiefung: Story 2.6, DTO „Preview“.
@@ -70,7 +70,7 @@ Diese Kürzel tauchen in Doku, Tickets, Reviews, Commits und im technischen Gesp
 | **PWA**    | Progressive Web App                      | Installierbare Web-App mit Service Worker und Offline-/Update-Mechanik                            |
 | **Prisma** | Prisma ORM / Schema-Tooling              | Datenmodell und Datenbankzugriff; Quelle: [`prisma/schema.prisma`](../prisma/schema.prisma)       |
 | **QR**     | Quick Response Code                      | Session-Beitritt, Join-Link, Einstieg per Kamera-Scan                                             |
-| **Redis**  | In-Memory-Datenspeicher / Pub-Sub-Broker | Echtzeit, Blitzlicht-Zustand (`qf:*`), Live-Signale                                               |
+| **Redis**  | In-Memory-Datenspeicher / Pub-Sub-Broker | Echtzeit, Blitzlicht-Zustand (`qf:*`, inkl. Tempo-Buckets), Live-Signale                          |
 | **SLO**    | Service Level Objective                  | Zielwerte für Betriebszustand, Latenz und Fehlerrate; Eingang in `serviceStatus`                  |
 | **SPA**    | Single-Page Application                  | Grundform des Frontends: eine Angular-App statt klassischer Mehrseiten-App                        |
 | **SSR**    | Server-Side Rendering                    | Angular-Server-/Prerender-Pfad für SEO, Social Previews und lokalisierte Builds                   |
@@ -109,7 +109,7 @@ Diese Kürzel tauchen in Doku, Tickets, Reviews, Commits und im technischen Gesp
 | MOTD-Interaktionen                         | `MotdInteractionCounter` | Zähler für Bestätigungen, Daumen hoch/runter und Dismiss-Aktionen pro Content-Version                                                   |
 | MOTD-Audit                                 | `MotdAuditLog`           | Protokoll der Admin-Aktionen an MOTDs und Vorlagen                                                                                      |
 
-**Blitzlicht** hat **kein** Prisma-Modell — Live-Zustand in **Redis** (`qf:*`), API `quickFeedback.*`. Das geplante **Tempo-Blitzlicht** bleibt nach ADR-0029 in diesem Pfad und wird nicht als eigener Session-Kanal modelliert.
+**Blitzlicht** hat **kein** Prisma-Modell — Live-Zustand in **Redis** (`qf:*`), API `quickFeedback.*`. Das **Tempo-Blitzlicht** bleibt nach ADR-0029 in diesem Pfad und wird nicht als eigener Session-Kanal modelliert.
 
 ---
 
@@ -121,7 +121,7 @@ Diese Kürzel tauchen in Doku, Tickets, Reviews, Commits und im technischen Gesp
 - **Effective Vote** ist keine zusätzliche `Vote`-Zeile, sondern die Auswertungsregel, welche vorhandene Votes pro Frage/Teilnehmer auswählt.
 - **Freitext** (`FREETEXT`) vs. **Kurzantwort** (`SHORT_TEXT`): Beide speichern Text in `Vote.freeText`; nur `SHORT_TEXT` ist bewertbar und scoreboard-relevant.
 - **Quiz** (lokal) vs. **Session-Quiz** (Serverkopie): Siehe Handbook Local-First.
-- **Tempo** vs. **Blitzlicht-Kanal:** Tempo ist Zielbild für ein Blitzlicht-Template; `SessionLiveChannelSchema` erhält dadurch keinen vierten Kanal.
+- **Tempo** vs. **Blitzlicht-Kanal:** Tempo ist ein Blitzlicht-Template; `SessionLiveChannelSchema` erhält dadurch keinen vierten Kanal.
 - **Session-Tagesrekord** vs. **Gesamtteilnahmen:** Der Tagesrekord ist die größte einzelne Session eines UTC-Tags, nicht die Summe aller Teilnahmen dieses Tages.
 
 ---

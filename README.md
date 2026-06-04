@@ -26,16 +26,16 @@ Die öffentliche Referenzinstanz läuft unter **https://arsnova.eu**; der extern
 
 arsnova.eu bündelt mehrere Live-Formate in einer App:
 
-| Bereich                         | Zweck                                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| **Quiz**                        | Single Choice, Multiple Choice, Freitext, Kurzantwort, Umfrage und Bewertungsskala       |
-| **Q&A**                         | Fragen sammeln, sortieren, moderieren und in Sessions sichtbar machen                    |
-| **Blitzlicht / Quick Feedback** | Schnelle Stimmungs-, Ja/Nein-, Sterne- oder ABCD-Runden, standalone oder sessiongebunden |
-| **Team- und Bonusmodus**        | Teamzuordnung, Leaderboards, Scorecards, Bonuscodes und Ergebnisexporte                  |
-| **Present-Ansicht**             | Beamer- bzw. Raumansicht für öffentliche Session-Darstellung                             |
-| **Admin-Bereich**               | Betreiberzugriff für Session-Inspektion, Legal Hold, Löschung, Export und MOTD           |
-| **MOTD / News**                 | Plattformweite Mitteilungen, Archiv, Interaktionen und Admin-Vorlagen                    |
-| **PWA und i18n**                | Installierbare Web-App mit lokalisierten Builds für `de`, `en`, `fr`, `es`, `it`         |
+| Bereich                         | Zweck                                                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Quiz**                        | Single Choice, Multiple Choice, Freitext, Kurzantwort, Umfrage und Bewertungsskala                       |
+| **Q&A**                         | Fragen sammeln, sortieren, moderieren und in Sessions sichtbar machen                                    |
+| **Blitzlicht / Quick Feedback** | Schnelle Stimmungs-, Ja/Nein-, Sterne-, ABCD- und Tempo-Feedback-Runden, standalone oder sessiongebunden |
+| **Team- und Bonusmodus**        | Teamzuordnung, Leaderboards, Scorecards, Bonuscodes und Ergebnisexporte                                  |
+| **Present-Ansicht**             | Beamer- bzw. Raumansicht für öffentliche Session-Darstellung                                             |
+| **Admin-Bereich**               | Betreiberzugriff für Session-Inspektion, Legal Hold, Löschung, Export und MOTD                           |
+| **MOTD / News**                 | Plattformweite Mitteilungen, Archiv, Interaktionen und Admin-Vorlagen                                    |
+| **PWA und i18n**                | Installierbare Web-App mit lokalisierten Builds für `de`, `en`, `fr`, `es`, `it`                         |
 
 Die ausführliche, codebasierte Funktionsübersicht steht in [docs/APP-FUNKTIONSUEBERSICHT.md](./docs/APP-FUNKTIONSUEBERSICHT.md).
 

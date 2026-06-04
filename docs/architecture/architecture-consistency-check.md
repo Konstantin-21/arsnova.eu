@@ -2,7 +2,7 @@
 
 # Prüfung: Widersprüche in der technischen Architektur
 
-**Datum:** 2026-05-31
+**Datum:** 2026-05-31 · Tempo-Abgleich ergänzt 2026-06-04
 **Geprüft:** `AGENT.md`, `handbook.md`, `README.md`, alle Dateien unter `docs/architecture`, Prisma-Schema, Backend-/Frontend-Code, Zod-Schemas (`shared-types`), `package.json`-Dateien, `docker-compose.yml`, `tsconfig.json`, Angular-Router und relevante Feature-Dokumente.
 
 ---
@@ -258,15 +258,17 @@ Status-Drift zwischen ADR und Code.
 
 ---
 
-## 13. ADR-0029: Tempo-Zielbild noch nicht im Code umgesetzt
+## 13. ADR-0029: Tempo-Zielbild umgesetzt
 
-**Befund (2026-05-31):**
-ADR-0029 ist als Architekturentscheidung angenommen. `QuickFeedbackTypeEnum` enthaelt aber aktuell noch `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`; ein `TEMPO`-Typ und die mutable Tempo-Semantik sind noch nicht implementiert.
+**Historischer Befund (2026-05-31):**
+ADR-0029 war als Architekturentscheidung angenommen. `QuickFeedbackTypeEnum` enthielt damals noch `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`; ein `TEMPO`-Typ und die mutable Tempo-Semantik waren noch nicht implementiert.
 
-**Bewertung:**
-Kein Widerspruch, solange ADR-0029 als Zielentscheidung und Story 8.8 als offen verstanden wird. Die Doku muss diesen Umsetzungsstand aber explizit machen.
+**Bewertung (damals):**
+Kein Widerspruch, solange ADR-0029 als Zielentscheidung und Story 8.8 als offen verstanden wurde. Die Doku musste diesen Umsetzungsstand aber explizit machen.
 
 **Erledigt (2026-05-31):** ADR-0029 wurde um einen Implementierungsstand mit dieser Abgrenzung ergaenzt.
+
+**Erledigt (2026-06-04):** Der Befund ist durch Story 8.8 geschlossen. `QuickFeedbackTypeEnum` enthaelt `TEMPO`, die mutable Tempo-Semantik laeuft im bestehenden `quickFeedback`-Router mit atomarem Redis-Lua-Hotpath, und `SessionLiveChannelSchema` bleibt weiterhin bei `quiz`, `qa`, `quickFeedback`.
 
 ---
 

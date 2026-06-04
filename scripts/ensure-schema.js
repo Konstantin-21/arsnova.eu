@@ -19,6 +19,10 @@ function shouldSeedMotdMakingOfRuntime(nodeEnv) {
   return shouldSeedMotdRuntime(nodeEnv);
 }
 
+function shouldSeedMotdFeatureRuntime(nodeEnv) {
+  return shouldSeedMotdRuntime(nodeEnv);
+}
+
 function getMotdWelcomeSeedFiles() {
   return [
     'prisma/migrations/20260327170000_motd_welcome_message/migration.sql',
@@ -40,6 +44,10 @@ function getMotdMakingOfSeedFiles() {
     'prisma/migrations/20260331170000_motd_making_of_openhub_active/migration.sql',
     'prisma/migrations/20260401120000_motd_making_of_banner_image/migration.sql',
   ];
+}
+
+function getMotdFeatureSeedFiles() {
+  return ['prisma/migrations/20260604140000_motd_tempo_feedback/migration.sql'];
 }
 
 function createClient() {
@@ -263,6 +271,54 @@ function seedMotdMakingOfSql() {
 }
 
 /**
+ * Aktuelle Feature-MOTDs: In Dev-Setups ohne `prisma migrate deploy` ebenfalls einspielen.
+ * In Produktion bleibt `prisma migrate deploy` die Quelle.
+ */
+function seedMotdFeatureSql() {
+  if (!shouldSeedMotdFeatureRuntime(process.env.NODE_ENV)) {
+    console.log('>>> MOTD Feature: übersprungen (Produktion nutzt prisma migrate deploy).');
+    return;
+  }
+
+  const root = path.join(__dirname, '..');
+  const files = getMotdFeatureSeedFiles();
+  let applied = 0;
+  for (const rel of files) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) {
+      console.warn(`>>> MOTD Feature: Datei fehlt (${rel}).`);
+      continue;
+    }
+    try {
+      execSync(`npx prisma db execute --file "${abs}"`, {
+        cwd: root,
+        stdio: 'pipe',
+        encoding: 'utf8',
+        env: process.env,
+      });
+      applied++;
+    } catch (e) {
+      const out =
+        (e.stderr && e.stderr.toString()) ||
+        (e.stdout && e.stdout.toString()) ||
+        e.message ||
+        String(e);
+      if (/relation .+ does not exist/i.test(out)) {
+        console.warn(
+          '>>> MOTD Feature: übersprungen (MOTD-Tabellen fehlen — `npx prisma migrate deploy` oder `db push`).',
+        );
+        return;
+      }
+      console.warn('>>> MOTD Feature optional:', out.trim().slice(0, 500));
+      return;
+    }
+  }
+  if (applied === files.length) {
+    console.log('>>> MOTD Feature: SQL angewendet (aktuelle Feature-Meldungen).');
+  }
+}
+
+/**
  * Willkommens-MOTD (Epic 10): In Dev-Setups mit `db push` fehlen Datenmigrationen.
  * Deshalb wird die feste Onboarding-MOTD vor der Making-of-Kette idempotent angelegt.
  * In Produktion NICHT erneut ausführen: `prisma migrate deploy` ist dort die Quelle.
@@ -339,6 +395,7 @@ async function main() {
   if (failed === 0) {
     seedMotdWelcomeSql();
     seedMotdMakingOfSql();
+    seedMotdFeatureSql();
   }
 
   if (failed > 0) {
@@ -350,10 +407,13 @@ module.exports = {
   DEFAULT_DATABASE_URL,
   shouldSeedMotdRuntime,
   shouldSeedMotdMakingOfRuntime,
+  shouldSeedMotdFeatureRuntime,
   getMotdWelcomeSeedFiles,
   getMotdMakingOfSeedFiles,
+  getMotdFeatureSeedFiles,
   seedMotdWelcomeSql,
   seedMotdMakingOfSql,
+  seedMotdFeatureSql,
 };
 
 if (require.main === module) {

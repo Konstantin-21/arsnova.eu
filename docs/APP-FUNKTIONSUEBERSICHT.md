@@ -1,6 +1,6 @@
 # arsnova.eu – ausführliche Funktionsübersicht der App
 
-> Stand dieser Übersicht: 2026-05-31
+> Stand dieser Übersicht: 2026-06-04
 >
 > Grundlage: Auswertung des aktuellen Repos, insbesondere `apps/frontend`, `apps/backend`, `libs/shared-types`, `prisma/schema.prisma`, `README.md`, `docs/ROUTES_AND_STORIES.md` und der Feature-Dokumente unter `docs/features/`.
 
@@ -93,6 +93,7 @@ Die Startseite bietet vordefinierte Blitzlicht-Typen als Sofortstart:
 - Wahr / Falsch / Weiß nicht
 - Sterne
 - ABCD
+- Tempo-Feedback mit `🚀 Schneller`, `🙂 Ich folge`, `🐢 Langsamer`, `😵 Verloren`
 
 Ein Klick erzeugt eine neue Runde, Host-Token und Beitrittslink. Danach wechselt die App direkt in die Host-Ansicht des Blitzlichts.
 
@@ -533,6 +534,7 @@ Teilnehmende können:
 - je nach Typ passende Eingaben wählen
 - auf zweite Runden reagieren
 - den vom Host vorgegebenen Stil übernehmen
+- beim Tempo-Feedback ihre aktuelle Auswahl wechseln oder per Re-Tap entfernen
 
 ### 6.5 Ergebnismodus
 
@@ -543,6 +545,7 @@ Das Blitzlicht zeigt live:
 - Rundenstatus
 - Sperrstatus
 - bei Doppelrunden eine **Meinungsverschiebung** zwischen Runde 1 und Runde 2
+- beim Tempo-Feedback eine aggregierte Tendenz mit den Host-Kennzahlen **Online** und **Rückmeldungen**
 
 Technisch liegt dieser Kanal in Redis-Kurzzeitzuständen und läuft ohne eigenes Prisma-Datenmodell.
 
@@ -932,7 +935,6 @@ Dazu gehören laut Root-Dokumentation insbesondere:
 - abschließende Barrierefreiheitsprüfung
 - Confidence-Erweiterungen und weitere Auswertungsvarianten
 - delegierte Q&A-Moderation und weitere Q&A-Erweiterungen
-- Tempo-Livekanal als eigenständige Weiterentwicklung über das aktuelle Blitzlicht-Template hinaus
 - weitere Word-Cloud-Ausbaustufen
 - Härtung einzelner Sync-/Komplexitätsbereiche
 

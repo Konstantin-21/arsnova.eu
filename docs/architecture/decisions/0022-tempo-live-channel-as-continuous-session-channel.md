@@ -6,11 +6,11 @@
 **Datum:** 2026-04-26  
 **Entscheider:** Projektteam
 
-**Letzter Repo-Abgleich:** 2026-05-31
+**Letzter Repo-Abgleich:** 2026-06-04
 
 > **Hinweis (2026-05-27):** Diese Entscheidung wurde vor Implementierung verworfen. Das Produktziel wird nicht mehr als vierter Session-Kanal umgesetzt, sondern als vordefiniertes Blitzlicht-Template gemaess [ADR-0029](./0029-tempo-as-predefined-blitzlicht-template.md).
 >
-> **Repo-Abgleich (2026-05-31):** Der Code bestaetigt die Superseding-Entscheidung: `SessionLiveChannelSchema` enthaelt weiterhin nur `quiz`, `qa`, `quickFeedback`; es gibt keine Prisma-Felder `tempoEnabled` oder `tempoOpen` und keinen `tempoRouter`.
+> **Repo-Abgleich (2026-06-04):** Der Code bestaetigt die Superseding-Entscheidung: `SessionLiveChannelSchema` enthaelt weiterhin nur `quiz`, `qa`, `quickFeedback`; es gibt keine Prisma-Felder `tempoEnabled` oder `tempoOpen` und keinen `tempoRouter`. `TEMPO` existiert inzwischen ausschliesslich als `quickFeedback`-Typ nach ADR-0029, inklusive mutablem Redis-Hotpath und Tendenzmetadaten.
 
 ## Kontext
 
@@ -24,7 +24,7 @@ Für den Live-Einsatz in Vorträgen, Seminaren und Lehrveranstaltungen fehlt jed
 
 - Teilnehmende sollen **jederzeit** mit einem Tap rückmelden können, ob das Tempo passt.
 - Die Rückmeldung soll **kontinuierlich**, **anonym** und **änderbar** sein.
-- Die Lehrperson soll nur **aggregierte** Signale sehen, keine individuellen Meldungen.
+- Die Lehrperson soll nur **aggregierte** Rueckmeldungen sehen, keine individuellen Meldungen.
 - Der Kanal soll **parallel** zu Quiz, Q&A und Blitzlicht laufen, ohne deren Lebenszyklen zu übernehmen.
 
 Das bestehende Blitzlicht ist dafür fachlich ungeeignet:
@@ -225,10 +225,10 @@ abgeleitet.
 Mindestens folgende Zustände sollen fachlich unterscheidbar sein:
 
 - `Die Mehrheit kann folgen.`
-- `Das Tempo wirkt zu hoch.`
+- `Es wirkt zu schnell.`
 - `Mehrere Teilnehmende sind abgehängt.`
-- `Die Gruppe signalisiert Unterforderung.`
-- `Die Gruppe ist heterogen.`
+- `Die Gruppe kann schneller mitgehen.`
+- `Die Rückmeldungen sind gemischt.`
 
 Die konkrete Schwellenlogik ist Implementierungsdetail, muss aber:
 

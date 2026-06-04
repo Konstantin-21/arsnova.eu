@@ -1,4 +1,4 @@
-import type { QuickFeedbackType } from '@arsnova/shared-types';
+import type { QuickFeedbackType, TempoTrendStatus } from '@arsnova/shared-types';
 
 export interface FeedbackOption {
   value: string;
@@ -13,6 +13,13 @@ export interface FeedbackPresetChip {
   label: string;
   icons: readonly FeedbackPresetChipIcon[];
   showLabel?: boolean;
+}
+
+export interface FeedbackSpotlightTemplate extends FeedbackPresetChip {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actionLabel: string;
 }
 
 export interface FeedbackPresetChipIcon {
@@ -83,6 +90,13 @@ export const ABCD_OPTIONS: readonly FeedbackOption[] = [
   { value: 'D', label: $localize`Antwort D` },
 ];
 
+export const TEMPO_OPTIONS: readonly FeedbackOption[] = [
+  { value: 'SPEED_UP', label: $localize`:@@feedback.tempoSpeedUp:Schneller`, icon: '🚀' },
+  { value: 'FOLLOWING', label: $localize`:@@feedback.tempoFollowing:Ich folge`, icon: '🙂' },
+  { value: 'SLOW_DOWN', label: $localize`:@@feedback.tempoSlowDown:Langsamer`, icon: '🐢' },
+  { value: 'LOST', label: $localize`:@@feedback.tempoLost:Verloren`, icon: '😵' },
+];
+
 export const FEEDBACK_OPTIONS: Record<QuickFeedbackType, readonly FeedbackOption[]> = {
   MOOD: MOOD_OPTIONS,
   YESNO: YESNO_OPTIONS,
@@ -90,6 +104,17 @@ export const FEEDBACK_OPTIONS: Record<QuickFeedbackType, readonly FeedbackOption
   TRUEFALSE_UNKNOWN: TRUEFALSE_UNKNOWN_OPTIONS,
   STARS: STARS_OPTIONS,
   ABCD: ABCD_OPTIONS,
+  TEMPO: TEMPO_OPTIONS,
+};
+
+export const QUICK_FEEDBACK_TEMPO_SPOTLIGHT: FeedbackSpotlightTemplate = {
+  type: 'TEMPO',
+  eyebrow: $localize`:@@feedback.tempoSpotlightEyebrow:Tempo-Blitzlicht`,
+  title: $localize`:@@feedback.tempoSpotlightTitle:Vortrags\u00adtempo im Blick behalten`,
+  description: $localize`:@@feedback.tempoSpotlightDescription:Mit vier Icons zeigt deine Gruppe, ob sie folgen kann.`,
+  actionLabel: $localize`:@@feedback.tempoSpotlightAction:Tempo-Feedback`,
+  label: $localize`:@@feedback.titleTempo:Tempo`,
+  icons: [{ value: '🚀' }, { value: '🙂' }, { value: '🐢' }, { value: '😵' }],
 };
 
 export const QUICK_FEEDBACK_PRESET_CHIPS: readonly FeedbackPresetChip[] = [
@@ -217,7 +242,65 @@ export function feedbackTitle(type: QuickFeedbackType | string): string {
       return $localize`:@@feedback.titleStars:Sterne`;
     case 'ABCD':
       return $localize`ABCD-Voting`;
+    case 'TEMPO':
+      return $localize`:@@feedback.titleTempo:Tempo`;
     default:
       return $localize`Feedback`;
+  }
+}
+
+export function isTempoFeedbackType(type: QuickFeedbackType | string | null | undefined): boolean {
+  return type === 'TEMPO';
+}
+
+export function tempoTrendLabel(status: TempoTrendStatus | string | null | undefined): string {
+  switch (status) {
+    case 'FOLLOWING':
+      return $localize`:@@feedback.tempoTrendFollowing:Die Mehrheit kann folgen.`;
+    case 'TOO_FAST':
+      return $localize`:@@feedback.tempoTrendTooFast:Es wirkt zu schnell.`;
+    case 'LOST':
+      return $localize`:@@feedback.tempoTrendLost:Mehrere Teilnehmende sind abgehängt.`;
+    case 'TOO_SLOW':
+      return $localize`:@@feedback.tempoTrendTooSlow:Die Gruppe kann schneller mitgehen.`;
+    case 'HETEROGENEOUS':
+      return $localize`:@@feedback.tempoTrendHeterogeneous:Die Rückmeldungen sind gemischt.`;
+    default:
+      return $localize`:@@feedback.tempoTrendNeutral:Noch zu wenige Rückmeldungen.`;
+  }
+}
+
+export function tempoTrendIcon(status: TempoTrendStatus | string | null | undefined): string {
+  switch (status) {
+    case 'FOLLOWING':
+      return 'check_circle';
+    case 'TOO_FAST':
+      return 'speed';
+    case 'LOST':
+      return 'warning';
+    case 'TOO_SLOW':
+      return 'keyboard_double_arrow_up';
+    case 'HETEROGENEOUS':
+      return 'diversity_3';
+    default:
+      return 'radio_button_unchecked';
+  }
+}
+
+export function tempoTrendTone(
+  status: TempoTrendStatus | string | null | undefined,
+): 'neutral' | 'good' | 'caution' | 'alert' | 'mixed' {
+  switch (status) {
+    case 'FOLLOWING':
+      return 'good';
+    case 'TOO_FAST':
+    case 'TOO_SLOW':
+      return 'caution';
+    case 'LOST':
+      return 'alert';
+    case 'HETEROGENEOUS':
+      return 'mixed';
+    default:
+      return 'neutral';
   }
 }

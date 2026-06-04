@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-# Story 8.8 – GitHub-Issue- und PR-Checkliste
+# Story 8.8 - GitHub-Issue- und PR-Checkliste
 
 **Kurzfassung fuer GitHub-Artefakte**  
 Diese Datei ist die kompakte Ableitung aus dem Implementierungsplan fuer Story 8.8. Sie ist fuer **Issue-Body**, **PR-Beschreibung** und **Review-Checklisten** gedacht.
@@ -8,7 +8,7 @@ Diese Datei ist die kompakte Ableitung aus dem Implementierungsplan fuer Story 8
 **Kanondokumente:**
 
 - [Implementierungsplan](./STORY-8.8-IMPLEMENTATION-PLAN.md)
-- [ADR-0022 Tempo-Livekanal](../architecture/decisions/0022-tempo-live-channel-as-continuous-session-channel.md)
+- [ADR-0029 Tempo als Blitzlicht-Template](../architecture/decisions/0029-tempo-as-predefined-blitzlicht-template.md)
 - [Backlog Story 8.8](../../Backlog.md)
 
 ---
@@ -17,227 +17,115 @@ Diese Datei ist die kompakte Ableitung aus dem Implementierungsplan fuer Story 8
 
 ### Titel
 
-`Story 8.8: Tempo-Livekanal als kontinuierlicher vierter Session-Kanal`
+`Story 8.8: Tempo-Blitzlicht als Host-Option`
 
 ### Kurzbeschreibung
 
-Als Lehrperson moechte ich einen persistenten Tempo-Livekanal in einer laufenden ARSnova-Session aktivieren koennen, damit Teilnehmende waehrend eines Vortrags jederzeit anonym signalisieren koennen, ob sie folgen, ob es schneller gehen darf, ob es zu schnell ist oder ob sie abgehaengt sind.
+Als Lehrperson moechte ich im bestehenden Blitzlicht ein vordefiniertes Tempo-Blitzlicht starten koennen, damit Teilnehmende waehrend eines Vortrags jederzeit anonym rueckmelden koennen, ob sie folgen, ob es schneller gehen darf, ob es zu schnell ist oder ob sie abgehaengt sind.
 
 ### Akzeptanzkriterien
 
-- [ ] Tempo ist ein **eigener vierter Session-Kanal** und wird nicht als Blitzlicht-Typ, Quizfrage oder Gamification-Mechanik modelliert.
-- [ ] Hosts koennen den Kanal pro Session aktivieren, schliessen und wieder oeffnen.
-- [ ] Teilnehmende sehen genau vier Zustaende: `speed_up`, `following`, `slow_down`, `lost`.
-- [ ] Ein Tap setzt den Zustand; spaetere Taps koennen ihn aendern und optional entfernen; pro `participantId` zaehlt immer nur der letzte Zustand.
-- [ ] Der Kanal laeuft parallel zu Quiz, Q&A und Blitzlicht und wird durch deren Lebenszyklen nicht beendet oder ueberschrieben.
-- [ ] Teilnehmende nutzen Tempo als **persistentes, mobile-first erreichbares Widget** innerhalb der Session-Vote-Ansicht.
-- [ ] Hosts sehen nur **aggregierte** Daten: Verteilung, Prozentwerte, optional absolute Zahlen und Tendenz.
-- [ ] Es sind keine individuellen Rueckmeldungen oder Identitaeten aus Host-, Presenter- oder Admin-Pfaden rekonstruierbar.
-- [ ] Die Tendenzlogik unterscheidet mindestens: Mehrheit kann folgen, Tempo zu hoch, mehrere abgehaengt, Unterforderung, heterogene Gruppe.
-- [ ] Die vier Zustaende sind auf Smartphones ohne horizontales Scrollen erreichbar und erfuellen die projektweiten A11y-Regeln.
-- [ ] Die technische Umsetzung verwendet ein eigenes Daten- und API-Modell; Blitzlicht-Logik wird nicht wiederverwendet.
+- [ ] Tempo ist ein **vordefiniertes Blitzlicht-Template** im bestehenden `quickFeedback`-Kanal.
+- [ ] Es entsteht **kein** vierter Session-Kanal, kein `tempoRouter`, kein `tempoEnabled`/`tempoOpen` im Prisma-Sessionmodell und kein persistentes Parallel-Widget.
+- [ ] Hosts koennen Tempo im Session-Blitzlicht und im Standalone-Blitzlicht starten; pro Kontext ist weiterhin genau ein Blitzlicht aktiv.
+- [ ] Startet der Host ein anderes Blitzlicht, ersetzt es das laufende Tempo-Blitzlicht.
+- [ ] Teilnehmende sehen genau vier Optionen: `🚀 Schneller`, `🙂 Ich folge`, `🐢 Langsamer`, `😵 Verloren`.
+- [ ] Eine Auswahl kann mit einem Tap gesetzt, durch einen anderen Tap gewechselt und durch Re-Tap oder Backdrop zurueckgesetzt werden.
+- [ ] Pro teilnehmender Person zaehlt immer nur der aktuelle Tempo-Zustand.
+- [ ] Klassische Blitzlicht-Typen bleiben bei ihrer Einmal-Vote-Semantik.
+- [ ] Hosts sehen nur Aggregation, Prozentwerte und Tendenz, keine individuellen Rueckmeldungen oder Teilnehmerlisten.
+- [ ] Die Tendenzlogik unterscheidet mindestens: `Die Mehrheit kann folgen.`, `Es wirkt zu schnell.`, `Mehrere Teilnehmende sind abgehaengt.`, `Die Gruppe kann schneller mitgehen.`, `Die Rueckmeldungen sind gemischt.`, `Noch zu wenige Rueckmeldungen.`
+- [ ] Die Host-Ansicht bietet einen Umschalter zwischen `Details` und `Tendenz`.
+- [ ] Im Standalone-Host sind die Kennzahlen `Online` und `Rueckmeldungen` sichtbar, ohne redundante Doppelungen wie `0 Rueckmeldungen` direkt unter `Rueckmeldungen`.
+- [ ] Die Startseite zeigt Tempo als Spotlight-Einstieg mit CTA `Tempo-Feedback`, nicht als vierten gleichrangigen Hero-Chip.
+- [ ] Die Blitzlicht-Host-Auswahl zeigt Tempo ebenfalls als Spotlight-Kachel.
+- [ ] Die vier Tempo-Icons bleiben auf Smartphone, Tablet, Desktop und Host-Ansicht gross genug, horizontal zentriert und ohne Layout-Ueberlappung.
+- [ ] Die technische Umsetzung bleibt im Redis-Hotpath: kein PostgreSQL-Schreibpfad pro Tap, keine Vollreaggregation pro Event.
+- [ ] Parallel abgegebene Tempo-Rueckmeldungen von 500 Teilnehmenden werden korrekt aggregiert.
 
 ### Architekturleitplanken
 
-- [ ] Session-Konfiguration liegt in PostgreSQL / Prisma: `tempoEnabled`, `tempoOpen`.
-- [ ] Livezustand liegt in Redis; keine PostgreSQL-Schreiboperation bei jedem Tap.
-- [ ] Redis-Key-Basis ist `sessionCode` in Uppercase.
-- [ ] `tempo:state:<SESSION_CODE>` ist die minimale Quelle der Wahrheit; Counts und Trend bleiben abgeleitete Caches.
-- [ ] Aktives Session-Ende entfernt `tempo:*:<SESSION_CODE>`-Keys explizit; zusaetzlich gilt ein Fallback-TTL.
-- [ ] Host-only-Aktionen laufen serverseitig ueber `hostProcedure`.
+- [ ] Shared Types zuerst: `QuickFeedbackTypeEnum` enthaelt `TEMPO`, `TempoValueEnum` die vier Werte und `TempoTrendSchema` die Host-Metadaten.
+- [ ] Backend-Verzweigung bleibt in `quickFeedback.vote`; ein atomarer Redis-Lua-Hotpath verhindert verlorene Updates bei parallelen Wechseln.
+- [ ] Tempo-Buckets liegen kurzlebig in Redis (`qf:tempo:buckets:*`) und speisen die 60s/15s-Tendenz.
+- [ ] `SessionLiveChannelSchema` bleibt bei `quiz | qa | quickFeedback`.
+- [ ] Host-only-Aktionen laufen weiter ueber Session-Host-Token bzw. Feedback-Host-Token.
+- [ ] Frontend bleibt Angular Standalone + Signals + Material 3; kein `::ng-deep`.
+- [ ] UI-Texte sind in `de`, `en`, `fr`, `es`, `it` synchron.
 
 ### Nicht-Ziele
 
-- [ ] Kein Standalone-Tempo-Pfad in der ersten Ausbaustufe.
-- [ ] Kein neuer Blitzlicht-Typ.
+- [ ] Kein vierter Session-Kanal.
+- [ ] Kein separater `tempoRouter`.
+- [ ] Keine Prisma-Persistenz fuer Tempo-Rueckmeldungen.
 - [ ] Keine personenbezogene Verlaufsanalyse.
-- [ ] Keine dauerhafte Tempo-Ereignis-Historie in PostgreSQL.
+- [ ] Keine dauerhafte Tempo-Ereignishistorie.
+- [ ] Keine globale Umstellung aller Blitzlicht-Typen auf mutable Votes.
 
 ### Empfohlene Delivery-Slices
 
-- [ ] PR 1: Vertraege + Session-Konfiguration
-- [ ] PR 2: Tempo-Backend-Hotpath
-- [ ] PR 3: Shell-Refactor fuer vier Kanaele
-- [ ] PR 4: Host-UI fuer Tempo
-- [ ] PR 5: Teilnehmer-Widget + A11y
-- [ ] PR 6: Feinschliff + Nachweise
+- [ ] PR 1: Shared Types + zentrale Tempo-Konfiguration
+- [ ] PR 2: Backend-Hotpath + Tendenzlogik
+- [ ] PR 3: Vote-Client-Interaktion + Backdrop-Reset
+- [ ] PR 4: Host-UX mit Details/Tendenz, Kennzahlen und Spotlight-Auswahl
+- [ ] PR 5: Startseiten-Spotlight + i18n
+- [ ] PR 6: Tests, 500-Teilnehmenden-Abnahme und Doku-Abgleich
 
 ---
 
-## PR-Vorlagen
+## PR-Beschreibung
 
-Die folgenden Bloecke sind bewusst knapp und koennen direkt als PR-Beschreibung uebernommen werden.
+### Titel
 
-### PR 1 – Vertraege + Session-Konfiguration
+`Story 8.8: Tempo-Blitzlicht als QuickFeedback-Template`
 
-**Titel:** `Story 8.8 / PR 1: Shared Types und Session-Konfiguration fuer Tempo`
+### Enthalten
 
-**Enthalten**
+- [ ] `TEMPO` als QuickFeedback-Typ und vier Tempo-Werte in `@arsnova/shared-types`.
+- [ ] Mutable Tempo-Rueckmeldungen im bestehenden `quickFeedback`-Router.
+- [ ] Atomare Redis-Aggregation fuer parallele Wechsel und Re-Taps.
+- [ ] Tendenzlogik mit Mindestquote, 15s-Buckets, 60s-Fenster und Hysterese.
+- [ ] Vote-Client mit aktivem Zustand, Wechsel, Re-Tap und Backdrop-Reset.
+- [ ] Host-Ansicht mit `Details`/`Tendenz`, `Online` und `Rueckmeldungen`.
+- [ ] Spotlight-Einstieg auf Startseite und in der Host-Auswahl.
+- [ ] Lokalisierung fuer `de`, `en`, `fr`, `es`, `it`.
+- [ ] Backend- und Frontend-Tests plus Last-/Abnahmecheck fuer 500 Teilnehmende.
 
-- [ ] `SessionChannelsDTO` um `tempo` erweitern
-- [ ] Tempo-Zod-Schemas und DTOs in `libs/shared-types`
-- [ ] `CreateSessionInputSchema` um `tempoEnabled` erweitern
-- [ ] Prisma-Felder `tempoEnabled`, `tempoOpen`
-- [ ] Migration anlegen
-- [ ] `buildSessionChannels()` und `session.create` erweitern
+### Nicht enthalten
 
-**Nicht enthalten**
+- [ ] Kein vierter Session-Kanal.
+- [ ] Kein `tempoRouter`.
+- [ ] Keine Prisma-Migration fuer Tempo-Zustand.
+- [ ] Keine personenbezogenen Host-, Presenter- oder Admin-Payloads.
 
-- [ ] kein `tempoRouter`
-- [ ] keine Host- oder Teilnehmer-UI
-- [ ] keine Trendlogik
+### Validierung
 
-**Validierung**
+- [ ] `npm run build -w @arsnova/shared-types`
+- [ ] `npm run test -w @arsnova/backend -- src/__tests__/quickFeedback.vote-session.test.ts`
+- [ ] relevante Frontend-Specs fuer `feedback-host`, `feedback-vote` und `home`
+- [ ] `npm run build:localize -w @arsnova/frontend`
+- [ ] 500 parallele Tempo-Rueckmeldungen in einer Session aggregieren ohne verlorene Counts
+- [ ] `npx prettier --check` und `git diff --check` fuer geaenderte Markdown-Dateien
 
-- [ ] `@arsnova/shared-types` Build
-- [ ] Backend-Typecheck
-- [ ] `apps/backend/src/__tests__/session.enable-channels.test.ts`
-- [ ] `apps/backend/src/__tests__/session.create.test.ts`
+### Review-Fokus
 
-**Review-Fokus**
-
-- [ ] Vertrag sauber um vierten Kanal erweitert
-- [ ] keine Regression fuer `qa` und `quickFeedback`
-- [ ] Prisma- und Schema-Aenderungen konsistent
-
-### PR 2 – Tempo-Backend-Hotpath
-
-**Titel:** `Story 8.8 / PR 2: Tempo-Router und Redis-Hotpath`
-
-**Enthalten**
-
-- [ ] `apps/backend/src/routers/tempo.ts`
-- [ ] `setState`, `getOwnState`, `hostSnapshot`, `onHostSnapshot`
-- [ ] Gating fuer `tempoEnabled`, `tempoOpen`, `status !== FINISHED`
-- [ ] Redis-Keying, Count-Pflege, Trend-Buckets, Cleanup/TTL
-- [ ] Router-Registrierung in `apps/backend/src/routers/index.ts`
-
-**Nicht enthalten**
-
-- [ ] keine sichtbare Tempo-UI
-- [ ] kein Shell-Refactor im Frontend
-
-**Validierung**
-
-- [ ] Backend-Typecheck
-- [ ] neuer fokussierter Tempo-Test, z. B. `apps/backend/src/__tests__/tempo.test.ts`
-- [ ] Erfolgspfad und Fehlerpfad fuer Host/Teilnehmende abgedeckt
-
-**Review-Fokus**
-
-- [ ] keine personenbezogenen Host-Payloads
-- [ ] keine Blitzlicht-Semantik uebernommen
-- [ ] Redis-Lifecycle und Drift-Regeln nachvollziehbar
-
-### PR 3 – Shell-Refactor fuer vier Kanaele
-
-**Titel:** `Story 8.8 / PR 3: Host- und Vote-Shell fuer vier Kanaele refactoren`
-
-**Enthalten**
-
-- [ ] `SessionChannelTab` in Host/Vote um `tempo` erweitern
-- [ ] `visibleChannels`, `channelOpenState`, `channelLabel`, `channelTabMetaLabel` erweitern
-- [ ] falsche QuickFeedback-Autofokus-Annahmen entfernen
-- [ ] Navigation fuer bestehenden 3-Kanal-Bestand stabil halten
-
-**Nicht enthalten**
-
-- [ ] keine finale Tempo-Visualisierung
-- [ ] keine finalen Tempo-Widgets
-
-**Validierung**
-
-- [ ] `apps/frontend/src/app/features/session/session-host/session-host.component.spec.ts`
-- [ ] `apps/frontend/src/app/features/session/session-vote/session-vote.component.spec.ts`
-- [ ] Frontend-Typecheck
-
-**Review-Fokus**
-
-- [ ] keine Regression in Quiz, Q&A oder Blitzlicht
-- [ ] Tempo kapert die Teilnehmernavigation nicht
-
-### PR 4 – Host-UI fuer Tempo
-
-**Titel:** `Story 8.8 / PR 4: Tempo-Host-Tab und Aggregatdarstellung`
-
-**Enthalten**
-
-- [ ] Aktivieren / Schliessen / Wiederoeffnen des Tempo-Kanals
-- [ ] Tempo-Tab im Host
-- [ ] Snapshot-Darstellung fuer Verteilung und Tendenz
-- [ ] Meta-/Badge-Konzept fuer den Host-Tab
-
-**Nicht enthalten**
-
-- [ ] kein Teilnehmer-Widget
-
-**Validierung**
-
-- [ ] Host-Spec
-- [ ] Frontend-Typecheck
-
-**Review-Fokus**
-
-- [ ] Aggregat lesbar, ruhig und nicht nur farbbasiert
-- [ ] keine Leckage individueller Daten
-
-### PR 5 – Teilnehmer-Widget + A11y
-
-**Titel:** `Story 8.8 / PR 5: Persistentes Tempo-Widget in der Vote-Ansicht`
-
-**Enthalten**
-
-- [ ] persistentes Tempo-Widget in `session-vote`
-- [ ] Own-State-Rehydrierung
-- [ ] Mutation fuer Setzen / Aendern / Entfernen
-- [ ] Bottom-Bar-Koordination
-- [ ] `aria-pressed`, Labels, mobile Layoutregeln
-
-**Nicht enthalten**
-
-- [ ] keine weiteren Backend-Vertraege ausser noetigen UI-Anschluessen
-
-**Validierung**
-
-- [ ] Vote-Spec
-- [ ] Frontend-Typecheck
-
-**Review-Fokus**
-
-- [ ] kein horizontaler Scroll auf kleinen Screens
-- [ ] kein Konflikt mit Submit- oder Session-End-Aktionen
-- [ ] aktiver Zustand semantisch klar markiert
-
-### PR 6 – Feinschliff + Nachweise
-
-**Titel:** `Story 8.8 / PR 6: Tendenz-Feinschliff, UX-Nachweise und Doku-Abgleich`
-
-**Enthalten**
-
-- [ ] Tendenzschwellen kalibrieren
-- [ ] Copy / i18n nur falls fuer Tempo noetig
-- [ ] Doku-Abgleich mit Implementierungsstand
-- [ ] Abschluss-Checkliste fuer Review und UX-Tests
-
-**Validierung**
-
-- [ ] fokussierte Frontend- und Backend-Tests
-- [ ] `npm run typecheck`
-- [ ] `npm test` oder begruendete Teilmengen
-
-**Review-Fokus**
-
-- [ ] Story-DoD wirklich nachgewiesen
-- [ ] keine offenen Architektur- oder Datenschutzbefunde
+- [ ] Keine Regression klassischer Blitzlicht-Typen.
+- [ ] Kein Race bei parallelen Tempo-Wechseln.
+- [ ] Keine individuellen Rueckmeldungen in Host-/Presenter-/Admin-Payloads.
+- [ ] Wording bleibt menschlich: `Rueckmeldungen`, `Online`, `Tempo-Feedback`; keine UI-Texte wie `Signale`, `heterogen`, `Tempo starten`.
+- [ ] Spotlight-Layout ueberlappt auf der Startseite keine Hero-Pills und bleibt auf Mobile zentriert.
+- [ ] Host-Ansicht wirkt ruhig: wenige Umrandungen, klare Flaechen, genug Abstand zur App-Toolbar.
+- [ ] Vote-Client ist freundlich formuliert, ohne redundante Rollenzeilen und ohne sichtbare `#` vor Session-Codes.
 
 ---
 
-## Merge-Checkliste pro PR
+## Merge-Checkliste
 
-- [ ] PR-Scope entspricht genau einem Delivery-Slice.
-- [ ] Nicht-Ziele des PRs sind explizit benannt.
+- [ ] Story `8.8` und `ADR-0029` sind im PR verlinkt.
+- [ ] Diff ist in `shared-types -> backend -> frontend -> tests -> docs` nachvollziehbar.
 - [ ] Neue oder geaenderte Vertraege sind in `libs/shared-types` abgebildet.
 - [ ] Serverseitige Autorisierung ist fuer Host-Aktionen vorhanden.
+- [ ] `TEMPO` bleibt fachlich im Blitzlicht-Pfad und erzeugt keinen neuen Session-Kanal.
 - [ ] Keine personenbezogenen Tempo-Daten werden an Host-, Presenter- oder Admin-Pfade ausgeliefert.
-- [ ] Fokussierte Tests fuer den geaenderten Slice laufen gruen.
-- [ ] Der PR fuehrt keine implizite Blitzlicht-Wiederverwendung fuer Tempo ein.
+- [ ] Fokussierte Tests laufen gruen.
+- [ ] Lokalisierung und Markdown-Doku sind synchron.

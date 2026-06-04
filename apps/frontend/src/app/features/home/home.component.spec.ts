@@ -336,6 +336,35 @@ describe('HomeComponent', () => {
       expect(navSpy).toHaveBeenCalledWith(['feedback', 'ABC123']);
       expect(comp.quickFeedbackError()).toBeNull();
     });
+
+    it('startet das Tempo-Spotlight als Standalone-Blitzlicht', async () => {
+      const { trpc } = await import('../../core/trpc.client');
+      vi.mocked(trpc.quickFeedback.create.mutate).mockResolvedValueOnce({
+        feedbackId: 'qf:TMP123',
+        sessionCode: 'TMP123',
+        hostToken: 'tempo-owner-token',
+      });
+
+      const fixture = createHomeFixture();
+      fixture.detectChanges();
+      const comp = fixture.componentInstance;
+      const router = TestBed.inject(Router);
+      const navSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      expect(fixture.nativeElement.textContent).toContain('Tempo-Blitzlicht');
+      expect(fixture.nativeElement.textContent).toContain('Tempo-Feedback');
+      expect(fixture.nativeElement.textContent).not.toContain('Tempo starten');
+
+      await comp.startQuickFeedback(comp.quickFeedbackTempoSpotlight.type);
+
+      expect(trpc.quickFeedback.create.mutate).toHaveBeenCalledWith({
+        type: 'TEMPO',
+        theme: comp.themePreset.theme(),
+        preset: comp.themePreset.preset(),
+      });
+      expect(setFeedbackHostTokenMock).toHaveBeenCalledWith('TMP123', 'tempo-owner-token');
+      expect(navSpy).toHaveBeenCalledWith(['feedback', 'TMP123']);
+    });
   });
 
   describe('openHeroHostTab', () => {

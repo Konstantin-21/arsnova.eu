@@ -9,7 +9,9 @@
 **Architekturbezug:** `ADR-0029`, `ADR-0010`, `ADR-0013`, `ADR-0014`, `ADR-0019`, `ADR-0025`  
 **Produktbezug:** Issue `#17` "Tempo-Blitzlicht als Host-Option (statt eigenem Session-Kanal)"
 
-**Status:** Planungsdokument / vor Implementierung
+**Status:** Umgesetzt (2026-06-04)
+
+**Umsetzungsnachweis:** Implementiert im bestehenden `quickFeedback`-Stack mit `TEMPO`-Template, atomarem mutablem Redis-Hotpath per Lua-Skript, aggregierter 60s/15s-Tendenz, Spotlight-Einstiegen, Startseiten-CTA `Tempo-Feedback` und lokalisierter Host-/Vote-UI. Validiert mit den gezielten Backend-/Frontend-Tests, Typechecks, lokalisiertem Frontend-Build und einer 500-Teilnehmenden-Abnahme mit parallel abgegebenen Tempo-Rueckmeldungen.
 
 ---
 
@@ -55,11 +57,11 @@ Empfohlener Branchname:
 
 ---
 
-## Ist-Stand (vor Umsetzung)
+## Historischer Ausgangsstand (vor Umsetzung)
 
 | Bereich                    | Status                                                                                                                                                                                                                                                                                               |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Shared Types**           | `QuickFeedbackTypeEnum` kennt aktuell `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`. Ein Tempo-Typ fehlt.                                                                                                                                                                    |
+| **Shared Types**           | `QuickFeedbackTypeEnum` kannte vor Umsetzung `MOOD`, `YESNO`, `YESNO_BINARY`, `TRUEFALSE_UNKNOWN`, `STARS`, `ABCD`. Ein Tempo-Typ fehlte.                                                                                                                                                            |
 | **Frontend-Konfiguration** | `apps/frontend/src/app/features/feedback/feedback.config.ts` definiert die vorhandenen Optionen und Preset-Chips fuer Blitzlicht. Fuer `Tempo` fehlt ein Spotlight-Darstellungsmodell jenseits eines weiteren Standard-Presets.                                                                      |
 | **Backend-Hotpath**        | `apps/backend/src/routers/quickFeedback.ts` behandelt Blitzlicht derzeit im Kern als Einmal-Vote: Redis-Set fuer `already voted`, Verteilung und Total werden hochgezaehlt.                                                                                                                          |
 | **Teilnehmer-UI**          | `feedback-vote.component.ts` ist auf klassischen Vote-Abschluss zugeschnitten und kennt keine template-spezifische Mutable-Semantik.                                                                                                                                                                 |
@@ -114,11 +116,11 @@ Die Live-Aktualisierung muss im bestehenden performanten Blitzlicht-Pfad bleiben
 - keine Vollreaggregation aller Stimmen pro Event
 - keine polling-intensive Zusatzstrecke
 
-Delta-Updates in Redis sind die bevorzugte Richtung.
+Die Umsetzung nutzt dafuer eine atomare Redis-Mutation per Lua-Skript; Counts, aktueller Teilnehmerzustand und Tempo-Buckets werden O(1) pro Tap fortgeschrieben.
 
 ### 4. Ruhiger Indikator mit Teilnehmerbezug
 
-Die Tendenz darf nicht aus dem bloessen Roh-Snapshot der aktuellen Tempo-Votes abgeleitet werden.
+Die Tendenz darf nicht aus dem bloessen Roh-Snapshot der aktuellen Tempo-Rueckmeldungen abgeleitet werden.
 
 Verbindliche Richtung:
 
@@ -230,7 +232,7 @@ Ziel: Host und Teilnehmende erhalten eine saubere, lokalisierbare Template-Defin
 
 ---
 
-## Phase 3: Backend-Hotpath fuer mutable Tempo-Votes
+## Phase 3: Backend-Hotpath fuer mutable Tempo-Rueckmeldungen
 
 Ziel: `quickFeedback` kann fuer `Tempo` Auswahlwechsel und Toggle-off korrekt behandeln.
 
@@ -239,8 +241,8 @@ Ziel: `quickFeedback` kann fuer `Tempo` Auswahlwechsel und Toggle-off korrekt be
 | #   | Task                                            | Beschreibung                                                                                                                                                                  |
 | --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | **Vote-Logik verzweigen**                       | In `quickFeedback.vote` zwischen klassischem Einmal-Vote und mutablem `Tempo` unterscheiden.                                                                                  |
-| 3.2 | **Delta-Update fuer Counts**                    | Vorherigen Zustand eines Teilnehmers lesen, alte Count dekrementieren, neue inkrementieren oder beim Toggle-off nur entfernen.                                                |
-| 3.3 | **Redis-Schluessel pruefen**                    | Bestehende Redis-Struktur fuer Verteilung, Total und Teilnehmerzustand so nutzen/erweitern, dass kein Full-Rebuild pro Tap noetig ist.                                        |
+| 3.2 | **Atomare Redis-Mutation fuer Counts**          | Vorherigen Zustand einer teilnehmenden Person, Distribution, Toggle-off und neuen Zustand in einem Redis-Lua-Skript konsistent fortschreiben.                                 |
+| 3.3 | **Redis-Schluessel pruefen**                    | Bestehende Redis-Struktur fuer Verteilung, Total und Teilnehmerzustand so nutzen/erweitern, dass kein Full-Rebuild und keine Race Condition pro Tap noetig ist.               |
 | 3.4 | **Host-Result fuer Tendenz erweitern**          | Aggregat um deterministische Tendenz, Aktivierungszustand und ggf. Statusklasse fuer den Host-Umschalter erweitern.                                                           |
 | 3.5 | **Anonymitaet absichern**                       | Sicherstellen, dass keine individuelle Zustandliste an Host/Presenter/Admin ausgeliefert wird.                                                                                |
 | 3.6 | **Ablauf "anderes Blitzlicht startet" pruefen** | Beim Ersetzen eines laufenden Tempo-Blitzlichts muessen alte Tempo-Daten so beendet werden, dass kein UI- oder Redis-Zombie stehenbleibt.                                     |
@@ -287,7 +289,7 @@ Ziel: Hosts koennen Tempo gezielt starten und den Zustand schnell erfassen.
 | 5.1 | **Tempo in Host-Auswahl als Spotlight bauen** | Session- und Standalone-Host bieten `Tempo` als startbare, visuell hervorgehobene Spotlight-Kachel an statt als kleine Zusatz-Pill.                      |
 | 5.2 | **Umschalter einfuehren**                     | Host-Ansicht bietet einen Toggle-Button fuer `Detaildarstellung` und `Tendenzindikator`.                                                                 |
 | 5.3 | **Standalone-Tendenz als Hero bauen**         | Im Standalone-Blitzlicht wird die Tendenz gross, auffaellig und auf einen Blick lesbar dargestellt.                                                      |
-| 5.4 | **Zaehler sichtbar halten**                   | Im Standalone-Tendenzmodus werden `activeParticipants` und `tempoVotes` deutlich angezeigt.                                                              |
+| 5.4 | **Zaehler sichtbar halten**                   | Im Standalone-Tendenzmodus werden die Host-Kennzahlen `Online` und `Rueckmeldungen` deutlich angezeigt.                                                  |
 | 5.5 | **Bedienleiste erhalten**                     | Umschalter und `Session beenden` bleiben auch im Standalone-Tendenzmodus sichtbar und gut erreichbar.                                                    |
 | 5.6 | **Kontextgerechte Platzierung**               | `FeedbackHostComponent` rendert den Umschalter eingebettet im Session-Blitzlicht und standalone im dortigen Host-Layout jeweils an der richtigen Stelle. |
 | 5.7 | **Keine Einzelpersonen-Leaks**                | UI zeigt keine Rohdaten, keine Listen, keine technisch internen IDs.                                                                                     |
@@ -320,7 +322,7 @@ Ziel: Das Feature wird sauber review- und releasefaehig.
   - kleine Screens / Tastaturbedienung funktionieren
   - Umschalter zwischen Detaildarstellung und Tendenz funktioniert in beiden Host-Kontexten
   - Standalone-Tendenzansicht bleibt auf Smartphone-Groesse mit einem Blick lesbar
-  - `activeParticipants`, `tempoVotes`, Umschalter und `Session beenden` bleiben im Standalone-Tendenzmodus sichtbar
+  - `Online`, `Rueckmeldungen`, Umschalter und `Session beenden` bleiben im Standalone-Tendenzmodus sichtbar
   - neutraler Zustand und aktiver Zustand des Tendenzmodus sind klar unterscheidbar
 - Performance:
   - kein regressiver Hotpath bei 500+ Teilnehmenden
@@ -346,11 +348,12 @@ Ziel: Das Feature wird sauber review- und releasefaehig.
 
 ---
 
-## Offene Designpunkte vor Branch-Start
+## Entschiedene Designpunkte
 
-- Soll `TEMPO` ein eigener `QuickFeedbackType` werden oder ein Template-Flag auf bestehender Typbasis? Empfehlung: **eigener Typ**, damit Werte und Semantik sauber getrennt bleiben.
-- Wo lebt die Tendenzlogik technisch: direkt im Router, in einer dedizierten Helper-Datei oder in gemeinsam testbarer Domain-Logik? Empfehlung: **eigene Helper-Funktion mit Unit-Tests**.
-- Wie soll der Host-Umschalter visuell funktionieren: klassischer Toggle, Segment-Button oder Icon+Label? Empfehlung: **Segment-Button mit Textlabels**, damit `Details` und `Tendenz` explizit benannt sind.
+- `TEMPO` ist ein eigener `QuickFeedbackType`; Werte und Semantik bleiben von `ABCD` und anderen klassischen Typen getrennt.
+- Die Tendenzlogik lebt in `apps/backend/src/lib/quickFeedbackTempo.ts`; der Router reichert Host-/Client-Snapshots damit an.
+- Der Tempo-Hotpath nutzt ein Redis-Lua-Skript in `quickFeedback.vote`, damit parallele Re-Taps und Wechsel die Verteilung nicht verlieren.
+- Der Host-Umschalter ist als Segment-Button mit den Textlabels `Details` und `Tendenz` umgesetzt.
 
 ## Empfohlene Heuristik fuer die Tendenzberechnung
 
@@ -374,10 +377,10 @@ Ziel: Das Feature wird sauber review- und releasefaehig.
 ### Beispielschwellen
 
 - `lost / activeParticipants >= 0.12` -> `Mehrere Teilnehmende sind abgehaengt.`
-- `(slow_down + lost) / activeParticipants >= 0.22` -> `Das Tempo wirkt zu hoch.`
-- `speed_up / activeParticipants >= 0.22` und `(slow_down + lost) / activeParticipants < 0.10` -> `Die Gruppe signalisiert Unterforderung.`
+- `(slow_down + lost) / activeParticipants >= 0.22` -> `Es wirkt zu schnell.`
+- `speed_up / activeParticipants >= 0.22` und `(slow_down + lost) / activeParticipants < 0.10` -> `Die Gruppe kann schneller mitgehen.`
 - `following / activeParticipants >= 0.50` und `(slow_down + lost) / activeParticipants < 0.15` -> `Die Mehrheit kann folgen.`
-- Sonst, bei kleinem Abstand der Top-Gruppen oder breiter Streuung -> `Die Gruppe ist heterogen.`
+- Sonst, bei kleinem Abstand der Top-Gruppen oder breiter Streuung -> `Die Rueckmeldungen sind gemischt.`
 
 ### Zusatzscore
 
@@ -401,3 +404,4 @@ Der Score dient dann als Sekundaersignal; harte Sicherheitsregeln fuer `lost` un
 - Bestehende Blitzlicht-Typen verhalten sich unveraendert.
 - Mobile- und A11y-Anforderungen sind fuer die vier Reaktionen erfuellt.
 - Lastverhalten zeigt keinen auffaelligen Regressionshotspot fuer grosse Sessions.
+- Parallel abgegebene Tempo-Rueckmeldungen von 500 Teilnehmenden werden korrekt aggregiert.

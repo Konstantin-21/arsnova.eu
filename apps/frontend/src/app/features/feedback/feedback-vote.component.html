@@ -16,26 +16,27 @@
       <dl class="feedback-vote__context-meta">
         <div class="feedback-vote__context-item">
           <dt>
-            <mat-icon aria-hidden="true">tag</mat-icon>
             <span i18n="@@feedback.voteContextSession">Session</span>
           </dt>
           <dd [attr.aria-label]="sessionCodeDisplayAria(code())">{{ code() }}</dd>
         </div>
-        @if (participantAvatarLabel(); as avatar) {
-          <div
-            class="feedback-vote__context-kita-avatar"
-            [attr.aria-label]="participantIdentityCaption() + ' ' + participantIdentityLabel()"
-          >
-            <span aria-hidden="true">{{ avatar }}</span>
-          </div>
-        } @else {
-          <div class="feedback-vote__context-item">
-            <dt>
-              <mat-icon aria-hidden="true">person</mat-icon>
-              <span>{{ participantIdentityCaption() }}</span>
-            </dt>
-            <dd>{{ participantIdentityLabel() }}</dd>
-          </div>
+        @if (participantIdentityLabel(); as identity) {
+          @if (participantAvatarLabel(); as avatar) {
+            <div
+              class="feedback-vote__context-kita-avatar"
+              [attr.aria-label]="participantIdentityCaption() + ' ' + identity"
+            >
+              <span aria-hidden="true">{{ avatar }}</span>
+            </div>
+          } @else {
+            <div class="feedback-vote__context-item">
+              <dt>
+                <mat-icon aria-hidden="true">person</mat-icon>
+                <span>{{ participantIdentityCaption() }}</span>
+              </dt>
+              <dd>{{ identity }}</dd>
+            </div>
+          }
         }
         @if (participantTeamLabel(); as team) {
           <div class="feedback-vote__context-item">
@@ -86,7 +87,7 @@
         Sobald ein Format startet, kannst du hier in Sekunden deine Einschätzung abgeben.
       </p>
     </section>
-  } @else if (voted()) {
+  } @else if (voted() && !isTempoFeedback()) {
     <mat-card
       appearance="outlined"
       class="feedback-vote__card"
@@ -201,6 +202,7 @@
       } @else {
         <div
           class="feedback-vote__options feedback-vote__options--mood"
+          [class.feedback-vote__options--tempo]="isTempoFeedback()"
           [class.feedback-vote__options--two]="currentOptions().length === 2"
           [class.feedback-vote__options--three]="currentOptions().length === 3"
           role="group"
@@ -210,10 +212,16 @@
           @for (option of currentOptions(); track option.value) {
             <button
               class="feedback-vote__mood-btn"
+              [class.feedback-vote__mood-btn--tempo-active]="
+                isTempoFeedback() && selectedTempoValue() === option.value
+              "
               type="button"
               (click)="vote(option.value)"
               [disabled]="submitting()"
-              [attr.aria-label]="option.label"
+              [attr.aria-pressed]="isTempoFeedback() ? selectedTempoValue() === option.value : null"
+              [attr.aria-label]="
+                isTempoFeedback() ? tempoOptionAriaLabel(option.label, option.value) : option.label
+              "
             >
               @if (option.icon) {
                 @if (option.iconKind === 'mat') {

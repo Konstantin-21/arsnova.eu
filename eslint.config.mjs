@@ -33,6 +33,7 @@ export default tseslint.config(
       '**/.angular/**',
       '**/.astro/**',
       '**/coverage/**',
+      '**/tmp/**',
       '**/scripts/**',
       '**/*.config.mjs',
     ],

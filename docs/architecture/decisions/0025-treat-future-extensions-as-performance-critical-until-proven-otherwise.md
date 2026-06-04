@@ -239,9 +239,9 @@ Fuer stark risikobehaftete Features ist eine Freigabe mit Randbedingungen ausdru
 - Selbstgehostete LLM-Komponenten duerfen nicht stillschweigend auf denselben Ressourcen mitlaufen wie kritische Live-Pfade, ohne dass Isolation und Fallback dokumentiert sind.
 - "Konstruktive Kritik" bedeutet im Projektkontext: Risiko benennen, Hypothese formulieren, Mess- oder Designantwort festlegen, Ergebnis dokumentieren.
 
-## Repo-Abgleich 2026-05-31
+## Repo-Abgleich 2026-06-04
 
-Die Regel ist weiterhin aktiv und sichtbar in Folgeentscheidungen: ADR-0026 priorisiert konkrete Hotpaths, ADR-0027 fuehrt Join-Glattung ein, ADR-0028 haelt Scoring-Aggregation linear, und ADR-0029 behandelt Tempo trotz Blitzlicht-Wiederverwendung als performance-kritisches Feature. Story 8.8 ist im Code noch offen und muss vor Umsetzung den hier geforderten Performance-Steckbrief praktisch einloesen.
+Die Regel ist weiterhin aktiv und sichtbar in Folgeentscheidungen: ADR-0026 priorisiert konkrete Hotpaths, ADR-0027 fuehrt Join-Glattung ein, ADR-0028 haelt Scoring-Aggregation linear, und ADR-0029 behandelt Tempo trotz Blitzlicht-Wiederverwendung als performance-kritisches Feature. Story 8.8 loest diesen Steckbrief inzwischen praktisch ein: Der Tempo-Hotpath laeuft atomar in Redis per Lua-Skript, nutzt kurzlebige Buckets und wurde mit 500 parallel abgegebenen Tempo-Rueckmeldungen validiert.
 
 ---
 

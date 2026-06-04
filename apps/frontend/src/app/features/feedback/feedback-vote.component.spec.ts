@@ -122,6 +122,28 @@ describe('FeedbackVoteComponent', () => {
     fixture.destroy();
   });
 
+  it('blendet die anonyme Fallback-Identität im Vote-Kontext aus', async () => {
+    const fixture = TestBed.createComponent(FeedbackVoteComponent);
+    fixture.componentRef.setInput('sessionCode', 'ABC123');
+    fixture.componentRef.setInput('participantId', 'participant-1');
+    fixture.componentRef.setInput('embeddedInSession', true);
+    fixture.componentRef.setInput('showSessionCode', false);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent ?? '';
+    expect(text).toContain('ABC123');
+    expect(text).not.toContain('Ansicht');
+    expect(text).not.toContain('Teilnehmende Person');
+    const context = fixture.nativeElement.querySelector('.feedback-vote__context');
+    expect(context?.getAttribute('aria-label')).toContain('Teilnehmeransicht');
+    expect(context?.querySelector('.feedback-vote__context-item dt mat-icon')).toBeNull();
+    fixture.destroy();
+  });
+
   it('übernimmt einen Typwechsel per Live-Subscription sofort', async () => {
     quickFeedbackOnResultsSubscribeMock.mockImplementationOnce(
       (
@@ -276,6 +298,107 @@ describe('FeedbackVoteComponent', () => {
     const negativeIcon = fixture.nativeElement.querySelector('.feedback-vote__mood-icon--negative');
     expect(positiveIcon?.textContent).toContain('check_circle');
     expect(negativeIcon?.textContent).toContain('cancel');
+    fixture.destroy();
+  });
+
+  it('laesst Tempo-Auswahlen wechseln und per Re-Tap entfernen', async () => {
+    quickFeedbackResultsQueryMock.mockResolvedValueOnce({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      discussion: false,
+      totalVotes: 0,
+      distribution: { SPEED_UP: 0, FOLLOWING: 0, SLOW_DOWN: 0, LOST: 0 },
+      currentRound: 1,
+    });
+
+    const fixture = TestBed.createComponent(FeedbackVoteComponent);
+    fixture.componentRef.setInput('sessionCode', 'ABC123');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLButtonElement>('.feedback-vote__mood-btn'),
+    );
+    const following = buttons.find((button) => button.textContent?.includes('Ich folge'));
+    expect(buttons).toHaveLength(4);
+    expect(following).toBeTruthy();
+
+    following!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(quickFeedbackVoteMutateMock).toHaveBeenCalledWith({
+      sessionCode: 'ABC123',
+      voterId: expect.any(String),
+      value: 'FOLLOWING',
+    });
+    expect(fixture.nativeElement.textContent ?? '').not.toContain('Danke für dein Feedback!');
+    expect(following!.getAttribute('aria-pressed')).toBe('true');
+    expect(following!.classList.contains('feedback-vote__mood-btn--tempo-active')).toBe(true);
+
+    following!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(quickFeedbackVoteMutateMock).toHaveBeenCalledTimes(2);
+    expect(quickFeedbackVoteMutateMock).toHaveBeenLastCalledWith({
+      sessionCode: 'ABC123',
+      voterId: expect.any(String),
+      value: 'FOLLOWING',
+    });
+    expect(following!.getAttribute('aria-pressed')).toBe('false');
+    expect(following!.classList.contains('feedback-vote__mood-btn--tempo-active')).toBe(false);
+    fixture.destroy();
+  });
+
+  it('setzt Tempo-Auswahlen per Viewport-Backdrop zurueck', async () => {
+    quickFeedbackResultsQueryMock.mockResolvedValueOnce({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      discussion: false,
+      totalVotes: 0,
+      distribution: { SPEED_UP: 0, FOLLOWING: 0, SLOW_DOWN: 0, LOST: 0 },
+      currentRound: 1,
+    });
+
+    const fixture = TestBed.createComponent(FeedbackVoteComponent);
+    fixture.componentRef.setInput('sessionCode', 'ABC123');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    const following = Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLButtonElement>('.feedback-vote__mood-btn'),
+    ).find((button) => button.textContent?.includes('Ich folge'));
+
+    expect(following).toBeTruthy();
+
+    following!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(quickFeedbackVoteMutateMock).toHaveBeenCalledTimes(1);
+    expect(following!.getAttribute('aria-pressed')).toBe('true');
+
+    document.body.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(quickFeedbackVoteMutateMock).toHaveBeenCalledTimes(2);
+    expect(quickFeedbackVoteMutateMock).toHaveBeenLastCalledWith({
+      sessionCode: 'ABC123',
+      voterId: expect.any(String),
+      value: 'FOLLOWING',
+    });
+    expect(following!.getAttribute('aria-pressed')).toBe('false');
+    expect(following!.classList.contains('feedback-vote__mood-btn--tempo-active')).toBe(false);
     fixture.destroy();
   });
 

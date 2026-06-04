@@ -2,16 +2,16 @@
 
 # 🏛️ Architektur-Handbuch: arsnova.eu
 
-**Zuletzt aktualisiert:** 2026-05-31
+**Zuletzt aktualisiert:** 2026-06-04
 **Rolle:** Living Documentation (Documentation as Code)
 
-**Produktstatus (Stand 2026-05-31):**
+**Produktstatus (Stand 2026-06-04):**
 
-- Produktionsreif umgesetzt: Epics **0–5**, **7.1** (Team-Modus), der Kern von **8** (Q&A inkl. Sortiermodi; offen: delegierte Moderation und Tempo-Blitzlicht), **9** (Admin: Inspektion, Löschung, Behördenexport, Audit) und **10** (MOTD / Plattform-Kommunikation — ADR-0018, `docs/features/motd.md`).
+- Produktionsreif umgesetzt: Epics **0–5**, **7.1** (Team-Modus), der Kern von **8** (Q&A inkl. Sortiermodi und Tempo-Blitzlicht; offen: delegierte Moderation), **9** (Admin: Inspektion, Löschung, Behördenexport, Audit) und **10** (MOTD / Plattform-Kommunikation — ADR-0018, `docs/features/motd.md`).
 - Plattform: Epic **6** im Kern umgesetzt (Theme, i18n, Legal, Responsive); offen: **6.5** (Abschlussprüfung Barrierefreiheit / WCAG) und **6.6** (UX-Testreihen _Thinking Aloud_ inkl. Umsetzung der Befunde — siehe `Backlog.md`, Story 6.6, und `docs/EPIC6-AC-PRUEFUNG.md`).
 - **Plattformstatistik:** Rekord **max. Teilnehmende je Session** (`PlatformStatistic`) plus 30-Tage-Verlauf der Session-Tagesrekorde (`DailyStatistic`, `dailyHighscores`) in `health.stats` und im Server-Status-Hilfedialog.
 - **Quiz-Bewertung:** `SINGLE_CHOICE`, `MULTIPLE_CHOICE` und `SHORT_TEXT` sind bewertbare Fragetypen; Leaderboards, Teamwertung, Bonus-Codes und Scorecards nutzen die gemeinsame Effective-Vote-Regel aus ADR-0028.
-- **Offene Zielbilder:** Delegierte Moderation bleibt ohne eigene `/moderate`-Route und ohne Moderator-Token noch Zielbild; Tempo ist als vordefiniertes Blitzlicht-Template beschlossen, aber im aktuellen `quickFeedback`-Code noch nicht implementiert.
+- **Offene Zielbilder:** Delegierte Moderation bleibt ohne eigene `/moderate`-Route und ohne Moderator-Token noch Zielbild; Tempo ist als vordefiniertes Blitzlicht-Template im aktuellen `quickFeedback`-Code umgesetzt.
 
 ## 1. Einleitung & Philosophie
 
@@ -29,7 +29,7 @@ Wir setzen auf einen modernen, stark typisierten TypeScript-Stack (Full-Stack), 
 - **Backend:** Node.js API mit **tRPC v11** (für typsichere Aufrufe und WebSocket-Subscriptions).
 - **Schemas:** **Zod v4** in `@arsnova/shared-types` und Backend-Routern; DTOs werden ueber `.input()` / `.output()` an tRPC-Prozeduren gebunden.
 - **Datenbank (Persistenz):** **PostgreSQL** angebunden über **Prisma ORM 7.4.x**.
-- **Echtzeit-Broker (Flüchtig):** **Redis** (Rate-Limiting, Blitzlicht-/Session-Code-Zustand, Sliding-Windows). Live-Updates in Sessions laufen über **tRPC-WebSocket-Subscriptions**; Status- und Teilnehmerpfade sind inzwischen bevorzugt signalgetrieben mit seltenem Resync, einzelne Live-Pfade nutzen weiterhin gezieltes Polling/Fallbacks. Es gibt keinen zentralen Redis-Pub/Sub-Pfad für jedes Frage-Event.
+- **Echtzeit-Broker (Flüchtig):** **Redis** (Rate-Limiting, Blitzlicht-/Session-Code-Zustand, Tempo-Buckets, Sliding-Windows). Live-Updates in Sessions laufen über **tRPC-WebSocket-Subscriptions**; Status- und Teilnehmerpfade sind inzwischen bevorzugt signalgetrieben mit seltenem Resync, einzelne Live-Pfade nutzen weiterhin gezieltes Polling/Fallbacks. Es gibt keinen zentralen Redis-Pub/Sub-Pfad für jedes Frage-Event.
 - **Offline & Sync Engine:** **Yjs** (CRDTs für die Local-First Speicherung im Browser).
 
 ---

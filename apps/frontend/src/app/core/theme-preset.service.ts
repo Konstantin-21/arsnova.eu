@@ -16,7 +16,7 @@ export class ThemePresetService {
   readonly theme = signal<ThemeValue>('system');
   readonly preset = signal<PresetValue>('spielerisch');
 
-  /** Wird bei jedem setPreset() ausgelöst, damit die App z. B. die Preset-Snackbar anzeigen kann (Toolbar + Hero-Toggle). */
+  /** Wird bei echten Preset-Wechseln ausgelöst, damit die App z. B. die Preset-Snackbar anzeigen kann. */
   private readonly presetChangedSource = new Subject<void>();
   readonly presetChanged$ = this.presetChangedSource.asObservable();
 
@@ -47,6 +47,10 @@ export class ThemePresetService {
   }
 
   setTheme(value: ThemeValue): void {
+    const unchanged = this.theme() === value;
+    if (unchanged) {
+      return;
+    }
     this.theme.set(value);
     if (isPlatformBrowser(this.platformId)) localStorage.setItem(STORAGE_THEME, value);
     this.applyTheme();
@@ -60,9 +64,9 @@ export class ThemePresetService {
       this.preset.set(value);
       if (isPlatformBrowser(this.platformId)) localStorage.setItem(STORAGE_PRESET, value);
       this.applyPreset();
+      if (isPlatformBrowser(this.platformId))
+        globalThis.dispatchEvent(new Event(PRESET_UPDATED_EVENT));
     }
-    if (isPlatformBrowser(this.platformId))
-      globalThis.dispatchEvent(new Event(PRESET_UPDATED_EVENT));
     // Kein presetChanged$ bei gleichem Wert — sonst Snackbar/Blur beim Start (z. B. saveAndClose, doppelte Aufrufe).
     if (!options?.silent && !unchanged) {
       this.presetChangedSource.next();

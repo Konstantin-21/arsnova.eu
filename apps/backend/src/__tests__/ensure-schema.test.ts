@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest';
 type EnsureSchemaModule = {
   shouldSeedMotdRuntime: (nodeEnv: string | undefined) => boolean;
   shouldSeedMotdMakingOfRuntime: (nodeEnv: string | undefined) => boolean;
+  shouldSeedMotdFeatureRuntime: (nodeEnv: string | undefined) => boolean;
   getMotdWelcomeSeedFiles: () => string[];
   getMotdMakingOfSeedFiles: () => string[];
+  getMotdFeatureSeedFiles: () => string[];
 };
 
 const cjsRequire = createRequire(__filename);
@@ -18,6 +20,7 @@ describe('ensure-schema MOTD runtime seeding', () => {
   it('überspringt Making-of-Re-Seeding in Produktion', () => {
     expect(ensureSchema.shouldSeedMotdRuntime('production')).toBe(false);
     expect(ensureSchema.shouldSeedMotdMakingOfRuntime('production')).toBe(false);
+    expect(ensureSchema.shouldSeedMotdFeatureRuntime('production')).toBe(false);
   });
 
   it('erlaubt Making-of-Re-Seeding außerhalb der Produktion', () => {
@@ -25,12 +28,20 @@ describe('ensure-schema MOTD runtime seeding', () => {
     expect(ensureSchema.shouldSeedMotdRuntime(undefined)).toBe(true);
     expect(ensureSchema.shouldSeedMotdMakingOfRuntime('development')).toBe(true);
     expect(ensureSchema.shouldSeedMotdMakingOfRuntime(undefined)).toBe(true);
+    expect(ensureSchema.shouldSeedMotdFeatureRuntime('development')).toBe(true);
+    expect(ensureSchema.shouldSeedMotdFeatureRuntime(undefined)).toBe(true);
   });
 
   it('enthält die Banner-Migration in der Dev-Seed-Liste', () => {
     expect(ensureSchema.getMotdMakingOfSeedFiles()).toContain(
       'prisma/migrations/20260401120000_motd_making_of_banner_image/migration.sql',
     );
+  });
+
+  it('enthält die aktuelle Tempo-Feedback-Migration in der Dev-Seed-Liste', () => {
+    expect(ensureSchema.getMotdFeatureSeedFiles()).toEqual([
+      'prisma/migrations/20260604140000_motd_tempo_feedback/migration.sql',
+    ]);
   });
 
   it('seedet die Welcome-MOTD vor der Making-of-Kette', () => {

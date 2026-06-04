@@ -6,7 +6,7 @@
 **Datum:** 2026-03-16  
 **Entscheider:** Projektteam
 
-**Letzter Repo-Abgleich:** 2026-05-31
+**Letzter Repo-Abgleich:** 2026-06-04
 
 ## Kontext
 
@@ -120,6 +120,6 @@ Aktionen wie `Session beenden` muessen in beiden Blitzlicht-Pfaden vorhanden sei
 - Kritische Aktionen und Vergleichsrunden-Logik muessen in beiden Pfaden konsistent sein.
 - UX-Entscheidungen fuer Blitzlicht werden kuenftig gegen die Frage geprueft: `Hilft das Lehrenden, in wenigen Sekunden sicher eine kurze Live-Abfrage zu starten und auszuwerten?`
 
-## Repo-Abgleich 2026-05-31
+## Repo-Abgleich 2026-06-04
 
-Standalone-Blitzlicht und Session-Blitzlicht nutzen weiterhin denselben fachlichen `quickFeedback`-Kern, aber getrennte Besitzkontexte: Standalone ueber Feedback-Host-Token, eingebettet ueber Session-Host-Token. ADR-0029 erweitert dieses Zielbild fuer `Tempo` als kuenftiges Blitzlicht-Template; im aktuellen `QuickFeedbackTypeEnum` ist `Tempo` noch nicht umgesetzt.
+Standalone-Blitzlicht und Session-Blitzlicht nutzen weiterhin denselben fachlichen `quickFeedback`-Kern, aber getrennte Besitzkontexte: Standalone ueber Feedback-Host-Token, eingebettet ueber Session-Host-Token. ADR-0029 erweitert dieses Zielbild fuer `Tempo`; `QuickFeedbackTypeEnum` enthaelt inzwischen `TEMPO`, und die mutable Tempo-Semantik bleibt innerhalb des Blitzlicht-Hotpaths statt einen vierten Session-Kanal einzufuehren.

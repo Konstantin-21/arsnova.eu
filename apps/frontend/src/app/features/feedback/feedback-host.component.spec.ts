@@ -171,6 +171,54 @@ describe('FeedbackHostComponent', () => {
     );
   });
 
+  it('ersetzt ein laufendes Tempo-Blitzlicht trotz vorhandener Tempo-Rückmeldungen', async () => {
+    const { trpc } = await import('../../core/trpc.client');
+    const snackBarSpy = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+    const comp = createComponent();
+    comp.result.set({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 3,
+      distribution: { SPEED_UP: 0, FOLLOWING: 2, SLOW_DOWN: 1, LOST: 0 },
+      tempoTrend: {
+        status: 'NEUTRAL',
+        active: false,
+        activeParticipants: 3,
+        tempoVotes: 3,
+        requiredVotes: 8,
+        windowSeconds: 60,
+        bucketSeconds: 15,
+      },
+    });
+
+    await comp.startRound('MOOD');
+
+    expect(trpc.quickFeedback.changeType.mutate).toHaveBeenCalledWith({
+      sessionCode: 'ABC123',
+      type: 'MOOD',
+      theme: comp['themePreset'].theme(),
+      preset: comp['themePreset'].preset(),
+    });
+    expect(snackBarSpy).not.toHaveBeenCalled();
+  });
+
+  it('rendert Tempo in der leeren Host-Auswahl als Spotlight-Kachel', () => {
+    const fixture = TestBed.createComponent(FeedbackHostComponent);
+    fixture.componentRef.setInput('embeddedInSession', true);
+    fixture.detectChanges();
+
+    const spotlight = fixture.nativeElement.querySelector(
+      '.feedback-host__tempo-spotlight',
+    ) as HTMLElement | null;
+
+    expect(spotlight?.textContent).toContain('Live-Rückmeldung');
+    expect(spotlight?.textContent).toContain('Starten');
+    fixture.destroy();
+  });
+
   it('legt bei fehlendem Ergebnis auf vorhandenem Code keine neue Code-Route an', async () => {
     const { trpc } = await import('../../core/trpc.client');
     const router = TestBed.inject(Router);
@@ -422,6 +470,55 @@ describe('FeedbackHostComponent', () => {
 
     expect(bottomActions).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Session beenden');
+  });
+
+  it('zeigt im Standalone-Tempo-Modus Tendenz, Zaehler, Umschalter und Ende-Aktion', () => {
+    const fixture = TestBed.createComponent(FeedbackHostComponent);
+    const comp = fixture.componentInstance;
+    comp.result.set({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 9,
+      distribution: { SPEED_UP: 0, FOLLOWING: 7, SLOW_DOWN: 2, LOST: 0 },
+      tempoTrend: {
+        status: 'FOLLOWING',
+        active: true,
+        activeParticipants: 12,
+        tempoVotes: 9,
+        requiredVotes: 8,
+        windowSeconds: 60,
+        bucketSeconds: 15,
+      },
+    });
+    comp.tempoViewMode.set('trend');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Die Mehrheit kann folgen.');
+    expect(text).toContain('Online');
+    expect(text).toContain('Rückmeldungen');
+    expect(text).not.toContain('12 aktive Personen');
+    expect(text).not.toContain('9 Rückmeldungen');
+    expect(text).toContain('Details');
+    expect(text).toContain('Tendenz');
+    expect(text).toContain('Session beenden');
+    expect(
+      fixture.nativeElement.querySelector('.feedback-host__tempo-trend--standalone'),
+    ).toBeTruthy();
+
+    const detailsButton = Array.from(
+      fixture.nativeElement.querySelectorAll<HTMLButtonElement>(
+        '.feedback-host__tempo-view-button',
+      ),
+    ).find((button) => button.textContent?.includes('Details'));
+    detailsButton?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.feedback-host__tempo-strip')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.feedback-host__bars')).toBeTruthy();
+    fixture.destroy();
   });
 
   it('zeigt im Sterne-Vergleich die Durchschnittswerte beider Runden', () => {

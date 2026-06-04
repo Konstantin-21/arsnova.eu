@@ -39,4 +39,14 @@ describe('HelpComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).not.toMatch(/Rekordteilnahme/i);
   });
+
+  it('beschreibt das Tempo-Feedback im Blitzlicht-Abschnitt', async () => {
+    const fixture = TestBed.createComponent(HelpComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Tempo-Feedback');
+    expect(text).toContain('aggregierte Tendenz');
+  });
 });

@@ -2,7 +2,7 @@
 
 # 🎓 Onboarding: arsnova.eu
 
-**Stand:** 2026-05-31
+**Stand:** 2026-06-04
 
 Willkommen im Entwickler-Team von **arsnova.eu**. Dieses Dokument hilft dir als Studierende oder Studierender dabei, das Projekt zu verstehen, die Entwicklungsumgebung aufzusetzen und produktiv mitzuarbeiten.
 
@@ -233,9 +233,9 @@ Das System ist nach dem **Local-First**-Prinzip entworfen:
 
 ## 4. Aktueller Stand vs. Ziel-Architektur
 
-> **Epics 0–5, 7.1, 9 und 10 (MOTD) sind umgesetzt; Epic 8 ist im Kern mit 8.1–8.4 sowie den Sortiermodi 8.6/8.7 umgesetzt.** Epic 6 ist im Kern umgesetzt, offen bleiben Abschlussprüfung Barrierefreiheit und UX-Testreihen. Dieser Abschnitt zeigt den groben aktuellen Stand; für Architekturdetails sind `docs/architecture/handbook.md`, `docs/diagrams/` und die ADRs maßgeblich. Offene Stories: [`Backlog.md`](../Backlog.md).
+> **Epics 0–5, 7.1, 9 und 10 (MOTD) sind umgesetzt; Epic 8 ist im Kern mit 8.1–8.4, den Sortiermodi 8.6/8.7 und dem Tempo-Blitzlicht 8.8 umgesetzt.** Epic 6 ist im Kern umgesetzt, offen bleiben Abschlussprüfung Barrierefreiheit und UX-Testreihen. Dieser Abschnitt zeigt den groben aktuellen Stand; für Architekturdetails sind `docs/architecture/handbook.md`, `docs/diagrams/` und die ADRs maßgeblich. Offene Stories: [`Backlog.md`](../Backlog.md).
 
-### Was bereits funktioniert (✅ Implementiert – Stand: 2026-05-31)
+### Was bereits funktioniert (✅ Implementiert – Stand: 2026-06-04)
 
 | Komponente                                                              | Beschreibung                                                                                                                            |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -247,6 +247,7 @@ Das System ist nach dem **Local-First**-Prinzip entworfen:
 | Yjs y-websocket Relay                                                   | Backend startet y-websocket-Server (Port 3002) für Multi-Device-Sync                                                                    |
 | Server-Status (Epic 0.4)                                                | `health.footerBundle` im Footer, `health.stats` im Detaildialog, `PlatformStatistic`/`DailyStatistic`, Service-/Laststatus              |
 | Session-, Vote-, Q&A-, Blitzlicht-, Word-Cloud-, Admin- und MOTD-Router | `session`, `vote`, `qa`, `quickFeedback`, `wordCloud`, `admin`, `motd` (Epic 10) mit Rate-Limiting; Live-Subscriptions für Session-Pfad |
+| Tempo-Blitzlicht                                                        | `TEMPO` als `quickFeedback`-Template mit vier Icons, mutablem Redis-Hotpath, Tendenzmodus und Spotlight-Einstiegen                      |
 | Quiz-Scoring und Kurzantwort                                            | `SINGLE_CHOICE`, `MULTIPLE_CHOICE` und `SHORT_TEXT` sind bewertbar; Auswertungen nutzen die Effective-Vote-Regel                        |
 | Prisma-Schema                                                           | Vollständiges Datenbankmodell inkl. Q&A, MOTD, Admin-Audit, `PlatformStatistic` und `DailyStatistic`                                    |
 | Zod v4-Schemas (`shared-types`)                                         | Alle Input-/Output-Schemas, DTOs, Enums und Exportverträge definiert                                                                    |
@@ -261,7 +262,7 @@ Das System ist nach dem **Local-First**-Prinzip entworfen:
 | ---------------------------- | --------------------------------------------------------------------------------------------------- | ------------------ |
 | Barrierefreiheit & UX        | Story **6.5** (Abschlussprüfung), **6.6** (Thinking Aloud)                                          | Epic 6             |
 | Neue Fragentypen             | **1.2d**, **1.2ec–1.2ed**, **1.2f–1.2i**: verbleibende Kurzantwort-/Fragentyp-Erweiterungen         | Epic 1             |
-| Q&A und Tempo                | Delegierte Q&A-Moderation (**8.5**) und Tempo-Blitzlicht als `quickFeedback`-Template (**8.8**)     | Epic 8, ADR-0029   |
+| Q&A-Moderation               | Delegierte Q&A-Moderation (**8.5**) bleibt offen; Tempo-Blitzlicht (**8.8**) ist umgesetzt          | Epic 8, ADR-0011   |
 | Last & Performance           | **0.7** in Arbeit: vorhandene `k6`-/Smoke-Bausteine zu vollständiger E2E-/Realtime-Strecke ausbauen | Epic 0, ADR-0013   |
 | Sync & Word Cloud / Refactor | **1.6c**, **1.6d**, **1.14a** sowie **0.8** (Komplexitätsabbau / McCabe-Hotspots)                   | Backlog            |
 
@@ -269,9 +270,9 @@ Vollständige Story-Liste und Status: [`Backlog.md`](../Backlog.md).
 
 ---
 
-## 5. Komponentenbeschreibung (Stand: 2026-05-31)
+## 5. Komponentenbeschreibung (Stand: 2026-06-04)
 
-Das folgende Diagramm zeigt eine vereinfachte **Backend-Architektur**. Neben Quiz und Session sind `Q&A`, `Blitzlicht`, `wordCloud`, `Admin` und **`motd` (Epic 10)** integriert.
+Das folgende Diagramm zeigt eine vereinfachte **Backend-Architektur**. Neben Quiz und Session sind `Q&A`, `Blitzlicht` inkl. Tempo-Template, `wordCloud`, `Admin` und **`motd` (Epic 10)** integriert.
 
 ```mermaid
 graph TB
@@ -344,7 +345,7 @@ graph TB
     express --> yws
 ```
 
-> ✅ = im Projektstand 2026-05-31 umgesetzt
+> ✅ = im Projektstand 2026-06-04 umgesetzt
 
 ### A. Frontend (Angular 21.2.x)
 
@@ -390,7 +391,7 @@ Das Frontend nutzt modernste Angular-Features:
 5. **Abstimmung:** Teilnehmende senden ihre Votes. Der ScoringService berechnet Punkte basierend auf Korrektheit, Antwortzeit und Schwierigkeitsgrad; `SHORT_TEXT` wird als bewertbarer Fragetyp mit Text-/Zahlen-/Einheitenlogik behandelt.
 6. **Auflösung:** Die Lehrperson beendet die Frage (Status → `RESULTS`). _Erst jetzt_ sendet das Backend das vollständige Objekt (`QuestionRevealedDTO` inkl. `isCorrect`) an die Teilnehmenden.
 7. **Auswertung:** Scorecards, Leaderboards, Teamwertung und Bonus-Codes nutzen die Effective-Vote-Regel: Bei Peer Instruction ersetzt Runde 2 die Runde 1; ohne Runde 2 zählt Runde 1.
-8. **Parallele Live-Kanäle:** Innerhalb derselben Session können zusätzlich `Q&A` und `Blitzlicht` aktiv sein. Blitzlicht ist sowohl im Session-Kanal als auch direkt über die Startseite verfügbar; Standalone-Blitzlicht nutzt dabei ein eigenes Feedback-Host-Token. **Tempo** ist Zielbild als vordefiniertes Blitzlicht-Template, nicht als vierter Session-Kanal.
+8. **Parallele Live-Kanäle:** Innerhalb derselben Session können zusätzlich `Q&A` und `Blitzlicht` aktiv sein. Blitzlicht ist sowohl im Session-Kanal als auch direkt über die Startseite verfügbar; Standalone-Blitzlicht nutzt dabei ein eigenes Feedback-Host-Token. **Tempo** ist als vordefiniertes Blitzlicht-Template umgesetzt, nicht als vierter Session-Kanal.
 
 ---
 

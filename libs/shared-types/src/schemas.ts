@@ -3172,6 +3172,7 @@ export const QuickFeedbackTypeEnum = z.enum([
   'TRUEFALSE_UNKNOWN',
   'STARS',
   'ABCD',
+  'TEMPO',
 ]);
 export type QuickFeedbackType = z.infer<typeof QuickFeedbackTypeEnum>;
 
@@ -3192,6 +3193,30 @@ export type TrueFalseUnknownValue = z.infer<typeof TrueFalseUnknownValueEnum>;
 
 export const StarsValueEnum = z.enum(['1', '2', '3', '4', '5']);
 export type StarsValue = z.infer<typeof StarsValueEnum>;
+
+export const TempoValueEnum = z.enum(['SPEED_UP', 'FOLLOWING', 'SLOW_DOWN', 'LOST']);
+export type TempoValue = z.infer<typeof TempoValueEnum>;
+
+export const TempoTrendStatusEnum = z.enum([
+  'NEUTRAL',
+  'FOLLOWING',
+  'TOO_FAST',
+  'LOST',
+  'TOO_SLOW',
+  'HETEROGENEOUS',
+]);
+export type TempoTrendStatus = z.infer<typeof TempoTrendStatusEnum>;
+
+export const TempoTrendSchema = z.object({
+  status: TempoTrendStatusEnum,
+  active: z.boolean(),
+  activeParticipants: z.number().int().nonnegative(),
+  tempoVotes: z.number().int().nonnegative(),
+  requiredVotes: z.number().int().nonnegative(),
+  windowSeconds: z.number().int().positive(),
+  bucketSeconds: z.number().int().positive(),
+});
+export type TempoTrend = z.infer<typeof TempoTrendSchema>;
 
 export const QuickFeedbackThemeEnum = z.enum(['system', 'dark', 'light']);
 export const QuickFeedbackPresetEnum = z.enum(['serious', 'spielerisch']);
@@ -3249,6 +3274,7 @@ export const QuickFeedbackResultSchema = z.object({
   round1Distribution: z.record(z.string(), z.number()).optional(),
   round1Total: z.number().int().optional(),
   opinionShift: OpinionShiftSchema.optional(),
+  tempoTrend: TempoTrendSchema.optional(),
 });
 export type QuickFeedbackResult = z.infer<typeof QuickFeedbackResultSchema>;
 

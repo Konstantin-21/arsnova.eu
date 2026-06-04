@@ -128,7 +128,7 @@ Synergie: [`docs/didaktik/zweiter-kurs-und-agentische-ki.md`](../didaktik/zweite
 ## 9. Betrieb: zweite MOTD sichtbar, Migrationen
 
 - **Reihenfolge im Overlay:** Es gilt nur **eine** aktive Karte. Eine zweite (z. B. „Making of“ mit niedrigerer Priorität) erscheint **erst**, nachdem die erste (z. B. Willkommen) mit **„Alles klar!“**, **Schließen** oder **Swipe** bestätigt wurde. Technisch: Client sendet `overlayDismissedUpTo` an `motd.getCurrent` / `getHeaderState`.
-- **Datenbank:** Produktiv per **`prisma migrate deploy`**. Lokal: **`npm run dev`** wendet nach `ensure-schema` zusätzlich die SQL-Dateien der Making-of-Migration an (`prisma db execute`), damit die zweite Meldung auch ohne manuelles Migrate existiert. Manuell: **`npm run seed:motd-making-of`**.
+- **Datenbank:** Produktiv per **`prisma migrate deploy`**. Lokal: **`npm run dev`** wendet nach `ensure-schema` zusätzlich die SQL-Dateien der kuratierten MOTDs an (`prisma db execute`), damit Meldungsketten auch ohne manuelles Migrate existieren. Manuell: **`npm run seed:motd-making-of`** und **`npm run seed:motd-tempo-feedback`**.
 - **Zeitfenster:** `startsAt` / `endsAt` sind **UTC**. Liegt `startsAt` in der Zukunft, liefert die API die MOTD nicht (Filter in `motd.ts`). Mehrere aktive MOTDs müssen sich zeitlich mit der Willkommens-MOTD **überlappen**, wenn sie nacheinander nach Dismiss kommen sollen (gleiches frühes `startsAt` wie die erste Meldung).
 
 ## 10. Changelog dieses Dokuments
@@ -140,3 +140,4 @@ Synergie: [`docs/didaktik/zweiter-kurs-und-agentische-ki.md`](../didaktik/zweite
 | 2026-03-27 | Abschnitt 8a: Klarstellung — Epic 10 nur live durch die Lehrperson; Studierende arbeiten an anderen Epics.                                                                                                                         |
 | 2026-03-31 | Abschnitt 9: Betrieb (Kette, Migrationen, Zeitfenster); Nummerierung Changelog → 10.                                                                                                                                               |
 | 2026-04-01 | Abschnitt 8a: **Erste Vorlesung FSE** = Greenfield **1.7a** (3×45 Min., [`greenfield-demo-1-7a-vorlesung.md`](../didaktik/greenfield-demo-1-7a-vorlesung.md)); Epic 10/MOTD nur **optional** zweite Referenz (Produktcode fertig). |
+| 2026-06-04 | Abschnitt 9: lokale Seed-Kette um aktuelle Feature-MOTD **Tempo-Feedback** ergänzt.                                                                                                                                                |
