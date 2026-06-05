@@ -6,11 +6,11 @@
 **Datum:** 2026-04-30  
 **Entscheider:** Projektteam
 
-**Letzter Repo-Abgleich:** 2026-05-31
+**Letzter Repo-Abgleich:** 2026-06-05
 
 ## Kontext
 
-arsnova.eu nutzt im Frontend einen Angular-Service-Worker (`SwUpdate`) und zeigt bei `VERSION_READY` derzeit einen sichtbaren Update-Hinweis mit expliziter Aktion `Jetzt laden`.
+arsnova.eu nutzt im Frontend einen Angular-Service-Worker (`SwUpdate`) und zeigt bei `VERSION_READY` derzeit einen sichtbaren Update-Hinweis mit expliziter Aktion `Jetzt aktualisieren`.
 
 Für das weitere Produktverhalten standen drei Varianten zur Diskussion:
 
@@ -69,7 +69,7 @@ Begründung:
 Für normale Version-Updates gilt:
 
 - Anzeige als **Banner**
-- explizite Aktion wie `Jetzt laden`
+- explizite Aktion wie `Jetzt aktualisieren`
 - kein implizites Reload durch reinen Angular-Routenwechsel
 
 Der Banner ist ausreichend sichtbar, ohne die App unnötig zu blockieren.
@@ -126,7 +126,8 @@ Der Update-Banner wird im aktuellen Frontend über den Angular-Service-Worker au
 
 1. `SwUpdate.versionUpdates` wird in der App-Hülle abonniert.
 2. Sobald Angular ein Event vom Typ `VERSION_READY` meldet, wird der sichtbare Update-Zustand gesetzt.
-3. Erst nach expliziter Nutzeraktion (`Jetzt aktualisieren`) läuft `reloadWithUpdate()`, das `activateUpdate()` und danach `window.location.reload()` ausführt.
+3. Erst nach expliziter Nutzeraktion (`Jetzt aktualisieren`) läuft `reloadWithUpdate()`, das direkt
+   `window.location.reload()` ausführt.
 
 Zusätzliche Prüftrigger für neue Versionen:
 
@@ -165,6 +166,17 @@ Stand 2026-05-31:
 
 - Das Muster bleibt unveraendert: kein Standard-Modal, kein stilles Live-Reload, explizite Nutzeraktion.
 - Die PWA-Manifest-Cache-Busting-Details fuer Android-WebAPK sind separat in [`../pwa-webapk-android.md`](../pwa-webapk-android.md) dokumentiert.
+
+Stand 2026-06-05:
+
+- Der Update-Banner bleibt nicht modal und erfordert weiterhin eine explizite Nutzeraktion.
+- Der Banner wird als fixed Overlay ausserhalb des normalen Layoutflusses gerendert, damit `VERSION_READY`
+  keinen nachtraeglichen Reflow von Toolbar, Main-Scrollbereich oder Live-Ansichten ausloest.
+- Der Banner liegt ueber fachlichen Full-Viewport-Overlays wie dem Host-Join-Overlay, damit die
+  explizite Aktualisierung in laufenden Sessions erreichbar bleibt.
+- Der Klick auf `Jetzt aktualisieren` nutzt bewusst keinen `SwUpdate.activateUpdate()`-Aufruf mehr.
+  Der vollstaendige Page-Reload ist die Versionsgrenze, damit Live-Sessions nicht mit alter App-Shell
+  und neuer Service-Worker-/Chunk-Version weiterlaufen.
 
 ---
 

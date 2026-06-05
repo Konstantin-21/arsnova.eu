@@ -109,6 +109,41 @@ describe('AppComponent', () => {
     fixture.destroy();
   });
 
+  it('laedt PWA-Updates per Seitenreload statt per activateUpdate', () => {
+    const activateUpdateMock = vi.fn().mockResolvedValue(undefined);
+    TestBed.configureTestingModule({
+      imports: [AppComponent],
+      providers: [
+        provideRouter([]),
+        { provide: MatDialog, useValue: { open: vi.fn() } },
+        {
+          provide: SwUpdate,
+          useValue: {
+            isEnabled: true,
+            versionUpdates: { subscribe: swVersionUpdatesSubscribeMock },
+            checkForUpdate: vi.fn().mockResolvedValue(false),
+            activateUpdate: activateUpdateMock,
+          },
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(AppComponent);
+    const component = fixture.componentInstance;
+    const reloadPageSpy = vi
+      .spyOn(component as unknown as { reloadPage: () => void }, 'reloadPage')
+      .mockImplementation(() => undefined);
+
+    component.reloadWithUpdate();
+    component.reloadWithUpdate();
+
+    expect(component.updateReloading()).toBe(true);
+    expect(reloadPageSpy).toHaveBeenCalledTimes(1);
+    expect(activateUpdateMock).not.toHaveBeenCalled();
+
+    fixture.destroy();
+  });
+
   it('stellt im Dev-Modus einen globalen Trigger fuer den Update-Banner bereit', async () => {
     TestBed.configureTestingModule({
       imports: [AppComponent],

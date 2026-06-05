@@ -30,6 +30,8 @@
           matButton="filled"
           class="app-update-banner__action"
           (click)="reloadWithUpdate()"
+          [disabled]="updateReloading()"
+          [attr.aria-busy]="updateReloading() ? 'true' : null"
           i18n="@@app.updateBanner.reloadNow"
         >
           Jetzt aktualisieren

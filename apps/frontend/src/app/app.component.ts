@@ -86,6 +86,7 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly localizedPath = localizePath;
   isOnline = signal(true);
   updateAvailable = signal(false);
+  updateReloading = signal(false);
   apiStatus = signal<string | null>(null);
   /**
    * Erst true, nachdem die erste Footer-Health-Abfrage im Browser beendet ist.
@@ -496,18 +497,18 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  async reloadWithUpdate(): Promise<void> {
-    if (!this.swUpdate?.isEnabled) {
-      window.location.reload();
-      return;
-    }
-    try {
-      await this.swUpdate.activateUpdate();
-      // Kurz warten, damit der neue Service Worker die Kontrolle übernimmt.
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
-    } catch {
-      // Bei Fehler trotzdem neu laden (z. B. kein Update mehr pending).
-    }
+  reloadWithUpdate(): void {
+    if (this.updateReloading()) return;
+    this.updateReloading.set(true);
+    /*
+     * `activateUpdate()` wuerde den laufenden Tab ohne Neustart auf die neue
+     * SW-Version umhaengen. In Live-Sessions ist der vollstaendige Reload die
+     * stabile Grenze gegen gemischte App-Shell-/Chunk-Versionen.
+     */
+    this.reloadPage();
+  }
+
+  private reloadPage(): void {
     window.location.reload();
   }
 
