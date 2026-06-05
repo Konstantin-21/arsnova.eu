@@ -68,6 +68,26 @@
               [class.session-channel-tabs__toggle--pending]="channelActivationPending() === channel"
             >
               <span class="session-channel-tabs__label">{{ channelLabel(channel) }}</span>
+              @if (channelTempoIndicator(channel); as tempoIndicator) {
+                <span
+                  class="session-channel-tabs__tempo-indicator"
+                  [class.session-channel-tabs__tempo-indicator--neutral]="
+                    tempoIndicator.tone === 'neutral'
+                  "
+                  [class.session-channel-tabs__tempo-indicator--good]="
+                    tempoIndicator.tone === 'good'
+                  "
+                  [class.session-channel-tabs__tempo-indicator--caution]="
+                    tempoIndicator.tone === 'caution'
+                  "
+                  [class.session-channel-tabs__tempo-indicator--alert]="
+                    tempoIndicator.tone === 'alert'
+                  "
+                  role="img"
+                  [attr.aria-label]="tempoIndicator.label"
+                  [attr.title]="tempoIndicator.label"
+                ></span>
+              }
               @if (channelTabMetaLabel(channel); as metaLabel) {
                 <span
                   class="session-channel-tabs__badge"

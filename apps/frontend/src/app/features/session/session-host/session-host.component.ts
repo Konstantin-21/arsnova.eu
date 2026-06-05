@@ -108,6 +108,7 @@ import { remainingCountdownSeconds } from '../session-countdown.util';
 import { recordServerTimeIso } from '../session-server-clock';
 import { MusicEqualizerIconComponent } from '../../../shared/music-equalizer-icon/music-equalizer-icon.component';
 import { FeedbackHostComponent } from '../../feedback/feedback-host.component';
+import { tempoTrendLabel } from '../../feedback/feedback.config';
 import { QuizStoreService } from '../../quiz/data/quiz-store.service';
 import {
   buildQaQuestionsCsvFilename,
@@ -161,6 +162,11 @@ type FoyerArrivalMotionProfile = {
 };
 type FreetextWordCloudMode = 'WORDS' | 'PHRASES';
 type SessionChannelTab = 'quiz' | 'qa' | 'quickFeedback';
+type SessionChannelTempoTone = 'neutral' | 'good' | 'caution' | 'alert';
+type SessionChannelTempoIndicator = {
+  tone: SessionChannelTempoTone;
+  label: string;
+};
 type SessionOnboardingProfile = {
   nicknameTheme: NicknameTheme;
   allowCustomNicknames: boolean;
@@ -1783,7 +1789,7 @@ export class SessionHostComponent implements OnInit, OnDestroy {
   }
 
   private shouldPollQuickFeedback(): boolean {
-    return this.channels().quickFeedback && this.activeChannel() === 'quickFeedback';
+    return this.channels().quickFeedback && this.isChannelOpen('quickFeedback');
   }
 
   private shouldPollEmojiReactions(): boolean {
@@ -3504,6 +3510,28 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  quickFeedbackTempoIndicator(): SessionChannelTempoIndicator | null {
+    const result = this.quickFeedbackResult();
+    if (result?.type !== 'TEMPO' || !result.tempoTrend) {
+      return null;
+    }
+
+    const status = result.tempoTrend.status;
+    let tone: SessionChannelTempoTone = 'neutral';
+    if (status === 'FOLLOWING') {
+      tone = 'good';
+    } else if (status === 'TOO_FAST' || status === 'TOO_SLOW' || status === 'HETEROGENEOUS') {
+      tone = 'caution';
+    } else if (status === 'LOST') {
+      tone = 'alert';
+    }
+
+    return {
+      tone,
+      label: tempoTrendLabel(status),
+    };
+  }
+
   showQuickFeedbackAnchorAction(): boolean {
     return this.activeChannel() === 'quickFeedback' && this.quickFeedbackResult() !== null;
   }
@@ -3562,6 +3590,13 @@ export class SessionHostComponent implements OnInit, OnDestroy {
       return this.quickFeedbackTabMetaLabel();
     }
     return null;
+  }
+
+  channelTempoIndicator(channel: SessionChannelTab): SessionChannelTempoIndicator | null {
+    if (channel !== 'quickFeedback' || !this.isChannelOpen(channel)) {
+      return null;
+    }
+    return this.quickFeedbackTempoIndicator();
   }
 
   isChannelEnabled(channel: SessionChannelTab): boolean {

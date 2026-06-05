@@ -452,6 +452,39 @@
   align-items: center;
 }
 
+.session-channel-tabs__tempo-indicator {
+  display: inline-flex;
+  width: 0.68rem;
+  height: 0.68rem;
+  flex: 0 0 0.68rem;
+  margin-left: 0.4rem;
+  box-sizing: border-box;
+  border: 2px solid var(--mat-sys-surface-container-low);
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-outline);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mat-sys-outline) 44%, transparent);
+}
+
+.session-channel-tabs__tempo-indicator--neutral {
+  background: var(--mat-sys-outline);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mat-sys-outline) 44%, transparent);
+}
+
+.session-channel-tabs__tempo-indicator--good {
+  background: var(--arsnova-bar-correct, #2e7d32);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--arsnova-bar-correct, #2e7d32) 70%, transparent);
+}
+
+.session-channel-tabs__tempo-indicator--caution {
+  background: #f9a825;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f9a825 76%, var(--mat-sys-outline));
+}
+
+.session-channel-tabs__tempo-indicator--alert {
+  background: var(--mat-sys-error);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mat-sys-error) 78%, var(--mat-sys-outline));
+}
+
 .session-channel-tabs__toggle--inactive {
   opacity: 0.72;
 }

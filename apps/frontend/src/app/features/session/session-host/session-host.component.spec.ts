@@ -1463,6 +1463,111 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
+  it('zeigt am Blitzlicht-Tab einen roten Tempo-Indikator bei abgehängter Tendenz', async () => {
+    getInfoQueryMock.mockResolvedValue({
+      ...defaultSession,
+      channels: {
+        quiz: { enabled: true },
+        qa: { enabled: true, open: true, title: 'Fragen aus dem Publikum', moderationMode: false },
+        quickFeedback: { enabled: true, open: true },
+      },
+    });
+    quickFeedbackHostResultsQueryMock.mockResolvedValue({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 12,
+      distribution: { LOST: 12 },
+      tempoTrend: {
+        status: 'LOST',
+        active: true,
+        activeParticipants: 20,
+        tempoVotes: 12,
+        requiredVotes: 8,
+        windowSeconds: 60,
+        bucketSeconds: 15,
+      },
+    });
+
+    const fixture = setup();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.quickFeedbackResult.set({
+      type: 'TEMPO',
+      theme: 'system',
+      preset: 'serious',
+      locked: false,
+      totalVotes: 12,
+      distribution: { LOST: 12 },
+      tempoTrend: {
+        status: 'LOST',
+        active: true,
+        activeParticipants: 20,
+        tempoVotes: 12,
+        requiredVotes: 8,
+        windowSeconds: 60,
+        bucketSeconds: 15,
+      },
+    });
+    fixture.detectChanges();
+
+    const indicator = fixture.nativeElement.querySelector(
+      '.session-channel-tabs__tempo-indicator',
+    ) as HTMLElement | null;
+
+    expect(indicator).not.toBeNull();
+    expect(indicator?.classList.contains('session-channel-tabs__tempo-indicator--alert')).toBe(
+      true,
+    );
+    expect(indicator?.getAttribute('aria-label')).toBe('Mehrere Teilnehmende sind abgehängt.');
+    fixture.destroy();
+  });
+
+  it('ordnet Tempo-Tendenzen am Kanal-Tab einer ruhigen Ampel zu', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+    const baseResult = {
+      type: 'TEMPO' as const,
+      theme: 'system' as const,
+      preset: 'serious' as const,
+      locked: false,
+      totalVotes: 10,
+      distribution: {},
+      tempoTrend: {
+        status: 'NEUTRAL' as const,
+        active: false,
+        activeParticipants: 20,
+        tempoVotes: 1,
+        requiredVotes: 8,
+        windowSeconds: 60,
+        bucketSeconds: 15,
+      },
+    };
+
+    component.quickFeedbackResult.set(baseResult);
+    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('neutral');
+
+    component.quickFeedbackResult.set({
+      ...baseResult,
+      tempoTrend: { ...baseResult.tempoTrend, status: 'FOLLOWING', active: true },
+    });
+    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('good');
+
+    component.quickFeedbackResult.set({
+      ...baseResult,
+      tempoTrend: { ...baseResult.tempoTrend, status: 'TOO_FAST', active: true },
+    });
+    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('caution');
+
+    component.quickFeedbackResult.set({
+      ...baseResult,
+      tempoTrend: { ...baseResult.tempoTrend, status: 'LOST', active: true },
+    });
+    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('alert');
+    fixture.destroy();
+  });
+
   it('zeigt fuer Freitext-Fragen die Word-Cloud-Aktion mit Live-Hinweis', async () => {
     getInfoQueryMock.mockResolvedValue({ ...defaultSession, status: 'ACTIVE' });
     onStatusChangedSubscribeMock.mockImplementation(
