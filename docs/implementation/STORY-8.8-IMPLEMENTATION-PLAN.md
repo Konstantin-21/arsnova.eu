@@ -19,10 +19,10 @@
 
 Das Host-UI fuer Blitzlicht bietet sowohl in der Session als auch im Standalone-Blitzlicht zusaetzlich ein vordefiniertes Template `Tempo` mit genau vier Reaktionen:
 
-- `🚀 Schneller`
 - `🙂 Ich folge`
+- `🐇 Schneller`
 - `🐢 Langsamer`
-- `😕 Verloren`
+- `🙈 Verloren`
 
 Fachliche Kerneigenschaften:
 

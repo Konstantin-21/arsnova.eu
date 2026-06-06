@@ -1450,7 +1450,7 @@ describe('SessionHostComponent', () => {
     fixture.destroy();
   });
 
-  it('zeigt am Blitzlicht-Tab einen roten Tempo-Indikator bei abgehängter Tendenz', async () => {
+  it('zeigt am Blitzlicht-Tab das Tempo-Icon bei abgehängter Tendenz', async () => {
     getInfoQueryMock.mockResolvedValue({
       ...defaultSession,
       channels: {
@@ -1503,11 +1503,12 @@ describe('SessionHostComponent', () => {
     expect(indicator?.classList.contains('session-channel-tabs__tempo-indicator--alert')).toBe(
       true,
     );
+    expect(indicator?.textContent?.trim()).toBe('🙈');
     expect(indicator?.getAttribute('aria-label')).toBe('Mehrere Teilnehmende sind abgehängt.');
     fixture.destroy();
   });
 
-  it('ordnet Tempo-Tendenzen am Kanal-Tab einer ruhigen Ampel zu', () => {
+  it('ordnet Tempo-Tendenzen am Kanal-Tab den Tempo-Icons zu', () => {
     const fixture = setup();
     const component = fixture.componentInstance;
     const baseResult = {
@@ -1527,25 +1528,41 @@ describe('SessionHostComponent', () => {
     };
 
     component.quickFeedbackResult.set(baseResult);
-    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('neutral');
+    expect(component.quickFeedbackTempoIndicator()).toBeNull();
 
     component.quickFeedbackResult.set({
       ...baseResult,
       tempoTrend: { ...baseResult.tempoTrend, status: 'FOLLOWING', active: true },
     });
-    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('good');
+    expect(component.quickFeedbackTempoIndicator()).toMatchObject({ tone: 'good', icon: '🙂' });
 
     component.quickFeedbackResult.set({
       ...baseResult,
       tempoTrend: { ...baseResult.tempoTrend, status: 'TOO_FAST', active: true },
     });
-    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('caution');
+    expect(component.quickFeedbackTempoIndicator()).toMatchObject({ tone: 'caution', icon: '🐢' });
+
+    component.quickFeedbackResult.set({
+      ...baseResult,
+      tempoTrend: { ...baseResult.tempoTrend, status: 'TOO_SLOW', active: true },
+    });
+    expect(component.quickFeedbackTempoIndicator()).toMatchObject({ tone: 'caution', icon: '🐇' });
+
+    component.quickFeedbackResult.set({
+      ...baseResult,
+      tempoTrend: { ...baseResult.tempoTrend, status: 'HETEROGENEOUS', active: true },
+    });
+    expect(component.quickFeedbackTempoIndicator()).toMatchObject({
+      tone: 'caution',
+      icon: '🐇🐢',
+      compound: true,
+    });
 
     component.quickFeedbackResult.set({
       ...baseResult,
       tempoTrend: { ...baseResult.tempoTrend, status: 'LOST', active: true },
     });
-    expect(component.quickFeedbackTempoIndicator()?.tone).toBe('alert');
+    expect(component.quickFeedbackTempoIndicator()).toMatchObject({ tone: 'alert', icon: '🙈' });
     fixture.destroy();
   });
 
@@ -1588,7 +1605,10 @@ describe('SessionHostComponent', () => {
 
     expect(quickFeedbackHostResultsQueryMock).toHaveBeenCalledWith({ sessionCode: 'ABC123' });
     expect(component.quickFeedbackResult()).toBe(tempoResult);
-    expect(component.channelTempoIndicator('quickFeedback')?.tone).toBe('alert');
+    expect(component.channelTempoIndicator('quickFeedback')).toMatchObject({
+      tone: 'alert',
+      icon: '🙈',
+    });
     fixture.destroy();
   });
 

@@ -74,10 +74,10 @@ Tempo laeuft damit nicht parallel zu einem zweiten Blitzlicht.
 
 Die vier vordefinierten Tempo-Reaktionen sind:
 
-- `🚀 Schneller`
 - `🙂 Ich folge`
+- `🐇 Schneller`
 - `🐢 Langsamer`
-- `😕 Verloren`
+- `🙈 Verloren`
 
 Fuer dieses Template gilt abweichend vom klassischen Einmal-Vote:
 

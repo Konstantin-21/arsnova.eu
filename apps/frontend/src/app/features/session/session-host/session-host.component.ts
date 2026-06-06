@@ -108,7 +108,7 @@ import { remainingCountdownSeconds } from '../session-countdown.util';
 import { recordServerTimeIso } from '../session-server-clock';
 import { MusicEqualizerIconComponent } from '../../../shared/music-equalizer-icon/music-equalizer-icon.component';
 import { FeedbackHostComponent } from '../../feedback/feedback-host.component';
-import { tempoTrendLabel } from '../../feedback/feedback.config';
+import { tempoTrendEmoji, tempoTrendLabel } from '../../feedback/feedback.config';
 import { QuizStoreService } from '../../quiz/data/quiz-store.service';
 import {
   buildQaQuestionsCsvFilename,
@@ -166,6 +166,8 @@ type SessionChannelTempoTone = 'neutral' | 'good' | 'caution' | 'alert';
 type SessionChannelTempoIndicator = {
   tone: SessionChannelTempoTone;
   label: string;
+  icon: string;
+  compound: boolean;
 };
 type SessionOnboardingProfile = {
   nicknameTheme: NicknameTheme;
@@ -3494,18 +3496,28 @@ export class SessionHostComponent implements OnInit, OnDestroy {
     }
 
     const status = result.tempoTrend.status;
-    let tone: SessionChannelTempoTone = 'neutral';
+    let tone: SessionChannelTempoTone;
+
     if (status === 'FOLLOWING') {
       tone = 'good';
-    } else if (status === 'TOO_FAST' || status === 'TOO_SLOW' || status === 'HETEROGENEOUS') {
+    } else if (status === 'TOO_FAST') {
+      tone = 'caution';
+    } else if (status === 'TOO_SLOW') {
+      tone = 'caution';
+    } else if (status === 'HETEROGENEOUS') {
       tone = 'caution';
     } else if (status === 'LOST') {
       tone = 'alert';
+    } else {
+      return null;
     }
 
+    const icon = tempoTrendEmoji(status);
     return {
       tone,
       label: tempoTrendLabel(status),
+      icon,
+      compound: status === 'HETEROGENEOUS',
     };
   }
 

@@ -83,10 +83,13 @@
                   [class.session-channel-tabs__tempo-indicator--alert]="
                     tempoIndicator.tone === 'alert'
                   "
+                  [class.session-channel-tabs__tempo-indicator--compound]="tempoIndicator.compound"
                   role="img"
                   [attr.aria-label]="tempoIndicator.label"
                   [attr.title]="tempoIndicator.label"
-                ></span>
+                >
+                  {{ tempoIndicator.icon }}
+                </span>
               }
               @if (channelTabMetaLabel(channel); as metaLabel) {
                 <span

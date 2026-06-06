@@ -37,7 +37,7 @@ import {
   isTempoFeedbackType,
   QUICK_FEEDBACK_PRESET_CHIPS,
   QUICK_FEEDBACK_TEMPO_SPOTLIGHT,
-  tempoTrendIcon,
+  tempoTrendEmoji,
   tempoTrendLabel,
   tempoTrendTone,
 } from './feedback.config';
@@ -713,8 +713,12 @@ export class FeedbackHostComponent implements OnInit, OnDestroy {
     return tempoTrendLabel(status);
   }
 
-  tempoTrendIcon(status: string | null | undefined): string {
-    return tempoTrendIcon(status);
+  tempoTrendEmoji(status: string | null | undefined): string {
+    return tempoTrendEmoji(status);
+  }
+
+  tempoTrendEmojiCompound(status: string | null | undefined): boolean {
+    return status === 'HETEROGENEOUS';
   }
 
   tempoTrendTone(status: string | null | undefined): string {

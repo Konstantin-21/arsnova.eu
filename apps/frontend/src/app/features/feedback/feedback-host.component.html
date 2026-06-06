@@ -381,9 +381,15 @@
             aria-live="polite"
             aria-atomic="true"
           >
-            <mat-icon class="feedback-host__tempo-trend-icon" aria-hidden="true">{{
-              tempoTrendIcon(data.tempoTrend?.status)
-            }}</mat-icon>
+            <span
+              class="feedback-host__tempo-trend-icon"
+              [class.feedback-host__tempo-trend-icon--compound]="
+                tempoTrendEmojiCompound(data.tempoTrend?.status)
+              "
+              aria-hidden="true"
+            >
+              {{ tempoTrendEmoji(data.tempoTrend?.status) }}
+            </span>
             <p class="feedback-host__tempo-trend-eyebrow" i18n="@@feedback.tempoTrendEyebrow">
               Tendenz
             </p>
@@ -693,7 +699,15 @@
               role="status"
               aria-live="polite"
             >
-              <mat-icon aria-hidden="true">{{ tempoTrendIcon(data.tempoTrend?.status) }}</mat-icon>
+              <span
+                class="feedback-host__tempo-strip-icon"
+                [class.feedback-host__tempo-strip-icon--compound]="
+                  tempoTrendEmojiCompound(data.tempoTrend?.status)
+                "
+                aria-hidden="true"
+              >
+                {{ tempoTrendEmoji(data.tempoTrend?.status) }}
+              </span>
               <span>{{ tempoTrendLabel(data.tempoTrend?.status) }}</span>
             </div>
           }

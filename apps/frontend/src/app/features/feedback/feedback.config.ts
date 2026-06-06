@@ -91,10 +91,10 @@ export const ABCD_OPTIONS: readonly FeedbackOption[] = [
 ];
 
 export const TEMPO_OPTIONS: readonly FeedbackOption[] = [
-  { value: 'SPEED_UP', label: $localize`:@@feedback.tempoSpeedUp:Schneller`, icon: '🚀' },
   { value: 'FOLLOWING', label: $localize`:@@feedback.tempoFollowing:Ich folge`, icon: '🙂' },
+  { value: 'SPEED_UP', label: $localize`:@@feedback.tempoSpeedUp:Schneller`, icon: '🐇' },
   { value: 'SLOW_DOWN', label: $localize`:@@feedback.tempoSlowDown:Langsamer`, icon: '🐢' },
-  { value: 'LOST', label: $localize`:@@feedback.tempoLost:Verloren`, icon: '😕' },
+  { value: 'LOST', label: $localize`:@@feedback.tempoLost:Verloren`, icon: '🙈' },
 ];
 
 export const FEEDBACK_OPTIONS: Record<QuickFeedbackType, readonly FeedbackOption[]> = {
@@ -114,7 +114,7 @@ export const QUICK_FEEDBACK_TEMPO_SPOTLIGHT: FeedbackSpotlightTemplate = {
   description: $localize`:@@feedback.tempoSpotlightDescription:Mit vier Icons zeigt deine Gruppe, ob sie folgen kann.`,
   actionLabel: $localize`:@@feedback.tempoSpotlightAction:Tempo-Feedback`,
   label: $localize`:@@feedback.titleTempo:Tempo`,
-  icons: [{ value: '🚀' }, { value: '🙂' }, { value: '🐢' }, { value: '😕' }],
+  icons: [{ value: '🙂' }, { value: '🐇' }, { value: '🐢' }, { value: '🙈' }],
 };
 
 export const QUICK_FEEDBACK_PRESET_CHIPS: readonly FeedbackPresetChip[] = [
@@ -270,20 +270,20 @@ export function tempoTrendLabel(status: TempoTrendStatus | string | null | undef
   }
 }
 
-export function tempoTrendIcon(status: TempoTrendStatus | string | null | undefined): string {
+export function tempoTrendEmoji(status: TempoTrendStatus | string | null | undefined): string {
   switch (status) {
     case 'FOLLOWING':
-      return 'check_circle';
+      return '🙂';
     case 'TOO_FAST':
-      return 'speed';
-    case 'LOST':
-      return 'warning';
+      return '🐢';
     case 'TOO_SLOW':
-      return 'keyboard_double_arrow_up';
+      return '🐇';
+    case 'LOST':
+      return '🙈';
     case 'HETEROGENEOUS':
-      return 'diversity_3';
+      return '🐇🐢';
     default:
-      return 'radio_button_unchecked';
+      return '○';
   }
 }
 

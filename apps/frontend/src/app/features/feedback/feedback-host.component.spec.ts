@@ -476,6 +476,9 @@ describe('FeedbackHostComponent', () => {
     expect(
       fixture.nativeElement.querySelector('.feedback-host__tempo-trend--standalone'),
     ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('.feedback-host__tempo-trend-icon')?.textContent?.trim(),
+    ).toBe('🙂');
 
     const detailsButton = Array.from(
       fixture.nativeElement.querySelectorAll<HTMLButtonElement>(
@@ -486,6 +489,9 @@ describe('FeedbackHostComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.feedback-host__tempo-strip')).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('.feedback-host__tempo-strip-icon')?.textContent?.trim(),
+    ).toBe('🙂');
     expect(fixture.nativeElement.querySelector('.feedback-host__bars')).toBeTruthy();
     fixture.destroy();
   });
