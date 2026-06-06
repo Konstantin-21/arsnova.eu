@@ -214,10 +214,13 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.embeddedInSession()) {
+    this.voted.set(hasAlreadyVoted(code));
+    const hasStandaloneRound = await this.pollStyle();
+
+    if (!this.embeddedInSession() && !hasStandaloneRound) {
       try {
         const session = await trpc.session.getInfo.query({ code });
-        if (session.type === 'QUIZ') {
+        if (session.type === 'QUIZ' && session.status !== 'FINISHED') {
           await this.router.navigateByUrl(this.localizedPath(`/session/${code}/vote`), {
             replaceUrl: true,
           });
@@ -228,8 +231,6 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.voted.set(hasAlreadyVoted(code));
-    await this.pollStyle();
     this.subscribeToResults();
     this.loading.set(false);
     this.pollTimer = setInterval(() => void this.pollStyle(), 3000);
@@ -244,15 +245,16 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
     this.selectedTempoValue.set(null);
   }
 
-  private async pollStyle(): Promise<void> {
+  private async pollStyle(): Promise<boolean> {
     const code = this.code();
     if (!code) {
-      return;
+      return false;
     }
 
     try {
       const result = await trpc.quickFeedback.results.query({ sessionCode: code });
       this.applyResult(result);
+      return true;
     } catch (error) {
       if (this.embeddedInSession()) {
         this.clearEmbeddedState();
@@ -260,6 +262,7 @@ export class FeedbackVoteComponent implements OnInit, OnDestroy {
       } else {
         this.error.set(this.localizeFeedbackLoadError(error));
       }
+      return false;
     }
   }
 
